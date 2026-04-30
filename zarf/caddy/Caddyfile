@@ -1,0 +1,12 @@
+http://api.bebra.com {
+    reverse_proxy api:8080
+}
+http:// {
+    handle_path /uploads/* {
+        root * /var/www/my-app/uploads
+        file_server
+    }
+    handle {
+        reverse_proxy api:8080
+    }
+}

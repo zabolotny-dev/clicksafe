@@ -1,0 +1,36 @@
+package organizationapp
+
+import (
+	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
+	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
+	"github.com/zabolotny-dev/clicksafe/business/types/name"
+	"github.com/zabolotny-dev/clicksafe/business/types/url"
+)
+
+type Organization struct {
+	Name       string            `json:"name"`
+	LogoURL    string            `json:"logo_url"`
+	Attributes map[string]string `json:"attributes"`
+}
+
+type Logo struct {
+	URL url.URL `json:"url"`
+}
+
+func toBusNewOrganization(org Organization) (organizationbus.NewOrganization, error) {
+	var errors errs.FieldErrors
+
+	name, err := name.Parse(org.Name)
+	if err != nil {
+		errors.Add("name", err)
+	}
+
+	if len(errors) > 0 {
+		return organizationbus.NewOrganization{}, errors.ToError()
+	}
+
+	return organizationbus.NewOrganization{
+		Name:       name,
+		Attributes: org.Attributes,
+	}, nil
+}

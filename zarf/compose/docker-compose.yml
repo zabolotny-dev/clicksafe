@@ -1,0 +1,95 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: clicksafe-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    env_file:
+      - ../../.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - clicksafe
+
+  api-migrator:
+    build:
+      context: ../..
+      dockerfile: zarf/docker/Dockerfile
+    image: clicksafe-api:latest
+    container_name: clicksafe-api-migrator
+    command: [ "/clicksafe_tool", "migrate" ]
+    environment:
+      - TOOLING_DB_USER=${POSTGRES_USER}
+      - TOOLING_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - TOOLING_DB_HOST=postgres:${POSTGRES_PORT}
+      - TOOLING_DB_NAME=${POSTGRES_DB}
+    env_file:
+      - ../../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clicksafe
+
+  api:
+    build:
+      context: ../..
+      dockerfile: zarf/docker/Dockerfile
+    image: clicksafe-api:latest
+    container_name: clicksafe-api
+    environment:
+      - API_DB_USER=${POSTGRES_USER}
+      - API_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - API_DB_HOST=postgres:${POSTGRES_PORT}
+      - API_DB_NAME=${POSTGRES_DB}
+      - API_STORAGE_BASE_PATH=/var/www/my-app/uploads
+    env_file:
+      - ../../.env
+    volumes:
+      - uploads_data:/var/www/my-app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api-migrator:
+        condition: service_completed_successfully
+    networks:
+      - clicksafe
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: clicksafe-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile
+      - uploads_data:/var/www/my-app/uploads
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - clicksafe
+    depends_on:
+      - api
+
+networks:
+  clicksafe:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:
