@@ -13,6 +13,8 @@ import (
 	"github.com/ardanlabs/conf/v3"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
+	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus/stores/departmentdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus/stores/eventdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
@@ -99,6 +101,9 @@ func run(ctx context.Context, log *logger.Logger) error {
 	organizationStore := organizationdb.NewStore(db)
 	organizationBus := organizationbus.NewBusiness(organizationStore, fileStore)
 
+	departmentStore := departmentdb.NewStore(db)
+	departmentBus := departmentbus.NewBusiness(departmentStore)
+
 	// -------------------------------------------------------------------------
 	// Start API Service
 
@@ -113,6 +118,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		Log:             log,
 		EventBus:        eventBus,
 		OrganizationBus: organizationBus,
+		DepartmentBus:   departmentBus,
 	})
 
 	s := http.Server{

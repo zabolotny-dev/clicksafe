@@ -19,6 +19,7 @@ var (
 type Storer interface {
 	Save(ctx context.Context, organization Organization) error
 	Get(ctx context.Context, id uuid.UUID) (Organization, error)
+	UpdateLogo(ctx context.Context, id uuid.UUID, logoURL url.URL) error
 }
 
 type FileStorage interface {
@@ -76,8 +77,7 @@ func (b *Business) SaveLogo(ctx context.Context, r io.Reader, ext string) (url.U
 		}
 	}
 
-	org.LogoURL = newURL
-	if err := b.storer.Save(ctx, org); err != nil {
+	if err := b.storer.UpdateLogo(ctx, GlobalID, newURL); err != nil {
 		return url.URL{}, fmt.Errorf("savelogo: update org: %w", err)
 	}
 

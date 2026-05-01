@@ -2,7 +2,6 @@ package organizationdb
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
@@ -14,7 +13,7 @@ import (
 func toDBOrganization(org organizationbus.Organization) (sqlc.Organization, error) {
 	attributes, err := json.Marshal(org.Attributes)
 	if err != nil {
-		return sqlc.Organization{}, fmt.Errorf("db: %w", err)
+		return sqlc.Organization{}, err
 	}
 
 	return sqlc.Organization{
@@ -29,7 +28,7 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 	var attributes map[string]string
 	if len(org.Attributes) > 0 {
 		if err := json.Unmarshal(org.Attributes, &attributes); err != nil {
-			return organizationbus.Organization{}, fmt.Errorf("db: %w", err)
+			return organizationbus.Organization{}, err
 		}
 	}
 
@@ -38,13 +37,13 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 		var err error
 		logoURL, err = url.Parse(org.LogoUrl.String)
 		if err != nil {
-			return organizationbus.Organization{}, fmt.Errorf("db: %w", err)
+			return organizationbus.Organization{}, err
 		}
 	}
 
 	orgName, err := name.Parse(org.Name)
 	if err != nil {
-		return organizationbus.Organization{}, fmt.Errorf("db: %w", err)
+		return organizationbus.Organization{}, err
 	}
 
 	return organizationbus.Organization{

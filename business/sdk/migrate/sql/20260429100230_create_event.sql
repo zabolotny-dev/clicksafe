@@ -14,10 +14,17 @@ CREATE TABLE IF NOT EXISTS organizations (
     logo_url VARCHAR(255),
     attributes JSONB
 );
+
+CREATE TABLE IF NOT EXISTS departments (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    attributes JSONB
+);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS organizations;
+DROP TABLE IF EXISTS departments;
 -- +goose StatementEnd

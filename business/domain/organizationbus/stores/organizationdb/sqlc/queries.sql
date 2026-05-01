@@ -1,8 +1,13 @@
 -- name: Save :exec
-INSERT INTO organizations (id, name, logo_url, attributes)
-VALUES ($1, $2, $3, $4)
+INSERT INTO organizations (id, name, attributes)
+VALUES ($1, $2, $3)
 ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name, logo_url = EXCLUDED.logo_url, attributes = EXCLUDED.attributes;
+SET name = EXCLUDED.name, attributes = EXCLUDED.attributes;
 
 -- name: GetByID :one
 SELECT * FROM organizations WHERE id = $1;
+
+-- name: UpdateLogo :exec
+UPDATE organizations
+SET logo_url = $1
+WHERE id = $2;

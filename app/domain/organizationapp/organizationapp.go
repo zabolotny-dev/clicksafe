@@ -30,10 +30,10 @@ func (a *app) create(c *echo.Context) error {
 	}
 
 	if err := a.organizationBus.Save(c.Request().Context(), newOrg); err != nil {
-		return errs.Errorf(errs.InternalOnlyLog, "save: %s", err)
+		return errs.Errorf(errs.InternalOnlyLog, "create: %s", err)
 	}
 
-	return nil
+	return c.NoContent(http.StatusCreated)
 }
 
 func (a *app) get(c *echo.Context) error {
@@ -45,24 +45,24 @@ func (a *app) get(c *echo.Context) error {
 		return errs.Errorf(errs.InternalOnlyLog, "get: %s", err)
 	}
 
-	return c.JSON(http.StatusOK, org)
+	return c.JSON(http.StatusOK, toAppOrganization(org))
 }
 
 func (a *app) saveLogo(c *echo.Context) error {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "file: %s", err)
+		return errs.Errorf(errs.InvalidArgument, "savelogo: file: %s", err)
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "open: %s", err)
+		return errs.Errorf(errs.InvalidArgument, "savelogo: open: %s", err)
 	}
 	defer file.Close()
 
 	ext := path.Ext(fileHeader.Filename)
 	if ext == "" {
-		return errs.Errorf(errs.InvalidArgument, "invalid extension")
+		return errs.Errorf(errs.InvalidArgument, "savelogo: invalid extension")
 	}
 
 	logoURL, err := a.organizationBus.SaveLogo(c.Request().Context(), file, ext)

@@ -7,9 +7,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb/sqlc"
+	"github.com/zabolotny-dev/clicksafe/business/types/url"
 )
 
 type Store struct {
@@ -23,13 +25,12 @@ func NewStore(pool *pgxpool.Pool) *Store {
 func (s *Store) Save(ctx context.Context, organization organizationbus.Organization) error {
 	org, err := toDBOrganization(organization)
 	if err != nil {
-		return err
+		return fmt.Errorf("db: %w", err)
 	}
 
 	return s.q.Save(ctx, sqlc.SaveParams{
 		ID:         org.ID,
 		Name:       org.Name,
-		LogoUrl:    org.LogoUrl,
 		Attributes: org.Attributes,
 	})
 }
@@ -44,4 +45,16 @@ func (s *Store) Get(ctx context.Context, id uuid.UUID) (organizationbus.Organiza
 	}
 
 	return toBusOrganization(org)
+}
+
+func (s *Store) UpdateLogo(ctx context.Context, id uuid.UUID, logoURL url.URL) error {
+	err := s.q.UpdateLogo(ctx, sqlc.UpdateLogoParams{
+		LogoUrl: pgtype.Text{String: logoURL.String(), Valid: !logoURL.IsEmpty()},
+		ID:      id,
+	})
+	if err != nil {
+		return fmt.Errorf("db: %w", err)
+	}
+
+	return nil
 }

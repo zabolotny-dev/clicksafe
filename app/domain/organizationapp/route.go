@@ -3,6 +3,7 @@ package organizationapp
 import (
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 )
 
@@ -17,5 +18,5 @@ func Routes(router *echo.Echo, cfg Config) {
 
 	router.POST("/organization", api.create)
 	router.GET("/organization", api.get)
-	router.PUT("/organization/logo", api.saveLogo, logoSizeLimit)
+	router.PUT("/organization/logo", api.saveLogo, logoSizeLimit, mid.AllowImagesOnly)
 }

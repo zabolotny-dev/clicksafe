@@ -29,16 +29,15 @@ func (q *Queries) GetByID(ctx context.Context, id uuid.UUID) (Organization, erro
 }
 
 const save = `-- name: Save :exec
-INSERT INTO organizations (id, name, logo_url, attributes)
-VALUES ($1, $2, $3, $4)
+INSERT INTO organizations (id, name, attributes)
+VALUES ($1, $2, $3)
 ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name, logo_url = EXCLUDED.logo_url, attributes = EXCLUDED.attributes
+SET name = EXCLUDED.name, attributes = EXCLUDED.attributes
 `
 
 type SaveParams struct {
 	ID         uuid.UUID
 	Name       string
-	LogoUrl    pgtype.Text
 	Attributes []byte
 }
 
@@ -46,8 +45,23 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 	_, err := q.db.Exec(ctx, save,
 		arg.ID,
 		arg.Name,
-		arg.LogoUrl,
 		arg.Attributes,
 	)
+	return err
+}
+
+const updateLogo = `-- name: UpdateLogo :exec
+UPDATE organizations
+SET logo_url = $1
+WHERE id = $2
+`
+
+type UpdateLogoParams struct {
+	LogoUrl pgtype.Text
+	ID      uuid.UUID
+}
+
+func (q *Queries) UpdateLogo(ctx context.Context, arg UpdateLogoParams) error {
+	_, err := q.db.Exec(ctx, updateLogo, arg.LogoUrl, arg.ID)
 	return err
 }

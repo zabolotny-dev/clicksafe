@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	GetByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	Save(ctx context.Context, arg SaveParams) error
+	UpdateLogo(ctx context.Context, arg UpdateLogoParams) error
 }
 
 var _ Querier = (*Queries)(nil)

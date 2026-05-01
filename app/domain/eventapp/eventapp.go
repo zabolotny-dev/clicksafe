@@ -1,6 +1,8 @@
 package eventapp
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
@@ -31,5 +33,5 @@ func (a *app) publish(c *echo.Context) error {
 		return errs.Errorf(errs.InternalOnlyLog, "publish: %s", err)
 	}
 
-	return nil
+	return c.NoContent(http.StatusOK)
 }
