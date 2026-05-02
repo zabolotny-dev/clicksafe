@@ -1,7 +1,6 @@
 package organizationapp
 
 import (
-	"errors"
 	"net/http"
 	"path"
 
@@ -30,7 +29,7 @@ func (a *app) create(c *echo.Context) error {
 	}
 
 	if err := a.organizationBus.Save(c.Request().Context(), newOrg); err != nil {
-		return errs.Errorf(errs.InternalOnlyLog, "create: %s", err)
+		return mapBusErr(err, "create")
 	}
 
 	return c.NoContent(http.StatusCreated)
@@ -39,10 +38,7 @@ func (a *app) create(c *echo.Context) error {
 func (a *app) get(c *echo.Context) error {
 	org, err := a.organizationBus.Get(c.Request().Context())
 	if err != nil {
-		if errors.Is(err, organizationbus.ErrNotFound) {
-			return errs.New(errs.NotFound, err)
-		}
-		return errs.Errorf(errs.InternalOnlyLog, "get: %s", err)
+		return mapBusErr(err, "get")
 	}
 
 	return c.JSON(http.StatusOK, toAppOrganization(org))
@@ -67,10 +63,7 @@ func (a *app) saveLogo(c *echo.Context) error {
 
 	logoURL, err := a.organizationBus.SaveLogo(c.Request().Context(), file, ext)
 	if err != nil {
-		if errors.Is(err, organizationbus.ErrNotFound) {
-			return errs.New(errs.NotFound, err)
-		}
-		return errs.Errorf(errs.InternalOnlyLog, "savelogo: %s", err)
+		return mapBusErr(err, "savelogo")
 	}
 
 	return c.JSON(http.StatusOK, Logo{URL: logoURL})

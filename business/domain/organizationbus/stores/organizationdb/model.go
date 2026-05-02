@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb/sqlc"
-	"github.com/zabolotny-dev/clicksafe/business/types/name"
+	"github.com/zabolotny-dev/clicksafe/business/types/label"
 	"github.com/zabolotny-dev/clicksafe/business/types/url"
 )
 
@@ -41,14 +41,14 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 		}
 	}
 
-	orgName, err := name.Parse(org.Name)
+	orgLabel, err := label.Parse(org.Name)
 	if err != nil {
 		return organizationbus.Organization{}, err
 	}
 
 	return organizationbus.Organization{
 		ID:         org.ID,
-		Name:       orgName,
+		Name:       orgLabel,
 		LogoURL:    logoURL,
 		Attributes: attributes,
 	}, nil

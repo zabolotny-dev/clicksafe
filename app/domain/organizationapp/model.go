@@ -4,7 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
-	"github.com/zabolotny-dev/clicksafe/business/types/name"
+	"github.com/zabolotny-dev/clicksafe/business/types/label"
 	"github.com/zabolotny-dev/clicksafe/business/types/url"
 )
 
@@ -27,7 +27,7 @@ type Logo struct {
 func toBusNewOrganization(org Organization) (organizationbus.NewOrganization, error) {
 	var errors errs.FieldErrors
 
-	name, err := name.Parse(org.Name)
+	lbl, err := label.Parse(org.Name)
 	if err != nil {
 		errors.Add("name", err)
 	}
@@ -37,7 +37,7 @@ func toBusNewOrganization(org Organization) (organizationbus.NewOrganization, er
 	}
 
 	return organizationbus.NewOrganization{
-		Name:       name,
+		Name:       lbl,
 		Attributes: org.Attributes,
 	}, nil
 }

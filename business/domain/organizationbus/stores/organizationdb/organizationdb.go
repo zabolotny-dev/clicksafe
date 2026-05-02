@@ -22,21 +22,21 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{q: sqlc.New(pool)}
 }
 
-func (s *Store) Save(ctx context.Context, organization organizationbus.Organization) error {
-	org, err := toDBOrganization(organization)
+func (s *Store) Save(ctx context.Context, org organizationbus.Organization) error {
+	dbOrg, err := toDBOrganization(org)
 	if err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
 
 	return s.q.Save(ctx, sqlc.SaveParams{
-		ID:         org.ID,
-		Name:       org.Name,
-		Attributes: org.Attributes,
+		ID:         dbOrg.ID,
+		Name:       dbOrg.Name,
+		Attributes: dbOrg.Attributes,
 	})
 }
 
-func (s *Store) Get(ctx context.Context, id uuid.UUID) (organizationbus.Organization, error) {
-	org, err := s.q.GetByID(ctx, id)
+func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (organizationbus.Organization, error) {
+	dbOrg, err := s.q.QueryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return organizationbus.Organization{}, organizationbus.ErrNotFound
@@ -44,7 +44,11 @@ func (s *Store) Get(ctx context.Context, id uuid.UUID) (organizationbus.Organiza
 		return organizationbus.Organization{}, fmt.Errorf("db: %w", err)
 	}
 
-	return toBusOrganization(org)
+	org, err := toBusOrganization(dbOrg)
+	if err != nil {
+		return organizationbus.Organization{}, fmt.Errorf("db: %w", err)
+	}
+	return org, nil
 }
 
 func (s *Store) UpdateLogo(ctx context.Context, id uuid.UUID, logoURL url.URL) error {

@@ -30,7 +30,7 @@ func (a *app) publish(c *echo.Context) error {
 	}
 
 	if err := a.eventBus.Publish(c.Request().Context(), ev); err != nil {
-		return errs.Errorf(errs.InternalOnlyLog, "publish: %s", err)
+		return mapBusErr(err, "publish")
 	}
 
 	return c.NoContent(http.StatusOK)

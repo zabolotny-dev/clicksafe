@@ -1,7 +1,6 @@
 package departmentapp
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
@@ -44,21 +43,21 @@ func (a *app) query(c *echo.Context) error {
 
 	deps, err := a.departmentBus.Query(c.Request().Context(), filter, orderby, page)
 	if err != nil {
-		return errs.Errorf(errs.InternalOnlyLog, "query: %s", err)
+		return mapBusErr(err, "query")
 	}
 
 	count, err := a.departmentBus.Count(c.Request().Context(), filter)
 	if err != nil {
-		return errs.Errorf(errs.InternalOnlyLog, "count: %s", err)
+		return mapBusErr(err, "count")
 	}
 
 	return c.JSON(http.StatusOK, query.NewResult(toAppDepartments(deps), count, page))
 }
 
-func (a *app) getByID(c *echo.Context) error {
+func (a *app) queryByID(c *echo.Context) error {
 	dep, err := mid.GetDepartment(c.Request().Context())
 	if err != nil {
-		return errs.Errorf(errs.Internal, "getbyid: %s", err)
+		return errs.Errorf(errs.Internal, "querybyid: %s", err)
 	}
 
 	return c.JSON(http.StatusOK, toAppDepartment(dep))
@@ -76,10 +75,7 @@ func (a *app) create(c *echo.Context) error {
 	}
 
 	if err := a.departmentBus.Save(c.Request().Context(), new); err != nil {
-		if errors.Is(err, departmentbus.ErrUniqueName) {
-			return errs.New(errs.AlreadyExists, err)
-		}
-		return errs.Errorf(errs.InternalOnlyLog, "create: %s", err)
+		return mapBusErr(err, "create")
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -102,10 +98,7 @@ func (a *app) update(c *echo.Context) error {
 	}
 
 	if err = a.departmentBus.Update(c.Request().Context(), dep, up); err != nil {
-		if errors.Is(err, departmentbus.ErrUniqueName) {
-			return errs.New(errs.AlreadyExists, err)
-		}
-		return errs.Errorf(errs.InternalOnlyLog, "update: %s", err)
+		return mapBusErr(err, "update")
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -119,7 +112,7 @@ func (a *app) deleteByID(c *echo.Context) error {
 
 	err = a.departmentBus.Delete(c.Request().Context(), dep)
 	if err != nil {
-		return errs.Errorf(errs.InternalOnlyLog, "deletebyid: %s", err)
+		return mapBusErr(err, "deletebyid")
 	}
 
 	return c.NoContent(http.StatusOK)

@@ -15,6 +15,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus/stores/departmentdb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus/stores/employeedb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus/stores/eventdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
@@ -104,6 +106,9 @@ func run(ctx context.Context, log *logger.Logger) error {
 	departmentStore := departmentdb.NewStore(db)
 	departmentBus := departmentbus.NewBusiness(departmentStore)
 
+	employeeStore := employeedb.NewStore(db)
+	employeeBus := employeebus.NewBusiness(employeeStore, departmentBus)
+
 	// -------------------------------------------------------------------------
 	// Start API Service
 
@@ -119,6 +124,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		EventBus:        eventBus,
 		OrganizationBus: organizationBus,
 		DepartmentBus:   departmentBus,
+		EmployeeBus:     employeeBus,
 	})
 
 	s := http.Server{

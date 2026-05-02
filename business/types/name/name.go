@@ -1,4 +1,4 @@
-// Package name represents a name in the system.
+// Package name represents a person's name in the system.
 package name
 
 import (
@@ -6,7 +6,7 @@ import (
 	"regexp"
 )
 
-// Name represents a name in the system.
+// Name represents a validated personal name in the system.
 type Name struct {
 	value string
 }
@@ -28,10 +28,10 @@ func (n Name) MarshalText() ([]byte, error) {
 
 // =============================================================================
 
-var nameRegEx = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9' -]{2,19}$")
+var nameRegEx = regexp.MustCompile(`^[\p{Latin}\p{Cyrillic}][\p{Latin}\p{Cyrillic}' -]{1,19}$`)
 
 // Parse parses the string value and returns a name if the value complies
-// with the rules for a name.
+// with the rules for a personal name.
 func Parse(value string) (Name, error) {
 	if !nameRegEx.MatchString(value) {
 		return Name{}, fmt.Errorf("invalid name %q", value)
@@ -40,8 +40,8 @@ func Parse(value string) (Name, error) {
 	return Name{value}, nil
 }
 
-// MustParse parses the string value and returns a name if the value
-// complies with the rules for a name. If an error occurs the function panics.
+// MustParse parses the string value and returns a name if the value complies
+// with the rules for a personal name. If an error occurs the function panics.
 func MustParse(value string) Name {
 	name, err := Parse(value)
 	if err != nil {

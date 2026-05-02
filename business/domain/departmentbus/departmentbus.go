@@ -24,6 +24,15 @@ type Storer interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
+type ExtBusiness interface {
+	Save(ctx context.Context, department NewDepartment) error
+	Update(ctx context.Context, department Department, up UpdateDepartment) error
+	Delete(ctx context.Context, department Department) error
+	QueryByID(ctx context.Context, id uuid.UUID) (Department, error)
+	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Department, error)
+	Count(ctx context.Context, filter QueryFilter) (int, error)
+}
+
 type Business struct {
 	storer Storer
 }
@@ -73,7 +82,7 @@ func (b *Business) Delete(ctx context.Context, department Department) error {
 func (b *Business) QueryByID(ctx context.Context, id uuid.UUID) (Department, error) {
 	dep, err := b.storer.QueryByID(ctx, id)
 	if err != nil {
-		return Department{}, fmt.Errorf("querybyid: %w", err)
+		return Department{}, fmt.Errorf("query: departmentID[%s]: %w", id, err)
 	}
 
 	return dep, nil

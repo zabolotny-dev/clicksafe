@@ -8,6 +8,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const (
+	UniqueViolation = "23505"
+)
+
 type Config struct {
 	Host         string
 	Name         string

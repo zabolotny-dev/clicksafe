@@ -13,8 +13,8 @@ import (
 type Querier interface {
 	Count(ctx context.Context, arg CountParams) (int64, error)
 	Delete(ctx context.Context, id uuid.UUID) error
-	GetByID(ctx context.Context, id uuid.UUID) (Department, error)
 	Query(ctx context.Context, arg QueryParams) ([]Department, error)
+	QueryByID(ctx context.Context, id uuid.UUID) (Department, error)
 	Save(ctx context.Context, arg SaveParams) error
 	Update(ctx context.Context, arg UpdateParams) error
 }

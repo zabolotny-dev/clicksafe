@@ -4,7 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
-	"github.com/zabolotny-dev/clicksafe/business/types/name"
+	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
 type Department struct {
@@ -34,7 +34,7 @@ func toAppDepartment(d departmentbus.Department) Department {
 func toBusNewDepartment(d NewDepartment) (departmentbus.NewDepartment, error) {
 	var errors errs.FieldErrors
 
-	nm, err := name.Parse(d.Name)
+	lbl, err := label.Parse(d.Name)
 	if err != nil {
 		errors.Add("name", err)
 	}
@@ -44,7 +44,7 @@ func toBusNewDepartment(d NewDepartment) (departmentbus.NewDepartment, error) {
 	}
 
 	return departmentbus.NewDepartment{
-		Name:       nm,
+		Name:       lbl,
 		Attributes: d.Attributes,
 	}, nil
 }
@@ -52,13 +52,13 @@ func toBusNewDepartment(d NewDepartment) (departmentbus.NewDepartment, error) {
 func toBusUpdateDepartment(d UpdateDepartment) (departmentbus.UpdateDepartment, error) {
 	var errors errs.FieldErrors
 
-	var nam *name.Name
+	var lbl *label.Label
 	if d.Name != nil {
-		nm, err := name.Parse(*d.Name)
+		parsed, err := label.Parse(*d.Name)
 		if err != nil {
 			errors.Add("name", err)
 		}
-		nam = &nm
+		lbl = &parsed
 	}
 
 	if len(errors) > 0 {
@@ -66,7 +66,7 @@ func toBusUpdateDepartment(d UpdateDepartment) (departmentbus.UpdateDepartment, 
 	}
 
 	return departmentbus.UpdateDepartment{
-		Name:       nam,
+		Name:       lbl,
 		Attributes: d.Attributes,
 	}, nil
 }

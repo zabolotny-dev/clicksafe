@@ -5,7 +5,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
-	"github.com/zabolotny-dev/clicksafe/business/types/name"
+	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
 type queryParams struct {
@@ -44,11 +44,11 @@ func parseFilter(qp queryParams) (departmentbus.QueryFilter, error) {
 	}
 
 	if qp.Name != "" {
-		name, err := name.Parse(qp.Name)
+		lbl, err := label.Parse(qp.Name)
 		if err != nil {
 			fieldErrors.Add("name", err)
 		} else {
-			filter.Name = &name
+			filter.Name = &lbl
 		}
 	}
 

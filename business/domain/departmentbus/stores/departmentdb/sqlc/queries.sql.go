@@ -41,18 +41,6 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getByID = `-- name: GetByID :one
-SELECT id, name, attributes FROM departments
-WHERE id = $1
-`
-
-func (q *Queries) GetByID(ctx context.Context, id uuid.UUID) (Department, error) {
-	row := q.db.QueryRow(ctx, getByID, id)
-	var i Department
-	err := row.Scan(&i.ID, &i.Name, &i.Attributes)
-	return i, err
-}
-
 const query = `-- name: Query :many
 SELECT id, name, attributes FROM departments
 WHERE 
@@ -102,6 +90,18 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Department, err
 		return nil, err
 	}
 	return items, nil
+}
+
+const queryByID = `-- name: QueryByID :one
+SELECT id, name, attributes FROM departments
+WHERE id = $1
+`
+
+func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Department, error) {
+	row := q.db.QueryRow(ctx, queryByID, id)
+	var i Department
+	err := row.Scan(&i.ID, &i.Name, &i.Attributes)
+	return i, err
 }
 
 const save = `-- name: Save :exec

@@ -11,7 +11,7 @@ WHERE id = $3;
 DELETE FROM departments
 WHERE id = $1;
 
--- name: GetByID :one
+-- name: QueryByID :one
 SELECT * FROM departments
 WHERE id = $1;
 

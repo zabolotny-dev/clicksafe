@@ -18,7 +18,7 @@ var (
 
 type Storer interface {
 	Save(ctx context.Context, organization Organization) error
-	Get(ctx context.Context, id uuid.UUID) (Organization, error)
+	QueryByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	UpdateLogo(ctx context.Context, id uuid.UUID, logoURL url.URL) error
 }
 
@@ -53,7 +53,7 @@ func (b *Business) Save(ctx context.Context, organization NewOrganization) error
 }
 
 func (b *Business) Get(ctx context.Context) (Organization, error) {
-	organization, err := b.storer.Get(ctx, GlobalID)
+	organization, err := b.storer.QueryByID(ctx, GlobalID)
 	if err != nil {
 		return Organization{}, fmt.Errorf("get: %w", err)
 	}
@@ -66,7 +66,7 @@ func (b *Business) SaveLogo(ctx context.Context, r io.Reader, ext string) (url.U
 		return url.URL{}, fmt.Errorf("savelogo: save file: %w", err)
 	}
 
-	org, err := b.storer.Get(ctx, GlobalID)
+	org, err := b.storer.QueryByID(ctx, GlobalID)
 	if err != nil {
 		return url.URL{}, fmt.Errorf("savelogo: get org: %w", err)
 	}

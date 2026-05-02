@@ -5,7 +5,7 @@ import (
 
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus/stores/departmentdb/sqlc"
-	"github.com/zabolotny-dev/clicksafe/business/types/name"
+	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
 func toDBDepartment(d departmentbus.Department) (sqlc.Department, error) {
@@ -29,14 +29,28 @@ func toBusDepartment(d sqlc.Department) (departmentbus.Department, error) {
 		}
 	}
 
-	dName, err := name.Parse(d.Name)
+	dLabel, err := label.Parse(d.Name)
 	if err != nil {
 		return departmentbus.Department{}, err
 	}
 
 	return departmentbus.Department{
 		ID:         d.ID,
-		Name:       dName,
+		Name:       dLabel,
 		Attributes: attributes,
 	}, nil
+}
+
+func toBusDepartments(departments []sqlc.Department) ([]departmentbus.Department, error) {
+	busDepartments := make([]departmentbus.Department, len(departments))
+
+	for i, e := range departments {
+		var err error
+		busDepartments[i], err = toBusDepartment(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return busDepartments, nil
 }

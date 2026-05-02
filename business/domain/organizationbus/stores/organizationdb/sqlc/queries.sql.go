@@ -12,12 +12,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getByID = `-- name: GetByID :one
+const queryByID = `-- name: QueryByID :one
 SELECT id, name, logo_url, attributes FROM organizations WHERE id = $1
 `
 
-func (q *Queries) GetByID(ctx context.Context, id uuid.UUID) (Organization, error) {
-	row := q.db.QueryRow(ctx, getByID, id)
+func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Organization, error) {
+	row := q.db.QueryRow(ctx, queryByID, id)
 	var i Organization
 	err := row.Scan(
 		&i.ID,
@@ -42,11 +42,7 @@ type SaveParams struct {
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
-	_, err := q.db.Exec(ctx, save,
-		arg.ID,
-		arg.Name,
-		arg.Attributes,
-	)
+	_, err := q.db.Exec(ctx, save, arg.ID, arg.Name, arg.Attributes)
 	return err
 }
 

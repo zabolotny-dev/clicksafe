@@ -4,7 +4,7 @@ VALUES ($1, $2, $3)
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name, attributes = EXCLUDED.attributes;
 
--- name: GetByID :one
+-- name: QueryByID :one
 SELECT * FROM organizations WHERE id = $1;
 
 -- name: UpdateLogo :exec

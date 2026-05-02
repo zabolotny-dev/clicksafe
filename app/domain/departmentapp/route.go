@@ -16,7 +16,7 @@ func Routes(router *echo.Echo, cfg Config) {
 	loadDepartment := mid.LoadDepartment(cfg.DepartmentBus)
 
 	router.GET("/department", api.query)
-	router.GET("/department/:id", api.getByID, loadDepartment)
+	router.GET("/department/:id", api.queryByID, loadDepartment)
 	router.POST("/department", api.create)
 	router.PUT("/department/:id", api.update, loadDepartment)
 	router.DELETE("/department/:id", api.deleteByID, loadDepartment)

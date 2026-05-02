@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	ctx := context.Context(context.Background())
+	ctx := context.Background()
 
 	log := logger.New(os.Stdout, logger.LevelInfo, "tooling")
 	if err := run(); err != nil {
