@@ -133,6 +133,26 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error)
 	return items, nil
 }
 
+const queryByID = `-- name: QueryByID :one
+SELECT id, label, from_email, from_name, subject, content_path, required_vars FROM messages
+WHERE id = $1
+`
+
+func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Message, error) {
+	row := q.db.QueryRow(ctx, queryByID, id)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.Label,
+		&i.FromEmail,
+		&i.FromName,
+		&i.Subject,
+		&i.ContentPath,
+		&i.RequiredVars,
+	)
+	return i, err
+}
+
 const save = `-- name: Save :exec
 INSERT INTO messages (
     id,

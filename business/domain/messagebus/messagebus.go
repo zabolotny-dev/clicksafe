@@ -5,26 +5,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
-)
-
-var (
-	ErrUniqueLabel               = errors.New("Message with this label already exists")
-	ErrContentNotFound           = errors.New("message content not found")
-	ErrEmptyContent              = errors.New("message content is empty")
-	ErrUnsupportedTemplateSyntax = errors.New("unsupported template syntax")
 )
 
 type Storer interface {
 	Save(ctx context.Context, msg Message) error
 	Update(ctx context.Context, msg Message) error
 	Delete(ctx context.Context, msg Message) error
+	QueryByID(ctx context.Context, id uuid.UUID) (Message, error)
 	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Message, error)
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
@@ -38,10 +34,11 @@ type FileStorage interface {
 type Business struct {
 	storer    Storer
 	fileStore FileStorage
+	resolver  resolverbus.ExtBusiness
 }
 
-func NewBusiness(s Storer, fileStore FileStorage) *Business {
-	return &Business{storer: s, fileStore: fileStore}
+func NewBusiness(s Storer, fileStore FileStorage, resolver resolverbus.ExtBusiness) *Business {
+	return &Business{storer: s, fileStore: fileStore, resolver: resolver}
 }
 
 func (b *Business) Save(ctx context.Context, msg NewMessage) (Message, error) {
@@ -87,6 +84,15 @@ func (b *Business) Delete(ctx context.Context, msg Message) error {
 	}
 
 	return nil
+}
+
+func (b *Business) QueryByID(ctx context.Context, id uuid.UUID) (Message, error) {
+	msg, err := b.storer.QueryByID(ctx, id)
+	if err != nil {
+		return Message{}, fmt.Errorf("query: messageID[%s]: %w", id, err)
+	}
+
+	return msg, nil
 }
 
 func (b *Business) Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Message, error) {
@@ -158,4 +164,40 @@ func (b *Business) ReadContent(ctx context.Context, msg Message) ([]byte, error)
 	}
 
 	return content, nil
+}
+
+func (b *Business) Render(ctx context.Context, msg Message, scope resolverbus.Scope) (string, error) {
+	if b.resolver == nil {
+		return "", fmt.Errorf("render: %w", ErrResolverNotConfigured)
+	}
+
+	content, err := b.ReadContent(ctx, msg)
+	if err != nil {
+		return "", fmt.Errorf("render: read content: %w", err)
+	}
+
+	resolved, err := b.resolver.Resolve(ctx, scope, msg.RequiredVars)
+	if err != nil {
+		return "", fmt.Errorf("render: resolve: %w", err)
+	}
+
+	if len(resolved.Missing) > 0 {
+		return "", &MissingRequiredVarsError{Vars: append([]string(nil), resolved.Missing...)}
+	}
+
+	tmpl, err := template.New("message").Option("missingkey=error").Parse(string(content))
+	if err != nil {
+		return "", fmt.Errorf("render: parse template: %w", unsupportedTemplateSyntax(err))
+	}
+
+	if resolved.Data == nil {
+		resolved.Data = map[string]any{}
+	}
+
+	var out bytes.Buffer
+	if err := tmpl.Execute(&out, resolved.Data); err != nil {
+		return "", fmt.Errorf("render: execute template: %w", err)
+	}
+
+	return out.String(), nil
 }

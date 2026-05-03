@@ -26,7 +26,7 @@ services:
   api-migrator:
     build:
       context: ../..
-      dockerfile: zarf/docker/Dockerfile
+      dockerfile: zarf/docker/Dockerfile.api
     image: clicksafe-api:latest
     container_name: clicksafe-api-migrator
     command: [ "/clicksafe_tool", "migrate" ]
@@ -46,7 +46,7 @@ services:
   api:
     build:
       context: ../..
-      dockerfile: zarf/docker/Dockerfile
+      dockerfile: zarf/docker/Dockerfile.api
     image: clicksafe-api:latest
     container_name: clicksafe-api
     environment:
@@ -56,10 +56,13 @@ services:
       - API_DB_NAME=${POSTGRES_DB}
       - API_STORAGE_ROOT_DIR=/var/www/my-app/public
       - API_STORAGE_PATH_PREFIX=/public
+      - API_STORAGE_MESSAGE_ROOT_DIR=/var/www/my-app/private/messages
+      - API_STORAGE_MESSAGE_PATH_PREFIX=/messages
     env_file:
       - ../../.env
     volumes:
       - uploads_data:/var/www/my-app/public
+      - message_content_data:/var/www/my-app/private/messages
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,7 +72,12 @@ services:
       - clicksafe
 
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: ../..
+      dockerfile: zarf/docker/Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: ""
+    image: clicksafe-caddy:latest
     container_name: clicksafe-caddy
     restart: always
     ports:
@@ -92,5 +100,6 @@ networks:
 volumes:
   postgres_data:
   uploads_data:
+  message_content_data:
   caddy_data:
   caddy_config:

@@ -1,12 +1,32 @@
-http://api.bebra.com {
-    reverse_proxy api:8080
-}
 http:// {
-    handle_path /public/* {
-        root * /var/www/my-app/public
-        file_server
-    }
-    handle {
-        reverse_proxy api:8080
-    }
+	handle /organization* {
+		reverse_proxy api:8080
+	}
+
+	handle /department* {
+		reverse_proxy api:8080
+	}
+
+	handle /employee* {
+		reverse_proxy api:8080
+	}
+
+	handle /message* {
+		reverse_proxy api:8080
+	}
+
+	handle /events* {
+		reverse_proxy api:8080
+	}
+
+	handle_path /public/* {
+		root * /var/www/my-app/public
+		file_server
+	}
+
+	handle {
+		root * /var/www/my-app/frontend
+		try_files {path} {path}/ /index.html
+		file_server
+	}
 }

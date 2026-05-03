@@ -5,11 +5,13 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/domain/departmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/employeeapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/eventapp"
+	"github.com/zabolotny-dev/clicksafe/app/domain/messageapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/organizationapp"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 )
@@ -20,6 +22,7 @@ type Config struct {
 	OrganizationBus *organizationbus.Business
 	DepartmentBus   *departmentbus.Business
 	EmployeeBus     *employeebus.Business
+	MessageBus      *messagebus.Business
 }
 
 func Add(e *echo.Echo, cfg Config) {
@@ -39,5 +42,9 @@ func Add(e *echo.Echo, cfg Config) {
 
 	employeeapp.Routes(e, employeeapp.Config{
 		EmployeeBus: cfg.EmployeeBus,
+	})
+
+	messageapp.Routes(e, messageapp.Config{
+		MessageBus: cfg.MessageBus,
 	})
 }

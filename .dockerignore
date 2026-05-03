@@ -2,3 +2,10 @@
 .dockerignore
 .gitignore
 zarf/
+api/frontend/node_modules/
+api/frontend/dist/
+api/frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

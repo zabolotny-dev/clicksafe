@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
@@ -82,6 +84,24 @@ func (s *Store) Delete(ctx context.Context, msg messagebus.Message) error {
 	}
 
 	return nil
+}
+
+func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (messagebus.Message, error) {
+	dbMsg, err := s.q.QueryByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return messagebus.Message{}, messagebus.ErrNotFound
+		}
+
+		return messagebus.Message{}, fmt.Errorf("db: %w", err)
+	}
+
+	msg, err := toBusMessage(dbMsg)
+	if err != nil {
+		return messagebus.Message{}, fmt.Errorf("db: %w", err)
+	}
+
+	return msg, nil
 }
 
 func (s *Store) Query(ctx context.Context, filter messagebus.QueryFilter, orderBy order.By, page page.Page) ([]messagebus.Message, error) {

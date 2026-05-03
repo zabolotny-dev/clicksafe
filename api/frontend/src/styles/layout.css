@@ -1,0 +1,135 @@
+.app-shell {
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px 16px;
+  border-right: 1px solid #d9e0e7;
+  background: #ffffff;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #157f72;
+  font-weight: 800;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand strong {
+  font-size: 18px;
+}
+
+.brand span,
+.mini-label,
+.api-box small {
+  color: #697789;
+  font-size: 12px;
+}
+
+.mini-label {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.nav-menu {
+  border-right: 0;
+}
+
+.nav-menu .el-menu-item {
+  height: 44px;
+  border-radius: 8px;
+}
+
+.nav-menu .el-menu-item.is-active {
+  color: #0f665d;
+  background: #e7f4f1;
+}
+
+.api-box {
+  margin-top: auto;
+  padding: 14px;
+  border: 1px solid #d9e0e7;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.api-box .el-input {
+  margin: 8px 0 6px;
+}
+
+.workspace {
+  min-width: 0;
+  padding: 28px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.topbar h1,
+.panel h2 {
+  margin: 0;
+  line-height: 1.12;
+}
+
+.topbar h1 {
+  font-size: 30px;
+}
+
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.error-alert {
+  margin-bottom: 18px;
+}
+
+.section-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.grid {
+  display: grid;
+  gap: 18px;
+}
+
+.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wide-left {
+  grid-template-columns: minmax(0, 1.4fr) minmax(360px, 0.8fr);
+}

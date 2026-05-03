@@ -26,6 +26,10 @@ WHERE id = $7;
 DELETE FROM messages
 WHERE id = $1;
 
+-- name: QueryByID :one
+SELECT * FROM messages
+WHERE id = $1;
+
 -- name: Query :many
 SELECT * FROM messages
 WHERE

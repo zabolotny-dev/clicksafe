@@ -19,8 +19,11 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus/stores/employeedb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus/stores/eventdb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus/stores/messagedb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
@@ -60,8 +63,10 @@ func run(ctx context.Context, log *logger.Logger) error {
 			MaxOpenConns int    `conf:"default:25"`
 		}
 		Storage struct {
-			RootDir    string `conf:"default:./public"`
-			PathPrefix string `conf:"default:/uploads"`
+			RootDir           string `conf:"default:./public"`
+			PathPrefix        string `conf:"default:/uploads"`
+			MessageRootDir    string `conf:"default:./private/messages"`
+			MessagePathPrefix string `conf:"default:/messages"`
 		}
 	}{}
 
@@ -95,19 +100,25 @@ func run(ctx context.Context, log *logger.Logger) error {
 	// -------------------------------------------------------------------------
 	// Create Business Packages
 
-	fileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
+	publicFileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
+	messageFileStore := filestore.New(cfg.Storage.MessageRootDir, cfg.Storage.MessagePathPrefix)
 
 	eventStore := eventdb.NewStore(db)
 	eventBus := eventbus.NewBusinnes(eventStore)
 
 	organizationStore := organizationdb.NewStore(db)
-	organizationBus := organizationbus.NewBusiness(organizationStore, fileStore)
+	organizationBus := organizationbus.NewBusiness(organizationStore, publicFileStore)
 
 	departmentStore := departmentdb.NewStore(db)
 	departmentBus := departmentbus.NewBusiness(departmentStore)
 
 	employeeStore := employeedb.NewStore(db)
 	employeeBus := employeebus.NewBusiness(employeeStore, departmentBus)
+
+	resolverBus := resolverbus.NewBusiness(employeeBus, departmentBus, organizationBus)
+
+	messageStore := messagedb.NewStore(db)
+	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
 
 	// -------------------------------------------------------------------------
 	// Start API Service
@@ -125,6 +136,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		OrganizationBus: organizationBus,
 		DepartmentBus:   departmentBus,
 		EmployeeBus:     employeeBus,
+		MessageBus:      messageBus,
 	})
 
 	s := http.Server{

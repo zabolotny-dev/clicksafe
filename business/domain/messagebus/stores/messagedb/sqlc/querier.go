@@ -14,6 +14,7 @@ type Querier interface {
 	Count(ctx context.Context, arg CountParams) (int64, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	Query(ctx context.Context, arg QueryParams) ([]Message, error)
+	QueryByID(ctx context.Context, id uuid.UUID) (Message, error)
 	Save(ctx context.Context, arg SaveParams) error
 	Update(ctx context.Context, arg UpdateParams) error
 }

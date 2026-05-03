@@ -8,6 +8,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 )
 
 var ErrInvalidID = errors.New("ID is not in its proper form")
@@ -72,6 +73,41 @@ func LoadEmployee(employeeBus *employeebus.Business) echo.MiddlewareFunc {
 
 				c.SetRequest(c.Request().WithContext(
 					setEmployee(c.Request().Context(), employee),
+				))
+			}
+
+			return next(c)
+		}
+
+		return h
+	}
+
+	return m
+}
+
+func LoadMessage(messageBus *messagebus.Business) echo.MiddlewareFunc {
+	m := func(next echo.HandlerFunc) echo.HandlerFunc {
+		h := func(c *echo.Context) error {
+			id := c.Param("id")
+
+			if id != "" {
+				messageID, err := uuid.Parse(id)
+				if err != nil {
+					return errs.New(errs.InvalidArgument, ErrInvalidID)
+				}
+
+				message, err := messageBus.QueryByID(c.Request().Context(), messageID)
+				if err != nil {
+					switch {
+					case errors.Is(err, messagebus.ErrNotFound):
+						return errs.New(errs.NotFound, err)
+					default:
+						return errs.Errorf(errs.InternalOnlyLog, "querybyid: messageID[%s]: %s", messageID, err)
+					}
+				}
+
+				c.SetRequest(c.Request().WithContext(
+					setMessage(c.Request().Context(), message),
 				))
 			}
 
