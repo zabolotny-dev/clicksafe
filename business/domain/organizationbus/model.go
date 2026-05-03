@@ -9,11 +9,16 @@ import (
 type Organization struct {
 	ID         uuid.UUID
 	Label      label.Label
-	LogoPath   file.Path
+	LogoPath   file.Null
 	Attributes map[string]string
 }
 
 type NewOrganization struct {
 	Label      label.Label
 	Attributes map[string]string
+}
+
+type UpdateOrganization struct {
+	Label      *label.Label
+	Attributes *map[string]string
 }

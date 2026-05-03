@@ -33,28 +33,19 @@ func toBusMessage(msg sqlc.Message) (messagebus.Message, error) {
 		return messagebus.Message{}, err
 	}
 
-	var fromName label.Null
-	if msg.FromName.Valid {
-		fromName, err = label.ParseNull(msg.FromName.String)
-		if err != nil {
-			return messagebus.Message{}, err
-		}
+	fromName, err := label.ParseNull(msg.FromName.String)
+	if err != nil {
+		return messagebus.Message{}, err
 	}
 
-	var sub subject.Null
-	if msg.Subject.Valid {
-		sub, err = subject.ParseNull(msg.Subject.String)
-		if err != nil {
-			return messagebus.Message{}, err
-		}
+	sub, err := subject.ParseNull(msg.Subject.String)
+	if err != nil {
+		return messagebus.Message{}, err
 	}
 
-	var contentPath file.Null
-	if msg.ContentPath.Valid {
-		contentPath, err = file.ParseNull(msg.ContentPath.String)
-		if err != nil {
-			return messagebus.Message{}, err
-		}
+	contentPath, err := file.ParseNull(msg.ContentPath.String)
+	if err != nil {
+		return messagebus.Message{}, err
 	}
 
 	return messagebus.Message{

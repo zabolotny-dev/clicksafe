@@ -31,13 +31,9 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 		}
 	}
 
-	var logoPath file.Path
-	if org.LogoPath.Valid {
-		var err error
-		logoPath, err = file.Parse(org.LogoPath.String)
-		if err != nil {
-			return organizationbus.Organization{}, err
-		}
+	logoPath, err := file.ParseNull(org.LogoPath.String)
+	if err != nil {
+		return organizationbus.Organization{}, err
 	}
 
 	orgLabel, err := label.Parse(org.Label)

@@ -19,11 +19,6 @@ func (p Path) String() string {
 	return p.value
 }
 
-// IsEmpty reports whether the path has no value.
-func (p Path) IsEmpty() bool {
-	return p.value == ""
-}
-
 // Equal provides support for the go-cmp package and testing.
 func (p Path) Equal(p2 Path) bool {
 	return p.value == p2.value
@@ -32,13 +27,6 @@ func (p Path) Equal(p2 Path) bool {
 // MarshalText provides support for logging and any marshal needs.
 func (p Path) MarshalText() ([]byte, error) {
 	return []byte(p.value), nil
-}
-
-func (p Path) ToSQLNullString() pgtype.Text {
-	return pgtype.Text{
-		String: p.String(),
-		Valid:  !p.IsEmpty(),
-	}
 }
 
 // Parse parses the string value and returns a path if the value complies
@@ -129,5 +117,12 @@ func (n Null) ToSQLNullString() pgtype.Text {
 	return pgtype.Text{
 		String: n.String(),
 		Valid:  n.valid,
+	}
+}
+
+func NewNullPath(p Path) Null {
+	return Null{
+		value: p,
+		valid: true,
 	}
 }

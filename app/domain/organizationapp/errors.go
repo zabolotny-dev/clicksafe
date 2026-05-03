@@ -9,6 +9,8 @@ import (
 
 func mapBusErr(err error, msg string) error {
 	switch {
+	case errors.Is(err, organizationbus.ErrAlreadyExists):
+		return errs.New(errs.AlreadyExists, err)
 	case errors.Is(err, organizationbus.ErrNotFound):
 		return errs.New(errs.NotFound, err)
 	default:

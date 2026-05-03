@@ -1,17 +1,24 @@
 package messagebus
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
+	"github.com/zabolotny-dev/clicksafe/business/types/file"
 )
 
 var (
-	ErrUniqueLabel = errors.New("Message with this label already exists")
+	ErrUniqueLabel               = errors.New("Message with this label already exists")
+	ErrContentNotFound           = errors.New("message content not found")
+	ErrEmptyContent              = errors.New("message content is empty")
+	ErrUnsupportedTemplateSyntax = errors.New("unsupported template syntax")
 )
 
 type Storer interface {
@@ -22,12 +29,19 @@ type Storer interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
-type Business struct {
-	storer Storer
+type FileStorage interface {
+	Save(ctx context.Context, r io.Reader, ext string) (file.Path, error)
+	Read(ctx context.Context, p file.Path) ([]byte, error)
+	Delete(ctx context.Context, p file.Path) error
 }
 
-func NewBusiness(s Storer) *Business {
-	return &Business{storer: s}
+type Business struct {
+	storer    Storer
+	fileStore FileStorage
+}
+
+func NewBusiness(s Storer, fileStore FileStorage) *Business {
+	return &Business{storer: s, fileStore: fileStore}
 }
 
 func (b *Business) Save(ctx context.Context, msg NewMessage) (Message, error) {
@@ -91,4 +105,57 @@ func (b *Business) Count(ctx context.Context, filter QueryFilter) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (b *Business) SaveContent(ctx context.Context, msg Message, r io.Reader) (Message, error) {
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return Message{}, fmt.Errorf("savecontent: read: %w", err)
+	}
+
+	if len(bytes.TrimSpace(content)) == 0 {
+		return Message{}, ErrEmptyContent
+	}
+
+	requiredVars, err := validateAndExtractRequiredVars(content)
+	if err != nil {
+		return Message{}, fmt.Errorf("savecontent: %w", err)
+	}
+
+	newPath, err := b.fileStore.Save(ctx, bytes.NewReader(content), ".html")
+	if err != nil {
+		return Message{}, fmt.Errorf("savecontent: save file: %w", err)
+	}
+
+	oldPath := msg.ContentPath
+
+	msg.ContentPath = file.NewNullPath(newPath)
+	msg.RequiredVars = requiredVars
+
+	if err := b.storer.Update(ctx, msg); err != nil {
+		_ = b.fileStore.Delete(ctx, newPath)
+		return Message{}, fmt.Errorf("savecontent: update: %w", err)
+	}
+
+	if oldPath.Valid() && !oldPath.Path().Equal(newPath) {
+		_ = b.fileStore.Delete(ctx, oldPath.Path())
+	}
+
+	return msg, nil
+}
+
+func (b *Business) ReadContent(ctx context.Context, msg Message) ([]byte, error) {
+	if !msg.ContentPath.Valid() {
+		return nil, ErrContentNotFound
+	}
+
+	content, err := b.fileStore.Read(ctx, msg.ContentPath.Path())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrContentNotFound
+		}
+		return nil, fmt.Errorf("readcontent: read file: %w", err)
+	}
+
+	return content, nil
 }

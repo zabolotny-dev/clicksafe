@@ -7,10 +7,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb/sqlc"
-	"github.com/zabolotny-dev/clicksafe/business/types/file"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 )
 
 type Store struct {
@@ -27,11 +28,21 @@ func (s *Store) Save(ctx context.Context, org organizationbus.Organization) erro
 		return fmt.Errorf("db: %w", err)
 	}
 
-	return s.q.Save(ctx, sqlc.SaveParams{
+	err = s.q.Save(ctx, sqlc.SaveParams{
 		ID:         dbOrg.ID,
 		Label:      dbOrg.Label,
+		LogoPath:   dbOrg.LogoPath,
 		Attributes: dbOrg.Attributes,
 	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
+			return organizationbus.ErrAlreadyExists
+		}
+		return fmt.Errorf("db: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (organizationbus.Organization, error) {
@@ -50,10 +61,17 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (organizationbus.Or
 	return org, nil
 }
 
-func (s *Store) UpdateLogo(ctx context.Context, id uuid.UUID, logoPath file.Path) error {
-	err := s.q.UpdateLogo(ctx, sqlc.UpdateLogoParams{
-		LogoPath: logoPath.ToSQLNullString(),
-		ID:       id,
+func (s *Store) Update(ctx context.Context, org organizationbus.Organization) error {
+	dbOrg, err := toDBOrganization(org)
+	if err != nil {
+		return fmt.Errorf("db: %w", err)
+	}
+
+	err = s.q.Update(ctx, sqlc.UpdateParams{
+		Label:      dbOrg.Label,
+		LogoPath:   dbOrg.LogoPath,
+		Attributes: dbOrg.Attributes,
+		ID:         dbOrg.ID,
 	})
 	if err != nil {
 		return fmt.Errorf("db: %w", err)

@@ -60,8 +60,8 @@ func run(ctx context.Context, log *logger.Logger) error {
 			MaxOpenConns int    `conf:"default:25"`
 		}
 		Storage struct {
-			BasePath string `conf:"default:./uploads"`
-			BaseURL  string `conf:"default:/uploads"`
+			RootDir    string `conf:"default:./public"`
+			PathPrefix string `conf:"default:/uploads"`
 		}
 	}{}
 
@@ -95,7 +95,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 	// -------------------------------------------------------------------------
 	// Create Business Packages
 
-	fileStore := filestore.New(cfg.Storage.BasePath, cfg.Storage.BaseURL)
+	fileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
 
 	eventStore := eventdb.NewStore(db)
 	eventBus := eventbus.NewBusinnes(eventStore)

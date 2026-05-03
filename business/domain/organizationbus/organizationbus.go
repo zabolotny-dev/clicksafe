@@ -13,13 +13,14 @@ import (
 var GlobalID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 var (
-	ErrNotFound = errors.New("organization not found")
+	ErrAlreadyExists = errors.New("organization already exists")
+	ErrNotFound      = errors.New("organization not found")
 )
 
 type Storer interface {
 	Save(ctx context.Context, organization Organization) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Organization, error)
-	UpdateLogo(ctx context.Context, id uuid.UUID, logoPath file.Path) error
+	Update(ctx context.Context, organization Organization) error
 }
 
 type FileStorage interface {
@@ -60,24 +61,45 @@ func (b *Business) Get(ctx context.Context) (Organization, error) {
 	return organization, nil
 }
 
-func (b *Business) SaveLogo(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
+func (b *Business) Update(ctx context.Context, organization Organization, up UpdateOrganization) error {
+	if up.Label != nil {
+		organization.Label = *up.Label
+	}
+
+	if up.Attributes != nil {
+		organization.Attributes = *up.Attributes
+	}
+
+	if err := b.storer.Update(ctx, organization); err != nil {
+		return fmt.Errorf("update: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Business) UpdateLogo(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
 	newPath, err := b.fileStorage.Save(ctx, r, ext)
 	if err != nil {
-		return file.Path{}, fmt.Errorf("savelogo: save file: %w", err)
+		return file.Path{}, fmt.Errorf("updatelogo: save file: %w", err)
 	}
 
 	org, err := b.storer.QueryByID(ctx, GlobalID)
 	if err != nil {
-		return file.Path{}, fmt.Errorf("savelogo: get org: %w", err)
+		_ = b.fileStorage.Delete(ctx, newPath)
+		return file.Path{}, fmt.Errorf("updatelogo: get org: %w", err)
 	}
 
-	if err := b.storer.UpdateLogo(ctx, GlobalID, newPath); err != nil {
-		return file.Path{}, fmt.Errorf("savelogo: update org: %w", err)
+	oldPath := org.LogoPath
+	org.LogoPath = file.NewNullPath(newPath)
+
+	if err := b.storer.Update(ctx, org); err != nil {
+		_ = b.fileStorage.Delete(ctx, newPath)
+		return file.Path{}, fmt.Errorf("updatelogo: update org: %w", err)
 	}
 
-	if !org.LogoPath.IsEmpty() && !org.LogoPath.Equal(newPath) {
-		if err = b.fileStorage.Delete(ctx, org.LogoPath); err != nil {
-			return file.Path{}, fmt.Errorf("savelogo: delete file: %w", err)
+	if oldPath.Valid() && !oldPath.Path().Equal(newPath) {
+		if err = b.fileStorage.Delete(ctx, oldPath.Path()); err != nil {
+			return file.Path{}, fmt.Errorf("updatelogo: delete file: %w", err)
 		}
 	}
 
@@ -90,15 +112,18 @@ func (b *Business) DeleteLogo(ctx context.Context) error {
 		return fmt.Errorf("deletelogo: get org: %w", err)
 	}
 
-	if org.LogoPath.IsEmpty() {
+	if !org.LogoPath.Valid() {
 		return nil
 	}
 
-	if err := b.storer.UpdateLogo(ctx, GlobalID, file.Path{}); err != nil {
+	logoPath := org.LogoPath.Path()
+	org.LogoPath = file.Null{}
+
+	if err := b.storer.Update(ctx, org); err != nil {
 		return fmt.Errorf("deletelogo: update org: %w", err)
 	}
 
-	if err := b.fileStorage.Delete(ctx, org.LogoPath); err != nil {
+	if err := b.fileStorage.Delete(ctx, logoPath); err != nil {
 		return fmt.Errorf("deletelogo: delete file: %w", err)
 	}
 

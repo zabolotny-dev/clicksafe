@@ -29,35 +29,46 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Organization, er
 }
 
 const save = `-- name: Save :exec
-INSERT INTO organizations (id, label, attributes)
-VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE
-SET label = EXCLUDED.label, attributes = EXCLUDED.attributes
+INSERT INTO organizations (id, label, logo_path, attributes)
+VALUES ($1, $2, $3, $4)
 `
 
 type SaveParams struct {
 	ID         uuid.UUID
 	Label      string
+	LogoPath   pgtype.Text
 	Attributes []byte
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
-	_, err := q.db.Exec(ctx, save, arg.ID, arg.Label, arg.Attributes)
+	_, err := q.db.Exec(ctx, save,
+		arg.ID,
+		arg.Label,
+		arg.LogoPath,
+		arg.Attributes,
+	)
 	return err
 }
 
-const updateLogo = `-- name: UpdateLogo :exec
+const update = `-- name: Update :exec
 UPDATE organizations
-SET logo_path = $1
-WHERE id = $2
+SET label = $1, logo_path = $2, attributes = $3
+WHERE id = $4
 `
 
-type UpdateLogoParams struct {
-	LogoPath pgtype.Text
-	ID       uuid.UUID
+type UpdateParams struct {
+	Label      string
+	LogoPath   pgtype.Text
+	Attributes []byte
+	ID         uuid.UUID
 }
 
-func (q *Queries) UpdateLogo(ctx context.Context, arg UpdateLogoParams) error {
-	_, err := q.db.Exec(ctx, updateLogo, arg.LogoPath, arg.ID)
+func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
+	_, err := q.db.Exec(ctx, update,
+		arg.Label,
+		arg.LogoPath,
+		arg.Attributes,
+		arg.ID,
+	)
 	return err
 }

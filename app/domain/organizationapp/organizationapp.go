@@ -18,12 +18,12 @@ func newApp(ob *organizationbus.Business) *app {
 }
 
 func (a *app) create(c *echo.Context) error {
-	var org Organization
-	if err := c.Bind(&org); err != nil {
+	var req NewOrganization
+	if err := c.Bind(&req); err != nil {
 		return errs.New(errs.InvalidArgument, err)
 	}
 
-	newOrg, err := toBusNewOrganization(org)
+	newOrg, err := toBusNewOrganization(req)
 	if err != nil {
 		return err
 	}
@@ -44,26 +44,49 @@ func (a *app) get(c *echo.Context) error {
 	return c.JSON(http.StatusOK, toAppOrganization(org))
 }
 
-func (a *app) saveLogo(c *echo.Context) error {
+func (a *app) update(c *echo.Context) error {
+	var req UpdateOrganization
+	if err := c.Bind(&req); err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+
+	up, err := toBusUpdateOrganization(req)
+	if err != nil {
+		return err
+	}
+
+	org, err := a.organizationBus.Get(c.Request().Context())
+	if err != nil {
+		return mapBusErr(err, "update")
+	}
+
+	if err := a.organizationBus.Update(c.Request().Context(), org, up); err != nil {
+		return mapBusErr(err, "update")
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
+func (a *app) updateLogo(c *echo.Context) error {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "savelogo: file: %s", err)
+		return errs.Errorf(errs.InvalidArgument, "updatelogo: file: %s", err)
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "savelogo: open: %s", err)
+		return errs.Errorf(errs.InvalidArgument, "updatelogo: open: %s", err)
 	}
 	defer file.Close()
 
 	ext := path.Ext(fileHeader.Filename)
 	if ext == "" {
-		return errs.Errorf(errs.InvalidArgument, "savelogo: invalid extension")
+		return errs.Errorf(errs.InvalidArgument, "updatelogo: invalid extension")
 	}
 
-	logoPath, err := a.organizationBus.SaveLogo(c.Request().Context(), file, ext)
+	logoPath, err := a.organizationBus.UpdateLogo(c.Request().Context(), file, ext)
 	if err != nil {
-		return mapBusErr(err, "savelogo")
+		return mapBusErr(err, "updatelogo")
 	}
 
 	return c.JSON(http.StatusOK, Logo{Path: logoPath})

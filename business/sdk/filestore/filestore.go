@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
@@ -14,33 +15,33 @@ import (
 
 // Store provides functionality for saving files to the local disk.
 type Store struct {
-	uploadDir string // Example: "./uploads" or "/tmp/uploads"
-	basePath  string // Example: "/uploads" (must be relative for types/url)
+	rootDir    string // Example: "./uploads" or "/tmp/uploads"
+	pathPrefix string // Example: "/uploads"
 }
 
 // New constructs a new local file store.
-func New(uploadDir string, basePath string) *Store {
+func New(rootDir string, pathPrefix string) *Store {
 	return &Store{
-		uploadDir: uploadDir,
-		basePath:  basePath,
+		rootDir:    rootDir,
+		pathPrefix: pathPrefix,
 	}
 }
 
 // Save reads from the provided io.Reader and saves it to the configured
 // local directory with a generated UUID name and the provided extension.
-// It returns a valid relative url.URL pointing to the saved file.
+// It returns a valid root-relative file path pointing to the saved file.
 // If ctx is cancelled during the write, the partially written file is deleted.
 func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
 	if err := ctx.Err(); err != nil {
 		return file.Path{}, fmt.Errorf("save: context already cancelled: %w", err)
 	}
 
-	if err := os.MkdirAll(s.uploadDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(s.rootDir, os.ModePerm); err != nil {
 		return file.Path{}, fmt.Errorf("create upload dir: %w", err)
 	}
 
 	fileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
-	filePath := filepath.Join(s.uploadDir, fileName)
+	filePath := filepath.Join(s.rootDir, fileName)
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -58,25 +59,40 @@ func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (file.Path, e
 		return file.Path{}, fmt.Errorf("copy to file: %w", err)
 	}
 
-	// Create a relative web path for the saved file.
-	webPath := path.Join(s.basePath, fileName)
+	storedPath := path.Join(s.normalizedPathPrefix(), fileName)
 
-	// file.Parse requires a leading slash for relative URLs.
-	if webPath != "" && webPath[0] != '/' {
-		webPath = "/" + webPath
-	}
-
-	return file.Parse(webPath)
+	return file.Parse(storedPath)
 }
 
-// Delete removes a file from the local disk given its relative web URL.
-func (s *Store) Delete(ctx context.Context, u file.Path) error {
+// Read returns file contents for the provided stored path.
+func (s *Store) Read(ctx context.Context, p file.Path) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("read: context already cancelled: %w", err)
+	}
+
+	filePath, err := s.resolveDiskPath(p)
+	if err != nil {
+		return nil, fmt.Errorf("read: resolve path: %w", err)
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+
+	return content, nil
+}
+
+// Delete removes a file from the local disk given its stored path.
+func (s *Store) Delete(ctx context.Context, p file.Path) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("delete: context already cancelled: %w", err)
 	}
 
-	fileName := path.Base(u.String())
-	filePath := filepath.Join(s.uploadDir, fileName)
+	filePath, err := s.resolveDiskPath(p)
+	if err != nil {
+		return fmt.Errorf("delete: resolve path: %w", err)
+	}
 
 	if err := os.Remove(filePath); err != nil {
 		if os.IsNotExist(err) {
@@ -86,6 +102,36 @@ func (s *Store) Delete(ctx context.Context, u file.Path) error {
 	}
 
 	return nil
+}
+
+func (s *Store) normalizedPathPrefix() string {
+	pathPrefix := strings.TrimSpace(s.pathPrefix)
+	if pathPrefix == "" {
+		return "/"
+	}
+
+	if pathPrefix[0] != '/' {
+		pathPrefix = "/" + pathPrefix
+	}
+
+	return path.Clean(pathPrefix)
+}
+
+func (s *Store) resolveDiskPath(p file.Path) (string, error) {
+	pathPrefix := s.normalizedPathPrefix()
+	storedPath := p.String()
+
+	if pathPrefix != "/" && storedPath != pathPrefix && !strings.HasPrefix(storedPath, pathPrefix+"/") {
+		return "", fmt.Errorf("path %q is outside path prefix %q", storedPath, pathPrefix)
+	}
+
+	relPath := strings.TrimPrefix(storedPath, pathPrefix)
+	relPath = strings.TrimPrefix(relPath, "/")
+	if relPath == "" {
+		return "", fmt.Errorf("path must point to a file")
+	}
+
+	return filepath.Join(s.rootDir, filepath.FromSlash(relPath)), nil
 }
 
 // contextReader wraps an io.Reader and checks ctx.Err() before every read.
