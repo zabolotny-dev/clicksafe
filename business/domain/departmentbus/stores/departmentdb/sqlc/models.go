@@ -10,6 +10,6 @@ import (
 
 type Department struct {
 	ID         uuid.UUID
-	Name       string
+	Label      string
 	Attributes []byte
 }

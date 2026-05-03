@@ -3,11 +3,10 @@ package organizationdb
 import (
 	"encoding/json"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb/sqlc"
+	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
-	"github.com/zabolotny-dev/clicksafe/business/types/url"
 )
 
 func toDBOrganization(org organizationbus.Organization) (sqlc.Organization, error) {
@@ -18,8 +17,8 @@ func toDBOrganization(org organizationbus.Organization) (sqlc.Organization, erro
 
 	return sqlc.Organization{
 		ID:         org.ID,
-		Name:       org.Name.String(),
-		LogoUrl:    pgtype.Text{String: org.LogoURL.String(), Valid: !org.LogoURL.IsEmpty()},
+		Label:      org.Label.String(),
+		LogoPath:   org.LogoPath.ToSQLNullString(),
 		Attributes: attributes,
 	}, nil
 }
@@ -32,24 +31,24 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 		}
 	}
 
-	var logoURL url.URL
-	if org.LogoUrl.Valid {
+	var logoPath file.Path
+	if org.LogoPath.Valid {
 		var err error
-		logoURL, err = url.Parse(org.LogoUrl.String)
+		logoPath, err = file.Parse(org.LogoPath.String)
 		if err != nil {
 			return organizationbus.Organization{}, err
 		}
 	}
 
-	orgLabel, err := label.Parse(org.Name)
+	orgLabel, err := label.Parse(org.Label)
 	if err != nil {
 		return organizationbus.Organization{}, err
 	}
 
 	return organizationbus.Organization{
 		ID:         org.ID,
-		Name:       orgLabel,
-		LogoURL:    logoURL,
+		Label:      orgLabel,
+		LogoPath:   logoPath,
 		Attributes: attributes,
 	}, nil
 }

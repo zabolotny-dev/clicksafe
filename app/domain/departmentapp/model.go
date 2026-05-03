@@ -9,24 +9,24 @@ import (
 
 type Department struct {
 	ID         uuid.UUID         `json:"id"`
-	Name       string            `json:"name"`
+	Label      string            `json:"label"`
 	Attributes map[string]string `json:"attributes"`
 }
 
 type NewDepartment struct {
-	Name       string            `json:"name"`
+	Label      string            `json:"label"`
 	Attributes map[string]string `json:"attributes"`
 }
 
 type UpdateDepartment struct {
-	Name       *string            `json:"name"`
+	Label      *string            `json:"label"`
 	Attributes *map[string]string `json:"attributes"`
 }
 
 func toAppDepartment(d departmentbus.Department) Department {
 	return Department{
 		ID:         d.ID,
-		Name:       d.Name.String(),
+		Label:      d.Label.String(),
 		Attributes: d.Attributes,
 	}
 }
@@ -34,9 +34,9 @@ func toAppDepartment(d departmentbus.Department) Department {
 func toBusNewDepartment(d NewDepartment) (departmentbus.NewDepartment, error) {
 	var errors errs.FieldErrors
 
-	lbl, err := label.Parse(d.Name)
+	lbl, err := label.Parse(d.Label)
 	if err != nil {
-		errors.Add("name", err)
+		errors.Add("label", err)
 	}
 
 	if len(errors) > 0 {
@@ -44,7 +44,7 @@ func toBusNewDepartment(d NewDepartment) (departmentbus.NewDepartment, error) {
 	}
 
 	return departmentbus.NewDepartment{
-		Name:       lbl,
+		Label:      lbl,
 		Attributes: d.Attributes,
 	}, nil
 }
@@ -53,10 +53,10 @@ func toBusUpdateDepartment(d UpdateDepartment) (departmentbus.UpdateDepartment, 
 	var errors errs.FieldErrors
 
 	var lbl *label.Label
-	if d.Name != nil {
-		parsed, err := label.Parse(*d.Name)
+	if d.Label != nil {
+		parsed, err := label.Parse(*d.Label)
 		if err != nil {
-			errors.Add("name", err)
+			errors.Add("label", err)
 		}
 		lbl = &parsed
 	}
@@ -66,7 +66,7 @@ func toBusUpdateDepartment(d UpdateDepartment) (departmentbus.UpdateDepartment, 
 	}
 
 	return departmentbus.UpdateDepartment{
-		Name:       lbl,
+		Label:      lbl,
 		Attributes: d.Attributes,
 	}, nil
 }

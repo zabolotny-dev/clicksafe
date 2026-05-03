@@ -11,7 +11,7 @@ import (
 
 type Organization struct {
 	ID         uuid.UUID
-	Name       string
-	LogoUrl    pgtype.Text
+	Label      string
+	LogoPath   pgtype.Text
 	Attributes []byte
 }

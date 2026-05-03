@@ -10,14 +10,14 @@ CREATE TABLE IF NOT EXISTS events(
 
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    logo_url VARCHAR(255),
+    label VARCHAR(255) NOT NULL,
+    logo_path VARCHAR(255),
     attributes JSONB
 );
 
 CREATE TABLE IF NOT EXISTS departments (
     id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
+    label VARCHAR(255) NOT NULL UNIQUE,
     attributes JSONB
 );
 
@@ -30,6 +30,17 @@ CREATE TABLE IF NOT EXISTS employees (
     phone_number VARCHAR(64) UNIQUE,
     attributes JSONB
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY,
+    label VARCHAR(255) NOT NULL UNIQUE,
+    from_email VARCHAR(255) NOT NULL,
+    from_name VARCHAR(255),
+    subject VARCHAR(255),
+    content_path VARCHAR(255),
+    required_vars TEXT[]
+);
+
 -- +goose StatementEnd
 
 -- +goose Down
@@ -38,4 +49,5 @@ DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS messages;
 -- +goose StatementEnd

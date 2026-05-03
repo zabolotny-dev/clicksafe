@@ -4,32 +4,32 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
+	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
-	"github.com/zabolotny-dev/clicksafe/business/types/url"
 )
 
 type Organization struct {
 	ID         uuid.UUID         `json:"id"`
-	Name       string            `json:"name"`
-	LogoURL    string            `json:"logo_url"`
+	Label      string            `json:"label"`
+	LogoPath   string            `json:"logo_path"`
 	Attributes map[string]string `json:"attributes"`
 }
 
 type NewOrganization struct {
-	Name       string            `json:"name"`
+	Label      string            `json:"label"`
 	Attributes map[string]string `json:"attributes"`
 }
 
 type Logo struct {
-	URL url.URL `json:"url"`
+	Path file.Path `json:"path"`
 }
 
 func toBusNewOrganization(org Organization) (organizationbus.NewOrganization, error) {
 	var errors errs.FieldErrors
 
-	lbl, err := label.Parse(org.Name)
+	lbl, err := label.Parse(org.Label)
 	if err != nil {
-		errors.Add("name", err)
+		errors.Add("label", err)
 	}
 
 	if len(errors) > 0 {
@@ -37,7 +37,7 @@ func toBusNewOrganization(org Organization) (organizationbus.NewOrganization, er
 	}
 
 	return organizationbus.NewOrganization{
-		Name:       lbl,
+		Label:      lbl,
 		Attributes: org.Attributes,
 	}, nil
 }
@@ -45,8 +45,8 @@ func toBusNewOrganization(org Organization) (organizationbus.NewOrganization, er
 func toAppOrganization(org organizationbus.Organization) Organization {
 	return Organization{
 		ID:         org.ID,
-		Name:       org.Name.String(),
-		LogoURL:    org.LogoURL.String(),
+		Label:      org.Label.String(),
+		LogoPath:   org.LogoPath.String(),
 		Attributes: org.Attributes,
 	}
 }

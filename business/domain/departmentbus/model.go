@@ -7,16 +7,16 @@ import (
 
 type Department struct {
 	ID         uuid.UUID
-	Name       label.Label
+	Label      label.Label
 	Attributes map[string]string
 }
 
 type NewDepartment struct {
-	Name       label.Label
+	Label      label.Label
 	Attributes map[string]string
 }
 
 type UpdateDepartment struct {
-	Name       *label.Label
+	Label      *label.Label
 	Attributes *map[string]string
 }

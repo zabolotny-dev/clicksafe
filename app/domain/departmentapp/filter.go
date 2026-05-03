@@ -13,7 +13,7 @@ type queryParams struct {
 	Rows    string
 	OrderBy string
 	ID      string
-	Name    string
+	Label   string
 }
 
 func parseQueryParams(c *echo.Context) (queryParams, error) {
@@ -24,7 +24,7 @@ func parseQueryParams(c *echo.Context) (queryParams, error) {
 		Rows:    values.Get("rows"),
 		OrderBy: values.Get("orderBy"),
 		ID:      values.Get("department_id"),
-		Name:    values.Get("name"),
+		Label:   values.Get("label"),
 	}
 
 	return filter, nil
@@ -43,12 +43,12 @@ func parseFilter(qp queryParams) (departmentbus.QueryFilter, error) {
 		}
 	}
 
-	if qp.Name != "" {
-		lbl, err := label.Parse(qp.Name)
+	if qp.Label != "" {
+		lbl, err := label.Parse(qp.Label)
 		if err != nil {
-			fieldErrors.Add("name", err)
+			fieldErrors.Add("label", err)
 		} else {
-			filter.Name = &lbl
+			filter.Label = &lbl
 		}
 	}
 

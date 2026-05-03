@@ -56,7 +56,7 @@ func (n Null) String() string {
 	return n.value
 }
 
-func ToSQLNullString(n Null) pgtype.Text {
+func (n Null) ToSQLNullString() pgtype.Text {
 	return pgtype.Text{
 		String: n.value,
 		Valid:  n.valid,

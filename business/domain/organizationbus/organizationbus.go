@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/types/url"
+	"github.com/zabolotny-dev/clicksafe/business/types/file"
 )
 
 var GlobalID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
@@ -19,12 +19,12 @@ var (
 type Storer interface {
 	Save(ctx context.Context, organization Organization) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Organization, error)
-	UpdateLogo(ctx context.Context, id uuid.UUID, logoURL url.URL) error
+	UpdateLogo(ctx context.Context, id uuid.UUID, logoPath file.Path) error
 }
 
 type FileStorage interface {
-	Save(ctx context.Context, r io.Reader, ext string) (url.URL, error)
-	Delete(ctx context.Context, u url.URL) error
+	Save(ctx context.Context, r io.Reader, ext string) (file.Path, error)
+	Delete(ctx context.Context, u file.Path) error
 }
 
 type Business struct {
@@ -42,7 +42,7 @@ func NewBusiness(storer Storer, fileStorage FileStorage) *Business {
 func (b *Business) Save(ctx context.Context, organization NewOrganization) error {
 	err := b.storer.Save(ctx, Organization{
 		ID:         GlobalID,
-		Name:       organization.Name,
+		Label:      organization.Label,
 		Attributes: organization.Attributes,
 	})
 
@@ -60,26 +60,47 @@ func (b *Business) Get(ctx context.Context) (Organization, error) {
 	return organization, nil
 }
 
-func (b *Business) SaveLogo(ctx context.Context, r io.Reader, ext string) (url.URL, error) {
-	newURL, err := b.fileStorage.Save(ctx, r, ext)
+func (b *Business) SaveLogo(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
+	newPath, err := b.fileStorage.Save(ctx, r, ext)
 	if err != nil {
-		return url.URL{}, fmt.Errorf("savelogo: save file: %w", err)
+		return file.Path{}, fmt.Errorf("savelogo: save file: %w", err)
 	}
 
 	org, err := b.storer.QueryByID(ctx, GlobalID)
 	if err != nil {
-		return url.URL{}, fmt.Errorf("savelogo: get org: %w", err)
+		return file.Path{}, fmt.Errorf("savelogo: get org: %w", err)
 	}
 
-	if !org.LogoURL.IsEmpty() && org.LogoURL != newURL {
-		if err = b.fileStorage.Delete(ctx, org.LogoURL); err != nil {
-			return url.URL{}, fmt.Errorf("savelogo: delete file: %w", err)
+	if err := b.storer.UpdateLogo(ctx, GlobalID, newPath); err != nil {
+		return file.Path{}, fmt.Errorf("savelogo: update org: %w", err)
+	}
+
+	if !org.LogoPath.IsEmpty() && !org.LogoPath.Equal(newPath) {
+		if err = b.fileStorage.Delete(ctx, org.LogoPath); err != nil {
+			return file.Path{}, fmt.Errorf("savelogo: delete file: %w", err)
 		}
 	}
 
-	if err := b.storer.UpdateLogo(ctx, GlobalID, newURL); err != nil {
-		return url.URL{}, fmt.Errorf("savelogo: update org: %w", err)
+	return newPath, nil
+}
+
+func (b *Business) DeleteLogo(ctx context.Context) error {
+	org, err := b.storer.QueryByID(ctx, GlobalID)
+	if err != nil {
+		return fmt.Errorf("deletelogo: get org: %w", err)
 	}
 
-	return newURL, nil
+	if org.LogoPath.IsEmpty() {
+		return nil
+	}
+
+	if err := b.storer.UpdateLogo(ctx, GlobalID, file.Path{}); err != nil {
+		return fmt.Errorf("deletelogo: update org: %w", err)
+	}
+
+	if err := b.fileStorage.Delete(ctx, org.LogoPath); err != nil {
+		return fmt.Errorf("deletelogo: delete file: %w", err)
+	}
+
+	return nil
 }

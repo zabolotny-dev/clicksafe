@@ -6,6 +6,6 @@ import (
 )
 
 type QueryFilter struct {
-	ID   *uuid.UUID
-	Name *label.Label
+	ID    *uuid.UUID
+	Label *label.Label
 }

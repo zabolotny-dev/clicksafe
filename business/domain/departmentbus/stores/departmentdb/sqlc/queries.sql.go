@@ -16,16 +16,16 @@ const count = `-- name: Count :one
 SELECT COUNT(*) FROM departments
 WHERE 
     ($1::uuid IS NULL OR id = $1) AND
-    ($2::text IS NULL OR LOWER(name) ILIKE '%' || LOWER($2) || '%')
+    ($2::text IS NULL OR LOWER(label) ILIKE '%' || LOWER($2) || '%')
 `
 
 type CountParams struct {
-	ID   *uuid.UUID
-	Name pgtype.Text
+	ID    *uuid.UUID
+	Label pgtype.Text
 }
 
 func (q *Queries) Count(ctx context.Context, arg CountParams) (int64, error) {
-	row := q.db.QueryRow(ctx, count, arg.ID, arg.Name)
+	row := q.db.QueryRow(ctx, count, arg.ID, arg.Label)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -42,17 +42,17 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 const query = `-- name: Query :many
-SELECT id, name, attributes FROM departments
+SELECT id, label, attributes FROM departments
 WHERE 
     -- Фильтр по ID: если параметр не передан (NULL), условие игнорируется
     ($1::uuid IS NULL OR id = $1) 
     AND
-    -- Полнотекстовый поиск по Имени (без учета регистра)
-    ($2::text IS NULL OR LOWER(name) ILIKE '%' || LOWER($2) || '%')
+    -- Полнотекстовый поиск по label (без учета регистра)
+    ($2::text IS NULL OR LOWER(label) ILIKE '%' || LOWER($2) || '%')
 ORDER BY 
-    -- Хитрый хак для динамической сортировки (вспоминаем, что a = id, b = name)
-    CASE WHEN $3::text = 'b_asc' THEN name END ASC,
-    CASE WHEN $3::text = 'b_desc' THEN name END DESC,
+    -- Хитрый хак для динамической сортировки (вспоминаем, что a = id, b = label)
+    CASE WHEN $3::text = 'b_asc' THEN label END ASC,
+    CASE WHEN $3::text = 'b_desc' THEN label END DESC,
     CASE WHEN $3::text = 'a_asc' THEN id::text END ASC,
     CASE WHEN $3::text = 'a_desc' THEN id::text END DESC
 LIMIT $5 OFFSET $4
@@ -60,7 +60,7 @@ LIMIT $5 OFFSET $4
 
 type QueryParams struct {
 	ID        *uuid.UUID
-	Name      pgtype.Text
+	Label     pgtype.Text
 	OrderBy   string
 	OffsetVal int32
 	LimitVal  int32
@@ -69,7 +69,7 @@ type QueryParams struct {
 func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Department, error) {
 	rows, err := q.db.Query(ctx, query,
 		arg.ID,
-		arg.Name,
+		arg.Label,
 		arg.OrderBy,
 		arg.OffsetVal,
 		arg.LimitVal,
@@ -81,7 +81,7 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Department, err
 	var items []Department
 	for rows.Next() {
 		var i Department
-		if err := rows.Scan(&i.ID, &i.Name, &i.Attributes); err != nil {
+		if err := rows.Scan(&i.ID, &i.Label, &i.Attributes); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -93,46 +93,46 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Department, err
 }
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, name, attributes FROM departments
+SELECT id, label, attributes FROM departments
 WHERE id = $1
 `
 
 func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Department, error) {
 	row := q.db.QueryRow(ctx, queryByID, id)
 	var i Department
-	err := row.Scan(&i.ID, &i.Name, &i.Attributes)
+	err := row.Scan(&i.ID, &i.Label, &i.Attributes)
 	return i, err
 }
 
 const save = `-- name: Save :exec
-INSERT INTO departments (id, name, attributes)
+INSERT INTO departments (id, label, attributes)
 VALUES ($1, $2, $3)
 `
 
 type SaveParams struct {
 	ID         uuid.UUID
-	Name       string
+	Label      string
 	Attributes []byte
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
-	_, err := q.db.Exec(ctx, save, arg.ID, arg.Name, arg.Attributes)
+	_, err := q.db.Exec(ctx, save, arg.ID, arg.Label, arg.Attributes)
 	return err
 }
 
 const update = `-- name: Update :exec
 UPDATE departments
-SET name = $1, attributes = $2
+SET label = $1, attributes = $2
 WHERE id = $3
 `
 
 type UpdateParams struct {
-	Name       string
+	Label      string
 	Attributes []byte
 	ID         uuid.UUID
 }
 
 func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
-	_, err := q.db.Exec(ctx, update, arg.Name, arg.Attributes, arg.ID)
+	_, err := q.db.Exec(ctx, update, arg.Label, arg.Attributes, arg.ID)
 	return err
 }

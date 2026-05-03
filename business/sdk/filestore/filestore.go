@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/types/url"
+	"github.com/zabolotny-dev/clicksafe/business/types/file"
 )
 
 // Store provides functionality for saving files to the local disk.
@@ -30,13 +30,13 @@ func New(uploadDir string, basePath string) *Store {
 // local directory with a generated UUID name and the provided extension.
 // It returns a valid relative url.URL pointing to the saved file.
 // If ctx is cancelled during the write, the partially written file is deleted.
-func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (url.URL, error) {
+func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
 	if err := ctx.Err(); err != nil {
-		return url.URL{}, fmt.Errorf("save: context already cancelled: %w", err)
+		return file.Path{}, fmt.Errorf("save: context already cancelled: %w", err)
 	}
 
 	if err := os.MkdirAll(s.uploadDir, os.ModePerm); err != nil {
-		return url.URL{}, fmt.Errorf("create upload dir: %w", err)
+		return file.Path{}, fmt.Errorf("create upload dir: %w", err)
 	}
 
 	fileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
@@ -44,7 +44,7 @@ func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (url.URL, err
 
 	out, err := os.Create(filePath)
 	if err != nil {
-		return url.URL{}, fmt.Errorf("create file: %w", err)
+		return file.Path{}, fmt.Errorf("create file: %w", err)
 	}
 	defer out.Close()
 
@@ -55,22 +55,22 @@ func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (url.URL, err
 	if _, err := io.Copy(out, ctxReader); err != nil {
 		// Clean up the partially written file before returning.
 		_ = os.Remove(filePath)
-		return url.URL{}, fmt.Errorf("copy to file: %w", err)
+		return file.Path{}, fmt.Errorf("copy to file: %w", err)
 	}
 
 	// Create a relative web path for the saved file.
 	webPath := path.Join(s.basePath, fileName)
 
-	// url.Parse requires a leading slash for relative URLs.
+	// file.Parse requires a leading slash for relative URLs.
 	if webPath != "" && webPath[0] != '/' {
 		webPath = "/" + webPath
 	}
 
-	return url.Parse(webPath)
+	return file.Parse(webPath)
 }
 
 // Delete removes a file from the local disk given its relative web URL.
-func (s *Store) Delete(ctx context.Context, u url.URL) error {
+func (s *Store) Delete(ctx context.Context, u file.Path) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("delete: context already cancelled: %w", err)
 	}

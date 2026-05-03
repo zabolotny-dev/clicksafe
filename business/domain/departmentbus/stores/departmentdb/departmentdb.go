@@ -33,12 +33,12 @@ func (s *Store) Save(ctx context.Context, dep departmentbus.Department) error {
 
 	if err := s.q.Save(ctx, sqlc.SaveParams{
 		ID:         dbDep.ID,
-		Name:       dbDep.Name,
+		Label:      dbDep.Label,
 		Attributes: dbDep.Attributes,
 	}); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			return departmentbus.ErrUniqueName
+			return departmentbus.ErrUniqueLabel
 		}
 		return fmt.Errorf("db: %w", err)
 	}
@@ -54,14 +54,14 @@ func (s *Store) Update(ctx context.Context, dep departmentbus.Department) error 
 
 	err = s.q.Update(ctx, sqlc.UpdateParams{
 		ID:         dbDep.ID,
-		Name:       dbDep.Name,
+		Label:      dbDep.Label,
 		Attributes: dbDep.Attributes,
 	})
 
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			return departmentbus.ErrUniqueName
+			return departmentbus.ErrUniqueLabel
 		}
 		return fmt.Errorf("db: %w", err)
 	}
@@ -93,14 +93,14 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (departmentbus.Depa
 }
 
 func (s *Store) Query(ctx context.Context, filter departmentbus.QueryFilter, orderBy order.By, page page.Page) ([]departmentbus.Department, error) {
-	var nameFilter pgtype.Text
-	if filter.Name != nil {
-		nameFilter = pgtype.Text{String: filter.Name.String(), Valid: true}
+	var labelFilter pgtype.Text
+	if filter.Label != nil {
+		labelFilter = pgtype.Text{String: filter.Label.String(), Valid: true}
 	}
 
 	dbDeps, err := s.q.Query(ctx, sqlc.QueryParams{
 		ID:        filter.ID,
-		Name:      nameFilter,
+		Label:     labelFilter,
 		OrderBy:   orderBy.SQLOrderBy(),
 		OffsetVal: int32((page.Number() - 1) * page.RowsPerPage()),
 		LimitVal:  int32(page.RowsPerPage()),
@@ -117,18 +117,17 @@ func (s *Store) Query(ctx context.Context, filter departmentbus.QueryFilter, ord
 }
 
 func (s *Store) Count(ctx context.Context, filter departmentbus.QueryFilter) (int, error) {
-	var nameFilter pgtype.Text
-	if filter.Name != nil {
-		nameFilter = pgtype.Text{String: filter.Name.String(), Valid: true}
+	var labelFilter pgtype.Text
+	if filter.Label != nil {
+		labelFilter = pgtype.Text{String: filter.Label.String(), Valid: true}
 	}
 
 	count, err := s.q.Count(ctx, sqlc.CountParams{
-		ID:   filter.ID,
-		Name: nameFilter,
+		ID:    filter.ID,
+		Label: labelFilter,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("db: %w", err)
 	}
 	return int(count), nil
 }
-

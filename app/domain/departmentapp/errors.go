@@ -9,7 +9,7 @@ import (
 
 func mapBusErr(err error, msg string) error {
 	switch {
-	case errors.Is(err, departmentbus.ErrUniqueName):
+	case errors.Is(err, departmentbus.ErrUniqueLabel):
 		return errs.New(errs.AlreadyExists, err)
 	case errors.Is(err, departmentbus.ErrNotFound):
 		return errs.New(errs.NotFound, err)

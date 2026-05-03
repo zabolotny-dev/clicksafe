@@ -22,7 +22,7 @@ func toDBEmployee(e employeebus.Employee) (sqlc.Employee, error) {
 		FirstName:    e.FirstName.String(),
 		LastName:     e.LastName.String(),
 		Email:        e.Email.String(),
-		PhoneNumber:  phone.ToSQLNullString(e.Phone),
+		PhoneNumber:  e.Phone.ToSQLNullString(),
 		Attributes:   attributes,
 	}, nil
 }

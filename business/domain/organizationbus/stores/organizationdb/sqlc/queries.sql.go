@@ -13,7 +13,7 @@ import (
 )
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, name, logo_url, attributes FROM organizations WHERE id = $1
+SELECT id, label, logo_path, attributes FROM organizations WHERE id = $1
 `
 
 func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Organization, error) {
@@ -21,43 +21,43 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Organization, er
 	var i Organization
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.LogoUrl,
+		&i.Label,
+		&i.LogoPath,
 		&i.Attributes,
 	)
 	return i, err
 }
 
 const save = `-- name: Save :exec
-INSERT INTO organizations (id, name, attributes)
+INSERT INTO organizations (id, label, attributes)
 VALUES ($1, $2, $3)
 ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name, attributes = EXCLUDED.attributes
+SET label = EXCLUDED.label, attributes = EXCLUDED.attributes
 `
 
 type SaveParams struct {
 	ID         uuid.UUID
-	Name       string
+	Label      string
 	Attributes []byte
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
-	_, err := q.db.Exec(ctx, save, arg.ID, arg.Name, arg.Attributes)
+	_, err := q.db.Exec(ctx, save, arg.ID, arg.Label, arg.Attributes)
 	return err
 }
 
 const updateLogo = `-- name: UpdateLogo :exec
 UPDATE organizations
-SET logo_url = $1
+SET logo_path = $1
 WHERE id = $2
 `
 
 type UpdateLogoParams struct {
-	LogoUrl pgtype.Text
-	ID      uuid.UUID
+	LogoPath pgtype.Text
+	ID       uuid.UUID
 }
 
 func (q *Queries) UpdateLogo(ctx context.Context, arg UpdateLogoParams) error {
-	_, err := q.db.Exec(ctx, updateLogo, arg.LogoUrl, arg.ID)
+	_, err := q.db.Exec(ctx, updateLogo, arg.LogoPath, arg.ID)
 	return err
 }

@@ -61,10 +61,18 @@ func (a *app) saveLogo(c *echo.Context) error {
 		return errs.Errorf(errs.InvalidArgument, "savelogo: invalid extension")
 	}
 
-	logoURL, err := a.organizationBus.SaveLogo(c.Request().Context(), file, ext)
+	logoPath, err := a.organizationBus.SaveLogo(c.Request().Context(), file, ext)
 	if err != nil {
 		return mapBusErr(err, "savelogo")
 	}
 
-	return c.JSON(http.StatusOK, Logo{URL: logoURL})
+	return c.JSON(http.StatusOK, Logo{Path: logoPath})
+}
+
+func (a *app) deleteLogo(c *echo.Context) error {
+	if err := a.organizationBus.DeleteLogo(c.Request().Context()); err != nil {
+		return mapBusErr(err, "deletelogo")
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }

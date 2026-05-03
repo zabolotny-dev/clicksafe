@@ -19,4 +19,5 @@ func Routes(router *echo.Echo, cfg Config) {
 	router.POST("/organization", api.create)
 	router.GET("/organization", api.get)
 	router.PUT("/organization/logo", api.saveLogo, logoSizeLimit, mid.AllowImagesOnly)
+	router.DELETE("/organization/logo", api.deleteLogo)
 }

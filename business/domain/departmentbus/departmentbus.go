@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrUniqueName = errors.New("department with this name already exists")
-	ErrNotFound   = errors.New("department not found")
+	ErrUniqueLabel = errors.New("department with this label already exists")
+	ErrNotFound    = errors.New("department not found")
 )
 
 type Storer interface {
@@ -44,7 +44,7 @@ func NewBusiness(s Storer) *Business {
 func (b *Business) Save(ctx context.Context, department NewDepartment) error {
 	dep := Department{
 		ID:         uuid.New(),
-		Name:       department.Name,
+		Label:      department.Label,
 		Attributes: department.Attributes,
 	}
 
@@ -56,8 +56,8 @@ func (b *Business) Save(ctx context.Context, department NewDepartment) error {
 }
 
 func (b *Business) Update(ctx context.Context, department Department, up UpdateDepartment) error {
-	if up.Name != nil {
-		department.Name = *up.Name
+	if up.Label != nil {
+		department.Label = *up.Label
 	}
 
 	if up.Attributes != nil {

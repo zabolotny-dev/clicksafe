@@ -16,7 +16,7 @@ func toDBDepartment(d departmentbus.Department) (sqlc.Department, error) {
 
 	return sqlc.Department{
 		ID:         d.ID,
-		Name:       d.Name.String(),
+		Label:      d.Label.String(),
 		Attributes: attributes,
 	}, nil
 }
@@ -29,14 +29,14 @@ func toBusDepartment(d sqlc.Department) (departmentbus.Department, error) {
 		}
 	}
 
-	dLabel, err := label.Parse(d.Name)
+	dLabel, err := label.Parse(d.Label)
 	if err != nil {
 		return departmentbus.Department{}, err
 	}
 
 	return departmentbus.Department{
 		ID:         d.ID,
-		Name:       dLabel,
+		Label:      dLabel,
 		Attributes: attributes,
 	}, nil
 }
