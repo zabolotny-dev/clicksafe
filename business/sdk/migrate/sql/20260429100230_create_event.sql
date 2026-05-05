@@ -41,6 +41,17 @@ CREATE TABLE IF NOT EXISTS messages (
     required_vars TEXT[]
 );
 
+CREATE TABLE IF NOT EXISTS campaigns (
+    id UUID PRIMARY KEY,
+    message_id UUID REFERENCES messages(id) ON DELETE RESTRICT,
+    label VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(64) NOT NULL,
+    date_from TIMESTAMPTZ,
+    date_to TIMESTAMPTZ,
+    attributes JSONB
+);
+
+
 -- +goose StatementEnd
 
 -- +goose Down
@@ -50,4 +61,5 @@ DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS campaigns;
 -- +goose StatementEnd

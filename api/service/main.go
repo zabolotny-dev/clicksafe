@@ -13,6 +13,8 @@ import (
 	"github.com/ardanlabs/conf/v3"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/campaigndb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus/stores/departmentdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -120,6 +122,9 @@ func run(ctx context.Context, log *logger.Logger) error {
 	messageStore := messagedb.NewStore(db)
 	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
 
+	campaignStore := campaigndb.NewStore(db)
+	campaignBus := campaignbus.NewBusiness(campaignStore, messageBus)
+
 	// -------------------------------------------------------------------------
 	// Start API Service
 
@@ -137,6 +142,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		DepartmentBus:   departmentBus,
 		EmployeeBus:     employeeBus,
 		MessageBus:      messageBus,
+		CampaignBus:     campaignBus,
 	})
 
 	s := http.Server{

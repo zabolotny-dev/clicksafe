@@ -25,8 +25,8 @@ type Storer interface {
 }
 
 type ExtBusiness interface {
-	Save(ctx context.Context, department NewDepartment) error
-	Update(ctx context.Context, department Department, up UpdateDepartment) error
+	Save(ctx context.Context, department NewDepartment) (Department, error)
+	Update(ctx context.Context, department Department, up UpdateDepartment) (Department, error)
 	Delete(ctx context.Context, department Department) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Department, error)
 	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Department, error)
@@ -41,7 +41,7 @@ func NewBusiness(s Storer) *Business {
 	return &Business{storer: s}
 }
 
-func (b *Business) Save(ctx context.Context, department NewDepartment) error {
+func (b *Business) Save(ctx context.Context, department NewDepartment) (Department, error) {
 	dep := Department{
 		ID:         uuid.New(),
 		Label:      department.Label,
@@ -49,13 +49,13 @@ func (b *Business) Save(ctx context.Context, department NewDepartment) error {
 	}
 
 	if err := b.storer.Save(ctx, dep); err != nil {
-		return fmt.Errorf("save: %w", err)
+		return Department{}, fmt.Errorf("save: %w", err)
 	}
 
-	return nil
+	return dep, nil
 }
 
-func (b *Business) Update(ctx context.Context, department Department, up UpdateDepartment) error {
+func (b *Business) Update(ctx context.Context, department Department, up UpdateDepartment) (Department, error) {
 	if up.Label != nil {
 		department.Label = *up.Label
 	}
@@ -65,10 +65,10 @@ func (b *Business) Update(ctx context.Context, department Department, up UpdateD
 	}
 
 	if err := b.storer.Update(ctx, department); err != nil {
-		return fmt.Errorf("update: %w", err)
+		return Department{}, fmt.Errorf("update: %w", err)
 	}
 
-	return nil
+	return department, nil
 }
 
 func (b *Business) Delete(ctx context.Context, department Department) error {

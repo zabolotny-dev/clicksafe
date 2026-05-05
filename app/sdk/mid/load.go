@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
@@ -108,6 +109,41 @@ func LoadMessage(messageBus *messagebus.Business) echo.MiddlewareFunc {
 
 				c.SetRequest(c.Request().WithContext(
 					setMessage(c.Request().Context(), message),
+				))
+			}
+
+			return next(c)
+		}
+
+		return h
+	}
+
+	return m
+}
+
+func LoadCampaign(campaignBus *campaignbus.Business) echo.MiddlewareFunc {
+	m := func(next echo.HandlerFunc) echo.HandlerFunc {
+		h := func(c *echo.Context) error {
+			id := c.Param("id")
+
+			if id != "" {
+				campaignID, err := uuid.Parse(id)
+				if err != nil {
+					return errs.New(errs.InvalidArgument, ErrInvalidID)
+				}
+
+				campaign, err := campaignBus.QueryByID(c.Request().Context(), campaignID)
+				if err != nil {
+					switch {
+					case errors.Is(err, campaignbus.ErrNotFound):
+						return errs.New(errs.NotFound, err)
+					default:
+						return errs.Errorf(errs.InternalOnlyLog, "querybyid: campaignID[%s]: %s", campaignID, err)
+					}
+				}
+
+				c.SetRequest(c.Request().WithContext(
+					setCampaign(c.Request().Context(), campaign),
 				))
 			}
 

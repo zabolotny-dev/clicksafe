@@ -95,7 +95,7 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (departmentbus.Depa
 func (s *Store) Query(ctx context.Context, filter departmentbus.QueryFilter, orderBy order.By, page page.Page) ([]departmentbus.Department, error) {
 	var labelFilter pgtype.Text
 	if filter.Label != nil {
-		labelFilter = pgtype.Text{String: filter.Label.String(), Valid: true}
+		labelFilter = pgtype.Text{String: *filter.Label, Valid: true}
 	}
 
 	dbDeps, err := s.q.Query(ctx, sqlc.QueryParams{
@@ -119,7 +119,7 @@ func (s *Store) Query(ctx context.Context, filter departmentbus.QueryFilter, ord
 func (s *Store) Count(ctx context.Context, filter departmentbus.QueryFilter) (int, error) {
 	var labelFilter pgtype.Text
 	if filter.Label != nil {
-		labelFilter = pgtype.Text{String: filter.Label.String(), Valid: true}
+		labelFilter = pgtype.Text{String: *filter.Label, Valid: true}
 	}
 
 	count, err := s.q.Count(ctx, sqlc.CountParams{

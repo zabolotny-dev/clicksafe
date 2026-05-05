@@ -28,11 +28,12 @@ func (a *app) create(c *echo.Context) error {
 		return err
 	}
 
-	if err := a.organizationBus.Save(c.Request().Context(), newOrg); err != nil {
+	org, err := a.organizationBus.Save(c.Request().Context(), newOrg)
+	if err != nil {
 		return mapBusErr(err, "create")
 	}
 
-	return c.NoContent(http.StatusCreated)
+	return c.JSON(http.StatusCreated, toAppOrganization(org))
 }
 
 func (a *app) get(c *echo.Context) error {
@@ -60,11 +61,12 @@ func (a *app) update(c *echo.Context) error {
 		return mapBusErr(err, "update")
 	}
 
-	if err := a.organizationBus.Update(c.Request().Context(), org, up); err != nil {
+	updated, err := a.organizationBus.Update(c.Request().Context(), org, up)
+	if err != nil {
 		return mapBusErr(err, "update")
 	}
 
-	return c.NoContent(http.StatusOK)
+	return c.JSON(http.StatusOK, toAppOrganization(updated))
 }
 
 func (a *app) updateLogo(c *echo.Context) error {

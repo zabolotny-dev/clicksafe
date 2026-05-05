@@ -2,12 +2,14 @@ package build
 
 import (
 	"github.com/labstack/echo/v5"
+	"github.com/zabolotny-dev/clicksafe/app/domain/campaignapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/departmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/employeeapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/eventapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/messageapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/organizationapp"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
@@ -23,6 +25,7 @@ type Config struct {
 	DepartmentBus   *departmentbus.Business
 	EmployeeBus     *employeebus.Business
 	MessageBus      *messagebus.Business
+	CampaignBus     *campaignbus.Business
 }
 
 func Add(e *echo.Echo, cfg Config) {
@@ -46,5 +49,9 @@ func Add(e *echo.Echo, cfg Config) {
 
 	messageapp.Routes(e, messageapp.Config{
 		MessageBus: cfg.MessageBus,
+	})
+
+	campaignapp.Routes(e, campaignapp.Config{
+		CampaignBus: cfg.CampaignBus,
 	})
 }

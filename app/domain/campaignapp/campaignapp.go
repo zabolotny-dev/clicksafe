@@ -1,4 +1,4 @@
-package departmentapp
+package campaignapp
 
 import (
 	"net/http"
@@ -7,17 +7,36 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/query"
-	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 )
 
 type app struct {
-	departmentBus *departmentbus.Business
+	campaignBus *campaignbus.Business
 }
 
-func newApp(d *departmentbus.Business) *app {
-	return &app{departmentBus: d}
+func newApp(d *campaignbus.Business) *app {
+	return &app{campaignBus: d}
+}
+
+func (a *app) create(c *echo.Context) error {
+	var req NewCampaign
+	if err := c.Bind(&req); err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+
+	newCampaign, err := toBusNewCampaign(req)
+	if err != nil {
+		return err
+	}
+
+	cmp, err := a.campaignBus.Save(c.Request().Context(), newCampaign)
+	if err != nil {
+		return mapBusErr(err, "create")
+	}
+
+	return c.JSON(http.StatusCreated, toAppCampaign(cmp))
 }
 
 func (a *app) query(c *echo.Context) error {
@@ -31,7 +50,7 @@ func (a *app) query(c *echo.Context) error {
 		return errs.NewFieldErrors("page", err)
 	}
 
-	orderby, err := order.Parse(orderByFields, qp.OrderBy, departmentbus.DefaultOrderBy)
+	orderBy, err := order.Parse(orderByFields, qp.OrderBy, campaignbus.DefaultOrderBy)
 	if err != nil {
 		return errs.NewFieldErrors("order", err)
 	}
@@ -41,81 +60,60 @@ func (a *app) query(c *echo.Context) error {
 		return errs.New(errs.InvalidArgument, err)
 	}
 
-	deps, err := a.departmentBus.Query(c.Request().Context(), filter, orderby, page)
+	campaigns, err := a.campaignBus.Query(c.Request().Context(), filter, orderBy, page)
 	if err != nil {
 		return mapBusErr(err, "query")
 	}
 
-	count, err := a.departmentBus.Count(c.Request().Context(), filter)
+	count, err := a.campaignBus.Count(c.Request().Context(), filter)
 	if err != nil {
 		return mapBusErr(err, "count")
 	}
 
-	return c.JSON(http.StatusOK, query.NewResult(toAppDepartments(deps), count, page))
+	return c.JSON(http.StatusOK, query.NewResult(toAppCampaigns(campaigns), count, page))
 }
 
 func (a *app) queryByID(c *echo.Context) error {
-	dep, err := mid.GetDepartment(c.Request().Context())
+	cmp, err := mid.GetCampaign(c.Request().Context())
 	if err != nil {
 		return errs.Errorf(errs.Internal, "querybyid: %s", err)
 	}
 
-	return c.JSON(http.StatusOK, toAppDepartment(dep))
-}
-
-func (a *app) create(c *echo.Context) error {
-	var req NewDepartment
-	if err := c.Bind(&req); err != nil {
-		return errs.New(errs.InvalidArgument, err)
-	}
-
-	new, err := toBusNewDepartment(req)
-	if err != nil {
-		return err
-	}
-
-	dep, err := a.departmentBus.Save(c.Request().Context(), new)
-	if err != nil {
-		return mapBusErr(err, "create")
-	}
-
-	return c.JSON(http.StatusCreated, toAppDepartment(dep))
+	return c.JSON(http.StatusOK, toAppCampaign(cmp))
 }
 
 func (a *app) update(c *echo.Context) error {
-	var req UpdateDepartment
+	var req UpdateCampaign
 	if err := c.Bind(&req); err != nil {
 		return errs.New(errs.InvalidArgument, err)
 	}
 
-	up, err := toBusUpdateDepartment(req)
+	up, err := toBusUpdateCampaign(req)
 	if err != nil {
 		return err
 	}
 
-	dep, err := mid.GetDepartment(c.Request().Context())
+	cmp, err := mid.GetCampaign(c.Request().Context())
 	if err != nil {
 		return errs.Errorf(errs.Internal, "update: %s", err)
 	}
 
-	updated, err := a.departmentBus.Update(c.Request().Context(), dep, up)
+	updated, err := a.campaignBus.Update(c.Request().Context(), cmp, up)
 	if err != nil {
 		return mapBusErr(err, "update")
 	}
-
-	return c.JSON(http.StatusOK, toAppDepartment(updated))
+	return c.JSON(http.StatusOK, toAppCampaign(updated))
 }
 
 func (a *app) deleteByID(c *echo.Context) error {
-	dep, err := mid.GetDepartment(c.Request().Context())
+	cmp, err := mid.GetCampaign(c.Request().Context())
 	if err != nil {
 		return errs.Errorf(errs.Internal, "deletebyid: %s", err)
 	}
 
-	err = a.departmentBus.Delete(c.Request().Context(), dep)
-	if err != nil {
+	if err := a.campaignBus.Delete(c.Request().Context(), cmp); err != nil {
 		return mapBusErr(err, "deletebyid")
 	}
 
-	return c.NoContent(http.StatusOK)
+	return c.NoContent(http.StatusNoContent)
 }

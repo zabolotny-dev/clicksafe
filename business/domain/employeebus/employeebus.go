@@ -78,10 +78,10 @@ func (b *Business) Query(ctx context.Context, filter QueryFilter, orderBy order.
 	return emps, nil
 }
 
-func (b *Business) Update(ctx context.Context, emp Employee, up UpdateEmployee) error {
+func (b *Business) Update(ctx context.Context, emp Employee, up UpdateEmployee) (Employee, error) {
 	if up.DepartmentID != nil {
 		if _, err := b.departmentBus.QueryByID(ctx, *up.DepartmentID); err != nil {
-			return fmt.Errorf("department.querybyid: %s: %w", *up.DepartmentID, err)
+			return Employee{}, fmt.Errorf("department.querybyid: %s: %w", *up.DepartmentID, err)
 		}
 		emp.DepartmentID = up.DepartmentID
 	}
@@ -107,9 +107,10 @@ func (b *Business) Update(ctx context.Context, emp Employee, up UpdateEmployee) 
 	}
 
 	if err := b.storer.Update(ctx, emp); err != nil {
-		return fmt.Errorf("update: %w", err)
+		return Employee{}, fmt.Errorf("update: %w", err)
 	}
-	return nil
+
+	return emp, nil
 }
 
 func (b *Business) Delete(ctx context.Context, id uuid.UUID) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
@@ -15,6 +16,7 @@ const (
 	departmentKey ctxKey = iota + 1
 	employeeKey
 	messageKey
+	campaignKey
 )
 
 func setDepartment(ctx context.Context, d departmentbus.Department) context.Context {
@@ -51,4 +53,16 @@ func GetMessage(ctx context.Context) (messagebus.Message, error) {
 		return messagebus.Message{}, errors.New("message not found in context")
 	}
 	return m, nil
+}
+
+func setCampaign(ctx context.Context, c campaignbus.Campaign) context.Context {
+	return context.WithValue(ctx, campaignKey, c)
+}
+
+func GetCampaign(ctx context.Context) (campaignbus.Campaign, error) {
+	c, ok := ctx.Value(campaignKey).(campaignbus.Campaign)
+	if !ok {
+		return campaignbus.Campaign{}, errors.New("campaign not found in context")
+	}
+	return c, nil
 }

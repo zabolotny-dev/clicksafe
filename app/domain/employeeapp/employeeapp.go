@@ -98,12 +98,12 @@ func (a *app) update(c *echo.Context) error {
 		return errs.Errorf(errs.Internal, "update: %s", err)
 	}
 
-	err = a.employeeBus.Update(c.Request().Context(), emp, up)
+	updated, err := a.employeeBus.Update(c.Request().Context(), emp, up)
 	if err != nil {
 		return mapBusErr(err, "update")
 	}
 
-	return c.NoContent(http.StatusOK)
+	return c.JSON(http.StatusOK, toAppEmployee(updated))
 }
 
 func (a *app) deleteByID(c *echo.Context) error {

@@ -15,7 +15,11 @@ http:// {
 		reverse_proxy api:8080
 	}
 
-	handle /events* {
+	handle /event* {
+		reverse_proxy api:8080
+	}
+
+	handle /campaign* {
 		reverse_proxy api:8080
 	}
 

@@ -40,17 +40,18 @@ func NewBusiness(storer Storer, fileStorage FileStorage) *Business {
 	}
 }
 
-func (b *Business) Save(ctx context.Context, organization NewOrganization) error {
-	err := b.storer.Save(ctx, Organization{
+func (b *Business) Save(ctx context.Context, organization NewOrganization) (Organization, error) {
+	org := Organization{
 		ID:         GlobalID,
 		Label:      organization.Label,
 		Attributes: organization.Attributes,
-	})
-
-	if err != nil {
-		return fmt.Errorf("save: %w", err)
 	}
-	return nil
+
+	if err := b.storer.Save(ctx, org); err != nil {
+		return Organization{}, fmt.Errorf("save: %w", err)
+	}
+
+	return org, nil
 }
 
 func (b *Business) Get(ctx context.Context) (Organization, error) {
@@ -61,7 +62,7 @@ func (b *Business) Get(ctx context.Context) (Organization, error) {
 	return organization, nil
 }
 
-func (b *Business) Update(ctx context.Context, organization Organization, up UpdateOrganization) error {
+func (b *Business) Update(ctx context.Context, organization Organization, up UpdateOrganization) (Organization, error) {
 	if up.Label != nil {
 		organization.Label = *up.Label
 	}
@@ -71,10 +72,10 @@ func (b *Business) Update(ctx context.Context, organization Organization, up Upd
 	}
 
 	if err := b.storer.Update(ctx, organization); err != nil {
-		return fmt.Errorf("update: %w", err)
+		return Organization{}, fmt.Errorf("update: %w", err)
 	}
 
-	return nil
+	return organization, nil
 }
 
 func (b *Business) UpdateLogo(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
