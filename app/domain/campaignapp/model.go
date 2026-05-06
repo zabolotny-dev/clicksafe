@@ -16,8 +16,8 @@ type Campaign struct {
 	MessageID  *uuid.UUID        `json:"message_id"`
 	Label      string            `json:"label"`
 	Status     string            `json:"status"`
-	DateFrom   time.Time         `json:"date_from"`
-	DateTo     time.Time         `json:"date_to"`
+	DateFrom   *time.Time        `json:"date_from"`
+	DateTo     *time.Time        `json:"date_to"`
 	Attributes map[string]string `json:"attributes"`
 }
 
@@ -74,14 +74,22 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 }
 
 func toAppCampaign(cmp campaignbus.Campaign) Campaign {
-	rang := cmp.DateRange.Range()
+	var dateFrom, dateTo *time.Time
+	if cmp.DateRange.Valid() {
+		rng := cmp.DateRange.Range()
+		start := rng.Start()
+		end := rng.End()
+		dateFrom = &start
+		dateTo = &end
+	}
+
 	return Campaign{
 		ID:         cmp.ID,
 		MessageID:  cmp.MessageID,
 		Label:      cmp.Label.String(),
 		Status:     cmp.Status.String(),
-		DateFrom:   rang.Start(),
-		DateTo:     rang.End(),
+		DateFrom:   dateFrom,
+		DateTo:     dateTo,
 		Attributes: cmp.Attributes,
 	}
 }

@@ -10,6 +10,7 @@ import (
 
 const (
 	UniqueViolation = "23505"
+	FKViolation     = "23503"
 )
 
 type Config struct {

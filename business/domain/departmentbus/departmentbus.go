@@ -24,15 +24,6 @@ type Storer interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
-type ExtBusiness interface {
-	Save(ctx context.Context, department NewDepartment) (Department, error)
-	Update(ctx context.Context, department Department, up UpdateDepartment) (Department, error)
-	Delete(ctx context.Context, department Department) error
-	QueryByID(ctx context.Context, id uuid.UUID) (Department, error)
-	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Department, error)
-	Count(ctx context.Context, filter QueryFilter) (int, error)
-}
-
 type Business struct {
 	storer Storer
 }

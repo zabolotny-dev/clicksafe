@@ -10,9 +10,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
 )
-
-var ErrInvalidID = errors.New("ID is not in its proper form")
 
 func LoadDepartment(departmentBus *departmentbus.Business) echo.MiddlewareFunc {
 	m := func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -23,7 +22,7 @@ func LoadDepartment(departmentBus *departmentbus.Business) echo.MiddlewareFunc {
 				var err error
 				productID, err := uuid.Parse(id)
 				if err != nil {
-					return errs.New(errs.InvalidArgument, ErrInvalidID)
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
 				}
 
 				dep, err := departmentBus.QueryByID(c.Request().Context(), productID)
@@ -59,7 +58,7 @@ func LoadEmployee(employeeBus *employeebus.Business) echo.MiddlewareFunc {
 				var err error
 				employeeID, err := uuid.Parse(id)
 				if err != nil {
-					return errs.New(errs.InvalidArgument, ErrInvalidID)
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
 				}
 
 				employee, err := employeeBus.QueryByID(c.Request().Context(), employeeID)
@@ -94,7 +93,7 @@ func LoadMessage(messageBus *messagebus.Business) echo.MiddlewareFunc {
 			if id != "" {
 				messageID, err := uuid.Parse(id)
 				if err != nil {
-					return errs.New(errs.InvalidArgument, ErrInvalidID)
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
 				}
 
 				message, err := messageBus.QueryByID(c.Request().Context(), messageID)
@@ -129,7 +128,7 @@ func LoadCampaign(campaignBus *campaignbus.Business) echo.MiddlewareFunc {
 			if id != "" {
 				campaignID, err := uuid.Parse(id)
 				if err != nil {
-					return errs.New(errs.InvalidArgument, ErrInvalidID)
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
 				}
 
 				campaign, err := campaignBus.QueryByID(c.Request().Context(), campaignID)
@@ -144,6 +143,41 @@ func LoadCampaign(campaignBus *campaignbus.Business) echo.MiddlewareFunc {
 
 				c.SetRequest(c.Request().WithContext(
 					setCampaign(c.Request().Context(), campaign),
+				))
+			}
+
+			return next(c)
+		}
+
+		return h
+	}
+
+	return m
+}
+
+func LoadTarget(targetBus *targetbus.Business) echo.MiddlewareFunc {
+	m := func(next echo.HandlerFunc) echo.HandlerFunc {
+		h := func(c *echo.Context) error {
+			id := c.Param("id")
+
+			if id != "" {
+				targetID, err := uuid.Parse(id)
+				if err != nil {
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
+				}
+
+				target, err := targetBus.QueryByID(c.Request().Context(), targetID)
+				if err != nil {
+					switch {
+					case errors.Is(err, targetbus.ErrNotFound):
+						return errs.New(errs.NotFound, err)
+					default:
+						return errs.Errorf(errs.InternalOnlyLog, "querybyid: targetID[%s]: %s", targetID, err)
+					}
+				}
+
+				c.SetRequest(c.Request().WithContext(
+					setTarget(c.Request().Context(), target),
 				))
 			}
 

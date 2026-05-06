@@ -26,6 +26,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus/stores/targetdb"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
@@ -115,7 +117,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 	departmentBus := departmentbus.NewBusiness(departmentStore)
 
 	employeeStore := employeedb.NewStore(db)
-	employeeBus := employeebus.NewBusiness(employeeStore, departmentBus)
+	employeeBus := employeebus.NewBusiness(employeeStore)
 
 	resolverBus := resolverbus.NewBusiness(employeeBus, departmentBus, organizationBus)
 
@@ -123,7 +125,10 @@ func run(ctx context.Context, log *logger.Logger) error {
 	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
 
 	campaignStore := campaigndb.NewStore(db)
-	campaignBus := campaignbus.NewBusiness(campaignStore, messageBus)
+	campaignBus := campaignbus.NewBusiness(campaignStore)
+
+	targetStore := targetdb.NewStore(db)
+	targetBus := targetbus.NewBusiness(targetStore, campaignBus)
 
 	// -------------------------------------------------------------------------
 	// Start API Service
@@ -143,6 +148,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		EmployeeBus:     employeeBus,
 		MessageBus:      messageBus,
 		CampaignBus:     campaignBus,
+		TargetBus:       targetBus,
 	})
 
 	s := http.Server{

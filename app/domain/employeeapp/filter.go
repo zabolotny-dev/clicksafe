@@ -18,21 +18,21 @@ type queryParams struct {
 	Phone        string
 }
 
-func parseQueryParams(c *echo.Context) (queryParams, error) {
+func parseQueryParams(c *echo.Context) queryParams {
 	values := c.Request().URL.Query()
 
 	filter := queryParams{
 		Page:         values.Get("page"),
 		Rows:         values.Get("rows"),
 		OrderBy:      values.Get("orderBy"),
-		ID:           values.Get("employee_id"),
+		ID:           values.Get("id"),
 		DepartmentID: values.Get("department_id"),
 		Fullname:     values.Get("full_name"),
 		Email:        values.Get("email"),
 		Phone:        values.Get("phone"),
 	}
 
-	return filter, nil
+	return filter
 }
 
 func parseFilter(qp queryParams) (employeebus.QueryFilter, error) {

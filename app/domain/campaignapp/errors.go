@@ -13,6 +13,8 @@ func mapBusErr(err error, op string) error {
 		return errs.New(errs.NotFound, err)
 	case errors.Is(err, campaignbus.ErrUniqueLabel):
 		return errs.New(errs.AlreadyExists, err)
+	case errors.Is(err, campaignbus.ErrMessageNotFound):
+		return errs.New(errs.NotFound, err)
 	default:
 		return errs.Errorf(errs.InternalOnlyLog, "%s: %s", op, err)
 	}

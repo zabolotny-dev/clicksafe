@@ -21,10 +21,7 @@ func newApp(d *departmentbus.Business) *app {
 }
 
 func (a *app) query(c *echo.Context) error {
-	qp, err := parseQueryParams(c)
-	if err != nil {
-		return errs.New(errs.InvalidArgument, err)
-	}
+	qp := parseQueryParams(c)
 
 	page, err := page.Parse(qp.Page, qp.Rows)
 	if err != nil {
@@ -38,7 +35,7 @@ func (a *app) query(c *echo.Context) error {
 
 	filter, err := parseFilter(qp)
 	if err != nil {
-		return errs.New(errs.InvalidArgument, err)
+		return err
 	}
 
 	deps, err := a.departmentBus.Query(c.Request().Context(), filter, orderby, page)

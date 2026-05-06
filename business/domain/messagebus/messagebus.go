@@ -31,18 +31,6 @@ type FileStorage interface {
 	Delete(ctx context.Context, p file.Path) error
 }
 
-type ExtBusiness interface {
-	Save(ctx context.Context, msg NewMessage) (Message, error)
-	Update(ctx context.Context, msg Message, up UpdateMessage) (Message, error)
-	Delete(ctx context.Context, msg Message) error
-	QueryByID(ctx context.Context, id uuid.UUID) (Message, error)
-	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Message, error)
-	Count(ctx context.Context, filter QueryFilter) (int, error)
-	SaveContent(ctx context.Context, msg Message, r io.Reader) (Message, error)
-	ReadContent(ctx context.Context, msg Message) ([]byte, error)
-	Render(ctx context.Context, msg Message, scope resolverbus.Scope) (string, error)
-}
-
 type Business struct {
 	storer    Storer
 	fileStore FileStorage

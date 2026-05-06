@@ -15,18 +15,18 @@ type queryParams struct {
 	Label   string
 }
 
-func parseQueryParams(c *echo.Context) (queryParams, error) {
+func parseQueryParams(c *echo.Context) queryParams {
 	values := c.Request().URL.Query()
 
 	filter := queryParams{
 		Page:    values.Get("page"),
 		Rows:    values.Get("rows"),
 		OrderBy: values.Get("orderBy"),
-		ID:      values.Get("department_id"),
+		ID:      values.Get("id"),
 		Label:   values.Get("label"),
 	}
 
-	return filter, nil
+	return filter
 }
 
 func parseFilter(qp queryParams) (departmentbus.QueryFilter, error) {

@@ -6,14 +6,14 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 )
 
 var (
-	ErrNotFound    = errors.New("campaign not found")
-	ErrUniqueLabel = errors.New("campaign with this label already exists")
+	ErrNotFound        = errors.New("campaign not found")
+	ErrUniqueLabel     = errors.New("campaign with this label already exists")
+	ErrMessageNotFound = errors.New("message not found")
 )
 
 type Storer interface {
@@ -26,12 +26,11 @@ type Storer interface {
 }
 
 type Business struct {
-	storer      Storer
-	messagesBus messagebus.ExtBusiness
+	storer Storer
 }
 
-func NewBusiness(storer Storer, messagesBus messagebus.ExtBusiness) *Business {
-	return &Business{storer: storer, messagesBus: messagesBus}
+func NewBusiness(storer Storer) *Business {
+	return &Business{storer: storer}
 }
 
 func (b *Business) Save(ctx context.Context, campaign NewCampaign) (Campaign, error) {
@@ -45,6 +44,9 @@ func (b *Business) Save(ctx context.Context, campaign NewCampaign) (Campaign, er
 	}
 
 	if err := b.storer.Save(ctx, cmp); err != nil {
+		if errors.Is(err, ErrMessageNotFound) && campaign.MessageID != nil {
+			return Campaign{}, fmt.Errorf("save: messageID[%s]: %w", *campaign.MessageID, err)
+		}
 		return Campaign{}, fmt.Errorf("save: %w", err)
 	}
 
@@ -53,10 +55,6 @@ func (b *Business) Save(ctx context.Context, campaign NewCampaign) (Campaign, er
 
 func (b *Business) Update(ctx context.Context, cmp Campaign, upd UpdateCampaign) (Campaign, error) {
 	if upd.MessageID != nil {
-		if _, err := b.messagesBus.QueryByID(ctx, *upd.MessageID); err != nil {
-			return Campaign{}, fmt.Errorf("update.querybyid %s: %w", *upd.MessageID, err)
-		}
-
 		cmp.MessageID = upd.MessageID
 	}
 
@@ -73,6 +71,9 @@ func (b *Business) Update(ctx context.Context, cmp Campaign, upd UpdateCampaign)
 	}
 
 	if err := b.storer.Update(ctx, cmp); err != nil {
+		if errors.Is(err, ErrMessageNotFound) && upd.MessageID != nil {
+			return Campaign{}, fmt.Errorf("update: messageID[%s]: %w", *upd.MessageID, err)
+		}
 		return Campaign{}, fmt.Errorf("update: %w", err)
 	}
 

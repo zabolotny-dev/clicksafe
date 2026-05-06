@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
-	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 )
 
@@ -14,7 +13,7 @@ func mapBusErr(err error, msg string) error {
 		return errs.New(errs.AlreadyExists, err)
 	case errors.Is(err, employeebus.ErrUniquePhone):
 		return errs.New(errs.AlreadyExists, err)
-	case errors.Is(err, departmentbus.ErrNotFound):
+	case errors.Is(err, employeebus.ErrDepartmentNotFound):
 		return errs.New(errs.NotFound, err)
 	default:
 		return errs.Errorf(errs.InternalOnlyLog, "%s: %s", msg, err)

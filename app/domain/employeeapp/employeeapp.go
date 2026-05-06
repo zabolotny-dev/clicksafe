@@ -49,10 +49,7 @@ func (a *app) queryByID(c *echo.Context) error {
 }
 
 func (a *app) query(c *echo.Context) error {
-	qp, err := parseQueryParams(c)
-	if err != nil {
-		return errs.New(errs.InvalidArgument, err)
-	}
+	qp := parseQueryParams(c)
 
 	page, err := page.Parse(qp.Page, qp.Rows)
 	if err != nil {
@@ -66,7 +63,7 @@ func (a *app) query(c *echo.Context) error {
 
 	filter, err := parseFilter(qp)
 	if err != nil {
-		return errs.New(errs.InvalidArgument, err)
+		return err
 	}
 
 	emps, err := a.employeeBus.Query(c.Request().Context(), filter, orderby, page)
@@ -112,7 +109,7 @@ func (a *app) deleteByID(c *echo.Context) error {
 		return errs.Errorf(errs.Internal, "delete: %s", err)
 	}
 
-	err = a.employeeBus.Delete(c.Request().Context(), employee.ID)
+	err = a.employeeBus.Delete(c.Request().Context(), employee)
 	if err != nil {
 		return mapBusErr(err, "delete")
 	}

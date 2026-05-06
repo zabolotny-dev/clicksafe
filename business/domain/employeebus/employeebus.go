@@ -6,43 +6,35 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 )
 
 var (
-	ErrUniqueEmail = errors.New("employee with this email already exists")
-	ErrUniquePhone = errors.New("employee with this phone already exists")
-	ErrNotFound    = errors.New("employee not found")
+	ErrUniqueEmail        = errors.New("employee with this email already exists")
+	ErrUniquePhone        = errors.New("employee with this phone already exists")
+	ErrNotFound           = errors.New("employee not found")
+	ErrDepartmentNotFound = errors.New("department not found")
 )
 
 type Storer interface {
-	Save(ctx context.Context, employee Employee) (Employee, error)
+	Save(ctx context.Context, employee Employee) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Employee, error)
 	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Employee, error)
 	Update(ctx context.Context, employee Employee) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, employee Employee) error
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
 type Business struct {
-	storer        Storer
-	departmentBus departmentbus.ExtBusiness
+	storer Storer
 }
 
-func NewBusiness(storer Storer, departmentBus departmentbus.ExtBusiness) *Business {
-	return &Business{storer: storer, departmentBus: departmentBus}
+func NewBusiness(storer Storer) *Business {
+	return &Business{storer: storer}
 }
 
 func (b *Business) Save(ctx context.Context, employee NewEmployee) (Employee, error) {
-	if employee.DepartmentID != nil {
-		_, err := b.departmentBus.QueryByID(ctx, *employee.DepartmentID)
-		if err != nil {
-			return Employee{}, fmt.Errorf("department.querybyid: %s: %w", *employee.DepartmentID, err)
-		}
-	}
-
 	emp := Employee{
 		ID:           uuid.New(),
 		DepartmentID: employee.DepartmentID,
@@ -53,11 +45,14 @@ func (b *Business) Save(ctx context.Context, employee NewEmployee) (Employee, er
 		Attributes:   employee.Attributes,
 	}
 
-	if emp, err := b.storer.Save(ctx, emp); err != nil {
+	if err := b.storer.Save(ctx, emp); err != nil {
+		if errors.Is(err, ErrDepartmentNotFound) && employee.DepartmentID != nil {
+			return Employee{}, fmt.Errorf("save: departmentID[%s]: %w", *employee.DepartmentID, err)
+		}
 		return Employee{}, fmt.Errorf("save: %w", err)
-	} else {
-		return emp, nil
 	}
+
+	return emp, nil
 }
 
 func (b *Business) QueryByID(ctx context.Context, id uuid.UUID) (Employee, error) {
@@ -80,9 +75,6 @@ func (b *Business) Query(ctx context.Context, filter QueryFilter, orderBy order.
 
 func (b *Business) Update(ctx context.Context, emp Employee, up UpdateEmployee) (Employee, error) {
 	if up.DepartmentID != nil {
-		if _, err := b.departmentBus.QueryByID(ctx, *up.DepartmentID); err != nil {
-			return Employee{}, fmt.Errorf("department.querybyid: %s: %w", *up.DepartmentID, err)
-		}
 		emp.DepartmentID = up.DepartmentID
 	}
 
@@ -107,14 +99,17 @@ func (b *Business) Update(ctx context.Context, emp Employee, up UpdateEmployee) 
 	}
 
 	if err := b.storer.Update(ctx, emp); err != nil {
+		if errors.Is(err, ErrDepartmentNotFound) && up.DepartmentID != nil {
+			return Employee{}, fmt.Errorf("update: departmentID[%s]: %w", *up.DepartmentID, err)
+		}
 		return Employee{}, fmt.Errorf("update: %w", err)
 	}
 
 	return emp, nil
 }
 
-func (b *Business) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := b.storer.Delete(ctx, id); err != nil {
+func (b *Business) Delete(ctx context.Context, emp Employee) error {
+	if err := b.storer.Delete(ctx, emp); err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
 	return nil

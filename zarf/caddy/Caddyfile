@@ -23,6 +23,10 @@ http:// {
 		reverse_proxy api:8080
 	}
 
+	handle /target* {
+		reverse_proxy api:8080
+	}
+
 	handle_path /public/* {
 		root * /var/www/my-app/public
 		file_server

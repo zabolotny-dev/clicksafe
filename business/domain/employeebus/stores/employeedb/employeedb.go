@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	uniqueEmailConstraint = "employees_email_key"
-	uniquePhoneConstraint = "employees_phone_number_key"
+	uniqueEmailConstraint  = "employees_email_key"
+	uniquePhoneConstraint  = "employees_phone_number_key"
+	departmentFKConstraint = "employees_department_id_fkey"
 )
 
 type Store struct {
@@ -30,10 +31,10 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{q: sqlc.New(pool)}
 }
 
-func (s *Store) Save(ctx context.Context, emp employeebus.Employee) (employeebus.Employee, error) {
+func (s *Store) Save(ctx context.Context, emp employeebus.Employee) error {
 	dbEmp, err := toDBEmployee(emp)
 	if err != nil {
-		return employeebus.Employee{}, fmt.Errorf("db: %w", err)
+		return fmt.Errorf("db: %w", err)
 	}
 
 	err = s.q.Save(ctx, sqlc.SaveParams{
@@ -47,18 +48,25 @@ func (s *Store) Save(ctx context.Context, emp employeebus.Employee) (employeebus
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			switch pgErr.ConstraintName {
-			case uniqueEmailConstraint:
-				return employeebus.Employee{}, employeebus.ErrUniqueEmail
-			case uniquePhoneConstraint:
-				return employeebus.Employee{}, employeebus.ErrUniquePhone
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				switch pgErr.ConstraintName {
+				case uniqueEmailConstraint:
+					return employeebus.ErrUniqueEmail
+				case uniquePhoneConstraint:
+					return employeebus.ErrUniquePhone
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == departmentFKConstraint {
+					return employeebus.ErrDepartmentNotFound
+				}
 			}
 		}
-		return employeebus.Employee{}, fmt.Errorf("db: %w", err)
+		return fmt.Errorf("db: %w", err)
 	}
 
-	return emp, nil
+	return nil
 }
 
 func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error) {
@@ -133,12 +141,19 @@ func (s *Store) Update(ctx context.Context, emp employeebus.Employee) error {
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			switch pgErr.ConstraintName {
-			case uniqueEmailConstraint:
-				return employeebus.ErrUniqueEmail
-			case uniquePhoneConstraint:
-				return employeebus.ErrUniquePhone
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				switch pgErr.ConstraintName {
+				case uniqueEmailConstraint:
+					return employeebus.ErrUniqueEmail
+				case uniquePhoneConstraint:
+					return employeebus.ErrUniquePhone
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == departmentFKConstraint {
+					return employeebus.ErrDepartmentNotFound
+				}
 			}
 		}
 		return fmt.Errorf("db: %w", err)
@@ -147,8 +162,8 @@ func (s *Store) Update(ctx context.Context, emp employeebus.Employee) error {
 	return nil
 }
 
-func (s *Store) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := s.q.Delete(ctx, id); err != nil {
+func (s *Store) Delete(ctx context.Context, emp employeebus.Employee) error {
+	if err := s.q.Delete(ctx, emp.ID); err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
 	return nil

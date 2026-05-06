@@ -20,7 +20,7 @@ type queryParams struct {
 	DateTo   string
 }
 
-func parseQueryParams(c *echo.Context) (queryParams, error) {
+func parseQueryParams(c *echo.Context) queryParams {
 	values := c.Request().URL.Query()
 
 	filter := queryParams{
@@ -34,7 +34,7 @@ func parseQueryParams(c *echo.Context) (queryParams, error) {
 		DateTo:   values.Get("date_to"),
 	}
 
-	return filter, nil
+	return filter
 }
 
 func parseFilter(qp queryParams) (campaignbus.QueryFilter, error) {

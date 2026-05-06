@@ -2,9 +2,12 @@ package errs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime"
 )
+
+var ErrInvalidID = errors.New("ID is not in its proper form")
 
 // ErrCode represents an error code in the system.
 type ErrCode struct {

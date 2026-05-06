@@ -18,6 +18,7 @@ import (
 
 const (
 	uniqueLabelConstraint = "campaigns_label_key"
+	messageFKConstraint   = "campaigns_message_id_fkey"
 )
 
 type Store struct {
@@ -45,9 +46,16 @@ func (s *Store) Save(ctx context.Context, campaign campaignbus.Campaign) error {
 
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			if pgErr.ConstraintName == uniqueLabelConstraint {
-				return campaignbus.ErrUniqueLabel
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				if pgErr.ConstraintName == uniqueLabelConstraint {
+					return campaignbus.ErrUniqueLabel
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == messageFKConstraint {
+					return campaignbus.ErrMessageNotFound
+				}
 			}
 		}
 
@@ -75,9 +83,16 @@ func (s *Store) Update(ctx context.Context, campaign campaignbus.Campaign) error
 
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			if pgErr.ConstraintName == uniqueLabelConstraint {
-				return campaignbus.ErrUniqueLabel
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				if pgErr.ConstraintName == uniqueLabelConstraint {
+					return campaignbus.ErrUniqueLabel
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == messageFKConstraint {
+					return campaignbus.ErrMessageNotFound
+				}
 			}
 		}
 
