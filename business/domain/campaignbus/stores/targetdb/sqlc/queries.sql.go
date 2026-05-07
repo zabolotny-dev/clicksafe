@@ -12,6 +12,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const count = `-- name: Count :one
+SELECT COUNT(*) FROM targets
+WHERE
+    ($1::uuid IS NULL OR id = $1)
+AND
+    ($2::uuid IS NULL OR campaign_id = $2)
+AND
+    ($3::uuid IS NULL OR employee_id = $3)
+AND
+    ($4::text IS NULL OR status = $4)
+AND
+    ($5::boolean IS NULL
+        OR ($5 = true AND scheduled_at IS NOT NULL)
+        OR ($5 = false AND scheduled_at IS NULL))
+`
+
+type CountParams struct {
+	ID          *uuid.UUID
+	CampaignID  *uuid.UUID
+	EmployeeID  *uuid.UUID
+	Status      pgtype.Text
+	HasSchedule pgtype.Bool
+}
+
+func (q *Queries) Count(ctx context.Context, arg CountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, count,
+		arg.ID,
+		arg.CampaignID,
+		arg.EmployeeID,
+		arg.Status,
+		arg.HasSchedule,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const delete = `-- name: Delete :exec
 DELETE FROM targets
 WHERE id = $1
@@ -32,14 +69,39 @@ func (q *Queries) DeleteByCampaignID(ctx context.Context, campaignID uuid.UUID) 
 	return err
 }
 
-const queryByCampaignID = `-- name: QueryByCampaignID :many
+const query = `-- name: Query :many
 SELECT id, token, employee_id, campaign_id, status, scheduled_at, created_at FROM targets
-WHERE campaign_id = $1
+WHERE
+    ($1::uuid IS NULL OR id = $1)
+AND
+    ($2::uuid IS NULL OR campaign_id = $2)
+AND
+    ($3::uuid IS NULL OR employee_id = $3)
+AND
+    ($4::text IS NULL OR status = $4)
+AND
+    ($5::boolean IS NULL
+        OR ($5 = true AND scheduled_at IS NOT NULL)
+        OR ($5 = false AND scheduled_at IS NULL))
 ORDER BY created_at ASC, id ASC
 `
 
-func (q *Queries) QueryByCampaignID(ctx context.Context, campaignID uuid.UUID) ([]Target, error) {
-	rows, err := q.db.Query(ctx, queryByCampaignID, campaignID)
+type QueryParams struct {
+	ID          *uuid.UUID
+	CampaignID  *uuid.UUID
+	EmployeeID  *uuid.UUID
+	Status      pgtype.Text
+	HasSchedule pgtype.Bool
+}
+
+func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Target, error) {
+	rows, err := q.db.Query(ctx, query,
+		arg.ID,
+		arg.CampaignID,
+		arg.EmployeeID,
+		arg.Status,
+		arg.HasSchedule,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +149,14 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Target, error) {
 }
 
 const queryDue = `-- name: QueryDue :many
-SELECT id, token, employee_id, campaign_id, status, scheduled_at, created_at FROM targets
+SELECT targets.id, targets.token, targets.employee_id, targets.campaign_id, targets.status, targets.scheduled_at, targets.created_at FROM targets
+JOIN campaigns ON campaigns.id = targets.campaign_id
 WHERE
-    status = 'PENDING'
-    AND scheduled_at IS NOT NULL
-    AND scheduled_at <= $1
-ORDER BY scheduled_at ASC, created_at ASC, id ASC
+    targets.status = 'PENDING'
+    AND targets.scheduled_at IS NOT NULL
+    AND targets.scheduled_at <= $1
+    AND campaigns.status = 'ACTIVE'
+ORDER BY targets.scheduled_at ASC, targets.created_at ASC, targets.id ASC
 `
 
 func (q *Queries) QueryDue(ctx context.Context, scheduledAt pgtype.Timestamptz) ([]Target, error) {
@@ -191,6 +255,51 @@ func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
 		arg.ScheduledAt,
 		arg.CreatedAt,
 		arg.ID,
+	)
+	return err
+}
+
+const updateMany = `-- name: UpdateMany :exec
+UPDATE targets
+SET
+    token        = data.token,
+    employee_id  = data.employee_id,
+    campaign_id  = data.campaign_id,
+    status       = data.status,
+    scheduled_at = data.scheduled_at,
+    created_at   = data.created_at
+FROM (
+    SELECT
+        UNNEST($1::uuid[])          AS id,
+        UNNEST($2::text[])       AS token,
+        UNNEST($3::uuid[]) AS employee_id,
+        UNNEST($4::uuid[]) AS campaign_id,
+        UNNEST($5::text[])     AS status,
+        UNNEST($6::timestamptz[]) AS scheduled_at,
+        UNNEST($7::timestamptz[])   AS created_at
+) AS data
+WHERE targets.id = data.id
+`
+
+type UpdateManyParams struct {
+	Ids          []uuid.UUID
+	Tokens       []string
+	EmployeeIds  []uuid.UUID
+	CampaignIds  []uuid.UUID
+	Statuses     []string
+	ScheduledAts []pgtype.Timestamptz
+	CreatedAts   []pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateMany(ctx context.Context, arg UpdateManyParams) error {
+	_, err := q.db.Exec(ctx, updateMany,
+		arg.Ids,
+		arg.Tokens,
+		arg.EmployeeIds,
+		arg.CampaignIds,
+		arg.Statuses,
+		arg.ScheduledAts,
+		arg.CreatedAts,
 	)
 	return err
 }

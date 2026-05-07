@@ -13,10 +13,10 @@ import (
 )
 
 type app struct {
-	campaignBus *campaignbus.Business
+	campaignBus *campaignbus.CampaignBusiness
 }
 
-func newApp(d *campaignbus.Business) *app {
+func newApp(d *campaignbus.CampaignBusiness) *app {
 	return &app{campaignBus: d}
 }
 
@@ -44,12 +44,12 @@ func (a *app) query(c *echo.Context) error {
 
 	page, err := page.Parse(qp.Page, qp.Rows)
 	if err != nil {
-		return errs.NewFieldErrors("page", err)
+		return errs.NewFieldErrors("page", err, errs.InvalidArgument, "validation failed")
 	}
 
 	orderBy, err := order.Parse(orderByFields, qp.OrderBy, campaignbus.DefaultOrderBy)
 	if err != nil {
-		return errs.NewFieldErrors("order", err)
+		return errs.NewFieldErrors("order", err, errs.InvalidArgument, "validation failed")
 	}
 
 	filter, err := parseFilter(qp)
@@ -113,4 +113,46 @@ func (a *app) deleteByID(c *echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (a *app) start(c *echo.Context) error {
+	cmp, err := mid.GetCampaign(c.Request().Context())
+	if err != nil {
+		return errs.Errorf(errs.Internal, "start: %s", err)
+	}
+
+	updated, err := a.campaignBus.Start(c.Request().Context(), cmp)
+	if err != nil {
+		return mapBusErr(err, "start")
+	}
+
+	return c.JSON(http.StatusOK, toAppCampaign(updated))
+}
+
+func (a *app) pause(c *echo.Context) error {
+	cmp, err := mid.GetCampaign(c.Request().Context())
+	if err != nil {
+		return errs.Errorf(errs.Internal, "pause: %s", err)
+	}
+
+	updated, err := a.campaignBus.Pause(c.Request().Context(), cmp)
+	if err != nil {
+		return mapBusErr(err, "pause")
+	}
+
+	return c.JSON(http.StatusOK, toAppCampaign(updated))
+}
+
+func (a *app) cancel(c *echo.Context) error {
+	cmp, err := mid.GetCampaign(c.Request().Context())
+	if err != nil {
+		return errs.Errorf(errs.Internal, "cancel: %s", err)
+	}
+
+	updated, err := a.campaignBus.Cancel(c.Request().Context(), cmp)
+	if err != nil {
+		return mapBusErr(err, "cancel")
+	}
+
+	return c.JSON(http.StatusOK, toAppCampaign(updated))
 }

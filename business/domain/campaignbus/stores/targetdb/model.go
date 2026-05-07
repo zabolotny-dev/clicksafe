@@ -4,11 +4,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus/stores/targetdb/sqlc"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/targetdb/sqlc"
 )
 
-func toDBTarget(t targetbus.Target) sqlc.Target {
+func toDBTarget(t campaignbus.Target) sqlc.Target {
 	var schedat pgtype.Timestamptz
 	if t.ScheduledAt != nil {
 		schedat = pgtype.Timestamptz{Time: *t.ScheduledAt, Valid: true}
@@ -25,10 +25,10 @@ func toDBTarget(t targetbus.Target) sqlc.Target {
 	}
 }
 
-func toBusTarget(t sqlc.Target) (targetbus.Target, error) {
-	status, err := targetbus.Parse(t.Status)
+func toBusTarget(t sqlc.Target) (campaignbus.Target, error) {
+	status, err := campaignbus.ParseTargetStatus(t.Status)
 	if err != nil {
-		return targetbus.Target{}, err
+		return campaignbus.Target{}, err
 	}
 
 	var scheduledAt *time.Time
@@ -36,7 +36,7 @@ func toBusTarget(t sqlc.Target) (targetbus.Target, error) {
 		scheduledAt = &t.ScheduledAt.Time
 	}
 
-	return targetbus.Target{
+	return campaignbus.Target{
 		ID:          t.ID,
 		Token:       t.Token,
 		EmployeeID:  t.EmployeeID,
@@ -47,8 +47,8 @@ func toBusTarget(t sqlc.Target) (targetbus.Target, error) {
 	}, nil
 }
 
-func toBusTargets(targets []sqlc.Target) ([]targetbus.Target, error) {
-	busTargets := make([]targetbus.Target, len(targets))
+func toBusTargets(targets []sqlc.Target) ([]campaignbus.Target, error) {
+	busTargets := make([]campaignbus.Target, len(targets))
 	for i, t := range targets {
 		var err error
 		busTargets[i], err = toBusTarget(t)

@@ -2,35 +2,73 @@ package campaignbus
 
 import "fmt"
 
-var (
-	Draft     = newEvent("DRAFT")
-	Active    = newEvent("ACTIVE")
-	Paused    = newEvent("PAUSED")
-	Completed = newEvent("COMPLETED")
-	Canceled  = newEvent("CANCELED")
-)
+// =============================================================================
+// Campaign Status
 
-var statuses = make(map[string]Status)
-
-type Status struct {
+type CampaignStatus struct {
 	value string
 }
 
-func newEvent(status string) Status {
-	e := Status{status}
-	statuses[status] = e
-	return e
-}
-
-func Parse(value string) (Status, error) {
-	e, ok := statuses[value]
-	if !ok {
-		return Status{}, fmt.Errorf("invalid status: '%s'", value)
-	}
-
-	return e, nil
-}
-
-func (s Status) String() string {
+func (s CampaignStatus) String() string {
 	return s.value
+}
+
+var cmpStatuses = make(map[string]CampaignStatus)
+
+var (
+	Draft     = newCmpStatus("DRAFT")
+	Active    = newCmpStatus("ACTIVE")
+	Paused    = newCmpStatus("PAUSED")
+	Completed = newCmpStatus("COMPLETED")
+	Canceled  = newCmpStatus("CANCELED")
+)
+
+func newCmpStatus(s string) CampaignStatus {
+	v := CampaignStatus{s}
+	cmpStatuses[s] = v
+	return v
+}
+
+func ParseCampaignStatus(value string) (CampaignStatus, error) {
+	s, ok := cmpStatuses[value]
+	if !ok {
+		return CampaignStatus{}, fmt.Errorf("invalid campaign status: '%s'", value)
+	}
+	return s, nil
+}
+
+// =============================================================================
+// Target Status
+
+type TargetStatus struct {
+	value string
+}
+
+func (s TargetStatus) String() string {
+	return s.value
+}
+
+var targetStatuses = make(map[string]TargetStatus)
+
+var (
+	Pending   = newTargetStatus("PENDING")
+	Sent      = newTargetStatus("SENT")
+	Failed    = newTargetStatus("FAILED")
+	Opened    = newTargetStatus("OPENED")
+	Clicked   = newTargetStatus("CLICKED")
+	Submitted = newTargetStatus("SUBMITTED")
+)
+
+func newTargetStatus(s string) TargetStatus {
+	v := TargetStatus{s}
+	targetStatuses[s] = v
+	return v
+}
+
+func ParseTargetStatus(value string) (TargetStatus, error) {
+	s, ok := targetStatuses[value]
+	if !ok {
+		return TargetStatus{}, fmt.Errorf("invalid target status: '%s'", value)
+	}
+	return s, nil
 }

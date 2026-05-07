@@ -16,7 +16,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 )
 
@@ -27,8 +26,8 @@ type Config struct {
 	DepartmentBus   *departmentbus.Business
 	EmployeeBus     *employeebus.Business
 	MessageBus      *messagebus.Business
-	CampaignBus     *campaignbus.Business
-	TargetBus       *targetbus.Business
+	CampaignBus     *campaignbus.CampaignBusiness
+	TargetBus       *campaignbus.TargetBusiness
 }
 
 func Add(e *echo.Echo, cfg Config) {

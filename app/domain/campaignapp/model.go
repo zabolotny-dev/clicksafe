@@ -62,7 +62,7 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 	}
 
 	if len(errors) > 0 {
-		return campaignbus.NewCampaign{}, errors.ToError()
+		return campaignbus.NewCampaign{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return campaignbus.NewCampaign{
@@ -103,13 +103,13 @@ func toAppCampaigns(campaigns []campaignbus.Campaign) []Campaign {
 }
 
 func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error) {
-	var errs errs.FieldErrors
+	var fieldErrors errs.FieldErrors
 
 	var mID *uuid.UUID
 	if req.MessageID != nil {
 		id, err := uuid.Parse(*req.MessageID)
 		if err != nil {
-			errs.Add("message_id", err)
+			fieldErrors.Add("message_id", err)
 		} else {
 			mID = &id
 		}
@@ -119,7 +119,7 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 	if req.Label != nil {
 		parsed, err := label.Parse(*req.Label)
 		if err != nil {
-			errs.Add("label", err)
+			fieldErrors.Add("label", err)
 		}
 		lbl = &parsed
 	}
@@ -128,21 +128,21 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 	switch {
 	case req.DateFrom == nil && req.DateTo == nil:
 	case req.DateFrom == nil:
-		errs.Add("date_from", errors.New("date_from is required when date_to is provided"))
+		fieldErrors.Add("date_from", errors.New("date_from is required when date_to is provided"))
 	case req.DateTo == nil:
-		errs.Add("date_to", errors.New("date_to is required when date_from is provided"))
+		fieldErrors.Add("date_to", errors.New("date_to is required when date_from is provided"))
 	default:
 		parsed, err := date.ParseNull(*req.DateFrom, *req.DateTo)
 		if err != nil {
-			errs.Add("date_from", err)
-			errs.Add("date_to", err)
+			fieldErrors.Add("date_from", err)
+			fieldErrors.Add("date_to", err)
 		} else {
 			dater = &parsed
 		}
 	}
 
-	if len(errs) > 0 {
-		return campaignbus.UpdateCampaign{}, errs.ToError()
+	if len(fieldErrors) > 0 {
+		return campaignbus.UpdateCampaign{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return campaignbus.UpdateCampaign{

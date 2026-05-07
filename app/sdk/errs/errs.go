@@ -112,7 +112,7 @@ type FieldError struct {
 type FieldErrors []FieldError
 
 // NewFieldErrors creates a field errors.
-func NewFieldErrors(field string, err error) *Error {
+func NewFieldErrors(field string, err error, code ErrCode, msg string) *Error {
 	fe := FieldErrors{
 		{
 			Field: field,
@@ -120,7 +120,7 @@ func NewFieldErrors(field string, err error) *Error {
 		},
 	}
 
-	return fe.ToError()
+	return fe.ToError(code, msg)
 }
 
 // Add adds a field error to the collection.
@@ -133,11 +133,11 @@ func (fe *FieldErrors) Add(field string, err error) {
 
 // ToError converts the field errors to a structured Error with a Details array.
 // The message lists the names of the invalid fields, e.g. "invalid fields: employee_id, type".
-func (fe FieldErrors) ToError() *Error {
+func (fe FieldErrors) ToError(code ErrCode, msg string) *Error {
 	pc, filename, line, _ := runtime.Caller(1)
 	return &Error{
-		Code:     InvalidArgument,
-		Message:  "validation failed",
+		Code:     code,
+		Message:  msg,
 		Details:  fe,
 		FuncName: runtime.FuncForPC(pc).Name(),
 		FileName: fmt.Sprintf("%s:%d", filename, line),

@@ -40,7 +40,7 @@ func toBusNewDepartment(d NewDepartment) (departmentbus.NewDepartment, error) {
 	}
 
 	if len(errors) > 0 {
-		return departmentbus.NewDepartment{}, errors.ToError()
+		return departmentbus.NewDepartment{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return departmentbus.NewDepartment{
@@ -62,7 +62,7 @@ func toBusUpdateDepartment(d UpdateDepartment) (departmentbus.UpdateDepartment, 
 	}
 
 	if len(errors) > 0 {
-		return departmentbus.UpdateDepartment{}, errors.ToError()
+		return departmentbus.UpdateDepartment{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return departmentbus.UpdateDepartment{

@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 )
 
 type Target struct {
@@ -33,7 +33,7 @@ type AutoDistribute struct {
 	DateTo   time.Time `json:"date_to"`
 }
 
-func toBusNewTarget(req NewTarget) (targetbus.NewTarget, error) {
+func toBusNewTarget(req NewTarget) (campaignbus.NewTarget, error) {
 	var errors errs.FieldErrors
 
 	employeeID, err := uuid.Parse(req.EmployeeID)
@@ -47,10 +47,10 @@ func toBusNewTarget(req NewTarget) (targetbus.NewTarget, error) {
 	}
 
 	if len(errors) > 0 {
-		return targetbus.NewTarget{}, errors.ToError()
+		return campaignbus.NewTarget{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
-	return targetbus.NewTarget{
+	return campaignbus.NewTarget{
 		EmployeeID: employeeID,
 		CampaignID: campaignID,
 	}, nil
@@ -58,13 +58,13 @@ func toBusNewTarget(req NewTarget) (targetbus.NewTarget, error) {
 
 func toBusUpdateSchedule(req UpdateSchedule) (time.Time, error) {
 	if req.ScheduledAt.IsZero() {
-		return time.Time{}, errs.NewFieldErrors("scheduled_at", errors.New("scheduled_at is required"))
+		return time.Time{}, errs.NewFieldErrors("scheduled_at", errors.New("scheduled_at is required"), errs.InvalidArgument, "invalid scheduled_at")
 	}
 
 	return req.ScheduledAt, nil
 }
 
-func toAppTarget(t targetbus.Target) Target {
+func toAppTarget(t campaignbus.Target) Target {
 	return Target{
 		ID:          t.ID,
 		Token:       t.Token,

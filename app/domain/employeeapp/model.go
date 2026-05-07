@@ -71,7 +71,7 @@ func toBusNewEmployee(req NewEmployee) (employeebus.NewEmployee, error) {
 	}
 
 	if len(errors) > 0 {
-		return employeebus.NewEmployee{}, errors.ToError()
+		return employeebus.NewEmployee{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return employeebus.NewEmployee{
@@ -153,7 +153,7 @@ func toBusUpdateEmployee(req UpdateEmployee) (employeebus.UpdateEmployee, error)
 	}
 
 	if len(errors) > 0 {
-		return employeebus.UpdateEmployee{}, errors.ToError()
+		return employeebus.UpdateEmployee{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return employeebus.UpdateEmployee{

@@ -106,7 +106,7 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Campai
 	cmp, err := s.q.QueryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return campaignbus.Campaign{}, campaignbus.ErrNotFound
+			return campaignbus.Campaign{}, campaignbus.ErrCampaignNotFound
 		}
 		return campaignbus.Campaign{}, fmt.Errorf("db: %w", err)
 	}
@@ -118,7 +118,7 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Campai
 	return buscmp, nil
 }
 
-func (s *Store) Query(ctx context.Context, filter campaignbus.QueryFilter, orderBy order.By, page page.Page) ([]campaignbus.Campaign, error) {
+func (s *Store) Query(ctx context.Context, filter campaignbus.CampaignQueryFilter, orderBy order.By, page page.Page) ([]campaignbus.Campaign, error) {
 	dbFilter := toDBFilter(filter)
 
 	cmps, err := s.q.Query(ctx, sqlc.QueryParams{
@@ -151,7 +151,7 @@ func (s *Store) Delete(ctx context.Context, campaign campaignbus.Campaign) error
 	return nil
 }
 
-func (s *Store) Count(ctx context.Context, filter campaignbus.QueryFilter) (int, error) {
+func (s *Store) Count(ctx context.Context, filter campaignbus.CampaignQueryFilter) (int, error) {
 	dbFilter := toDBFilter(filter)
 
 	count, err := s.q.Count(ctx, sqlc.CountParams{

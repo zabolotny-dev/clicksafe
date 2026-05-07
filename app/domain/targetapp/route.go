@@ -3,11 +3,11 @@ package targetapp
 import (
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 )
 
 type Config struct {
-	TargetBus *targetbus.Business
+	TargetBus *campaignbus.TargetBusiness
 }
 
 func Routes(router *echo.Echo, cfg Config) {

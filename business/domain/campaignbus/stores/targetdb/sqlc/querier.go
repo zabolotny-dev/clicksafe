@@ -12,13 +12,15 @@ import (
 )
 
 type Querier interface {
+	Count(ctx context.Context, arg CountParams) (int64, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	DeleteByCampaignID(ctx context.Context, campaignID uuid.UUID) error
-	QueryByCampaignID(ctx context.Context, campaignID uuid.UUID) ([]Target, error)
+	Query(ctx context.Context, arg QueryParams) ([]Target, error)
 	QueryByID(ctx context.Context, id uuid.UUID) (Target, error)
 	QueryDue(ctx context.Context, scheduledAt pgtype.Timestamptz) ([]Target, error)
 	Save(ctx context.Context, arg SaveParams) error
 	Update(ctx context.Context, arg UpdateParams) error
+	UpdateMany(ctx context.Context, arg UpdateManyParams) error
 }
 
 var _ Querier = (*Queries)(nil)

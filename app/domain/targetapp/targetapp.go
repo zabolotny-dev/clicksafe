@@ -7,14 +7,14 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 )
 
 type app struct {
-	targetBus *targetbus.Business
+	targetBus *campaignbus.TargetBusiness
 }
 
-func newApp(d *targetbus.Business) *app {
+func newApp(d *campaignbus.TargetBusiness) *app {
 	return &app{targetBus: d}
 }
 

@@ -12,7 +12,7 @@ type dbFilter struct {
 	DateTo   pgtype.Timestamptz
 }
 
-func toDBFilter(filter campaignbus.QueryFilter) dbFilter {
+func toDBFilter(filter campaignbus.CampaignQueryFilter) dbFilter {
 	var labelFilter pgtype.Text
 	if filter.Label != nil {
 		labelFilter = pgtype.Text{String: *filter.Label, Valid: true}

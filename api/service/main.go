@@ -15,6 +15,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/campaigndb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/targetdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus/stores/departmentdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -26,8 +27,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus/stores/targetdb"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
@@ -124,11 +123,11 @@ func run(ctx context.Context, log *logger.Logger) error {
 	messageStore := messagedb.NewStore(db)
 	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
 
-	campaignStore := campaigndb.NewStore(db)
-	campaignBus := campaignbus.NewBusiness(campaignStore)
-
 	targetStore := targetdb.NewStore(db)
-	targetBus := targetbus.NewBusiness(targetStore, campaignBus)
+	campaignStore := campaigndb.NewStore(db)
+
+	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore)
+	targetBus := campaignbus.NewTargetBusiness(campaignStore, targetStore)
 
 	// -------------------------------------------------------------------------
 	// Start API Service

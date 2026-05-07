@@ -67,7 +67,7 @@ func toBusNewMessage(req NewMessage) (messagebus.NewMessage, error) {
 	}
 
 	if len(errors) > 0 {
-		return messagebus.NewMessage{}, errors.ToError()
+		return messagebus.NewMessage{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return messagebus.NewMessage{
@@ -118,7 +118,7 @@ func toBusUpdateMessage(req UpdateMessage) (messagebus.UpdateMessage, error) {
 	}
 
 	if len(errors) > 0 {
-		return messagebus.UpdateMessage{}, errors.ToError()
+		return messagebus.UpdateMessage{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return messagebus.UpdateMessage{
@@ -142,7 +142,7 @@ func toBusRenderScope(req RenderMessage) (resolverbus.Scope, error) {
 	}
 
 	if len(errors) > 0 {
-		return resolverbus.Scope{}, errors.ToError()
+		return resolverbus.Scope{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return scope, nil

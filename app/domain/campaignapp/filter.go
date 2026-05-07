@@ -37,9 +37,9 @@ func parseQueryParams(c *echo.Context) queryParams {
 	return filter
 }
 
-func parseFilter(qp queryParams) (campaignbus.QueryFilter, error) {
+func parseFilter(qp queryParams) (campaignbus.CampaignQueryFilter, error) {
 	var fieldErrors errs.FieldErrors
-	var filter campaignbus.QueryFilter
+	var filter campaignbus.CampaignQueryFilter
 
 	if qp.ID != "" {
 		id, err := uuid.Parse(qp.ID)
@@ -55,7 +55,7 @@ func parseFilter(qp queryParams) (campaignbus.QueryFilter, error) {
 	}
 
 	if qp.Status != "" {
-		s, err := campaignbus.Parse(qp.Status)
+		s, err := campaignbus.ParseCampaignStatus(qp.Status)
 		if err != nil {
 			fieldErrors.Add("status", err)
 		} else {
@@ -82,7 +82,7 @@ func parseFilter(qp queryParams) (campaignbus.QueryFilter, error) {
 	}
 
 	if len(fieldErrors) > 0 {
-		return campaignbus.QueryFilter{}, fieldErrors.ToError()
+		return campaignbus.CampaignQueryFilter{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return filter, nil

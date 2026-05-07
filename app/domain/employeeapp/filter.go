@@ -70,7 +70,7 @@ func parseFilter(qp queryParams) (employeebus.QueryFilter, error) {
 	}
 
 	if len(fieldErrors) > 0 {
-		return employeebus.QueryFilter{}, fieldErrors.ToError()
+		return employeebus.QueryFilter{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return filter, nil

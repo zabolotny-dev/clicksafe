@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	CampaignBus *campaignbus.Business
+	CampaignBus *campaignbus.CampaignBusiness
 }
 
 func Routes(router *echo.Echo, cfg Config) {
@@ -19,5 +19,8 @@ func Routes(router *echo.Echo, cfg Config) {
 	router.GET("/campaign/:id", api.queryByID, loadCampaign)
 	router.GET("/campaign", api.query)
 	router.PUT("/campaign/:id", api.update, loadCampaign)
+	router.PUT("/campaign/:id/start", api.start, loadCampaign)
+	router.PUT("/campaign/:id/pause", api.pause, loadCampaign)
+	router.PUT("/campaign/:id/cancel", api.cancel, loadCampaign)
 	router.DELETE("/campaign/:id", api.deleteByID, loadCampaign)
 }

@@ -3,7 +3,6 @@ package messagebus
 import (
 	"errors"
 	"fmt"
-	"strings"
 )
 
 var (
@@ -20,9 +19,5 @@ type MissingRequiredVarsError struct {
 }
 
 func (e *MissingRequiredVarsError) Error() string {
-	if e == nil || len(e.Vars) == 0 {
-		return "missing required template vars"
-	}
-
-	return fmt.Sprintf("missing required template vars: %s", strings.Join(e.Vars, ", "))
+	return fmt.Sprintf("missing %d required template vars", len(e.Vars))
 }

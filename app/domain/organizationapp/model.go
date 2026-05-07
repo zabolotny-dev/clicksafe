@@ -38,7 +38,7 @@ func toBusNewOrganization(org NewOrganization) (organizationbus.NewOrganization,
 	}
 
 	if len(errors) > 0 {
-		return organizationbus.NewOrganization{}, errors.ToError()
+		return organizationbus.NewOrganization{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return organizationbus.NewOrganization{
@@ -60,7 +60,7 @@ func toBusUpdateOrganization(org UpdateOrganization) (organizationbus.UpdateOrga
 	}
 
 	if len(errors) > 0 {
-		return organizationbus.UpdateOrganization{}, errors.ToError()
+		return organizationbus.UpdateOrganization{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return organizationbus.UpdateOrganization{

@@ -4,40 +4,37 @@ import (
 	"errors"
 
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 )
 
 func mapBusErr(err error, msg string) error {
 	switch {
-	case errors.Is(err, targetbus.ErrNotFound):
+	case errors.Is(err, campaignbus.ErrTargetNotFound):
 		return errs.New(errs.NotFound, err)
 
-	case errors.Is(err, targetbus.ErrEmployeeNotFound):
+	case errors.Is(err, campaignbus.ErrEmployeeNotFound):
 		return errs.New(errs.NotFound, err)
 
-	case errors.Is(err, targetbus.ErrCampaignNotFound):
+	case errors.Is(err, campaignbus.ErrCampaignNotFound):
 		return errs.New(errs.NotFound, err)
 
-	case errors.Is(err, targetbus.ErrTargetAlreadyExists):
+	case errors.Is(err, campaignbus.ErrTargetAlreadyExists):
 		return errs.New(errs.AlreadyExists, err)
 
-	case errors.Is(err, targetbus.ErrUniqueToken):
+	case errors.Is(err, campaignbus.ErrUniqueToken):
 		return errs.New(errs.AlreadyExists, err)
 
-	case errors.Is(err, targetbus.ErrInvalidStatusValue):
+	case errors.Is(err, campaignbus.ErrInvalidStatusTransition):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrTargetLocked):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrInvalidScheduleWindow):
 		return errs.New(errs.InvalidArgument, err)
 
-	case errors.Is(err, targetbus.ErrCampaignNotDraft):
+	case errors.Is(err, campaignbus.ErrCampaignLocked):
 		return errs.New(errs.FailedPrecondition, err)
-
-	case errors.Is(err, targetbus.ErrInvalidStatusTransition):
-		return errs.New(errs.FailedPrecondition, err)
-
-	case errors.Is(err, targetbus.ErrTargetNotPending):
-		return errs.New(errs.FailedPrecondition, err)
-
-	case errors.Is(err, targetbus.ErrInvalidScheduleWindow):
-		return errs.New(errs.InvalidArgument, err)
 
 	default:
 		return errs.Errorf(errs.InternalOnlyLog, "%s: %s", msg, err)

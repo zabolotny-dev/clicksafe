@@ -6,10 +6,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type QueryFilter struct {
+type CampaignQueryFilter struct {
 	ID       *uuid.UUID
 	Label    *string
-	Status   *Status
+	Status   *CampaignStatus
 	DateFrom *time.Time
 	DateTo   *time.Time
+}
+
+type TargetQueryFilter struct {
+	ID          *uuid.UUID
+	CampaignID  *uuid.UUID
+	EmployeeID  *uuid.UUID
+	Status      *TargetStatus
+	HasSchedule *bool
 }

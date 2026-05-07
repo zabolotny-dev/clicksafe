@@ -32,7 +32,7 @@ func toBusEvent(e Event) (eventbus.Event, error) {
 	}
 
 	if len(errors) > 0 {
-		return eventbus.Event{}, errors.ToError()
+		return eventbus.Event{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return eventbus.Event{

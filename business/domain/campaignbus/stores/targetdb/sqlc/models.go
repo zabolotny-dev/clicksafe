@@ -9,6 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Campaign struct {
+	ID     uuid.UUID
+	Status string
+}
+
 type Target struct {
 	ID          uuid.UUID
 	Token       string

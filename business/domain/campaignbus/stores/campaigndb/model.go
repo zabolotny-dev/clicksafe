@@ -41,7 +41,7 @@ func toBusCampaign(c sqlc.Campaign) (campaignbus.Campaign, error) {
 		return campaignbus.Campaign{}, err
 	}
 
-	status, err := campaignbus.Parse(c.Status)
+	status, err := campaignbus.ParseCampaignStatus(c.Status)
 	if err != nil {
 		return campaignbus.Campaign{}, err
 	}

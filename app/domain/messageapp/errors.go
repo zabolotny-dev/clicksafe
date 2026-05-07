@@ -28,7 +28,11 @@ func mapBusErr(err error, msg string) error {
 		return errs.New(errs.InvalidArgument, err)
 
 	case errors.As(err, &missingVars):
-		return errs.New(errs.FailedPrecondition, missingVars)
+		var fe errs.FieldErrors
+		for _, v := range missingVars.Vars {
+			fe.Add("var", errors.New(v))
+		}
+		return fe.ToError(errs.FailedPrecondition, missingVars.Error())
 
 	case errors.Is(err, resolverbus.ErrEmployeeIDRequired):
 		return errs.New(errs.InvalidArgument, err)

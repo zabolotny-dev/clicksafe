@@ -10,7 +10,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/targetbus"
 )
 
 func LoadDepartment(departmentBus *departmentbus.Business) echo.MiddlewareFunc {
@@ -120,7 +119,7 @@ func LoadMessage(messageBus *messagebus.Business) echo.MiddlewareFunc {
 	return m
 }
 
-func LoadCampaign(campaignBus *campaignbus.Business) echo.MiddlewareFunc {
+func LoadCampaign(campaignBus *campaignbus.CampaignBusiness) echo.MiddlewareFunc {
 	m := func(next echo.HandlerFunc) echo.HandlerFunc {
 		h := func(c *echo.Context) error {
 			id := c.Param("id")
@@ -134,7 +133,7 @@ func LoadCampaign(campaignBus *campaignbus.Business) echo.MiddlewareFunc {
 				campaign, err := campaignBus.QueryByID(c.Request().Context(), campaignID)
 				if err != nil {
 					switch {
-					case errors.Is(err, campaignbus.ErrNotFound):
+					case errors.Is(err, campaignbus.ErrCampaignNotFound):
 						return errs.New(errs.NotFound, err)
 					default:
 						return errs.Errorf(errs.InternalOnlyLog, "querybyid: campaignID[%s]: %s", campaignID, err)
@@ -155,7 +154,7 @@ func LoadCampaign(campaignBus *campaignbus.Business) echo.MiddlewareFunc {
 	return m
 }
 
-func LoadTarget(targetBus *targetbus.Business) echo.MiddlewareFunc {
+func LoadTarget(targetBus *campaignbus.TargetBusiness) echo.MiddlewareFunc {
 	m := func(next echo.HandlerFunc) echo.HandlerFunc {
 		h := func(c *echo.Context) error {
 			id := c.Param("id")
@@ -169,7 +168,7 @@ func LoadTarget(targetBus *targetbus.Business) echo.MiddlewareFunc {
 				target, err := targetBus.QueryByID(c.Request().Context(), targetID)
 				if err != nil {
 					switch {
-					case errors.Is(err, targetbus.ErrNotFound):
+					case errors.Is(err, campaignbus.ErrTargetNotFound):
 						return errs.New(errs.NotFound, err)
 					default:
 						return errs.Errorf(errs.InternalOnlyLog, "querybyid: targetID[%s]: %s", targetID, err)

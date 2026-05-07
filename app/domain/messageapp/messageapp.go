@@ -44,12 +44,12 @@ func (a *app) query(c *echo.Context) error {
 
 	page, err := page.Parse(qp.Page, qp.Rows)
 	if err != nil {
-		return errs.NewFieldErrors("page", err)
+		return errs.NewFieldErrors("page", err, errs.InvalidArgument, "invalid page")
 	}
 
 	orderBy, err := order.Parse(orderByFields, qp.OrderBy, messagebus.DefaultOrderBy)
 	if err != nil {
-		return errs.NewFieldErrors("order", err)
+		return errs.NewFieldErrors("order", err, errs.InvalidArgument, "invalid order")
 	}
 
 	filter, err := parseFilter(qp)

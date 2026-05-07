@@ -47,7 +47,7 @@ func parseFilter(qp queryParams) (departmentbus.QueryFilter, error) {
 	}
 
 	if len(fieldErrors) > 0 {
-		return departmentbus.QueryFilter{}, fieldErrors.ToError()
+		return departmentbus.QueryFilter{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return filter, nil
