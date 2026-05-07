@@ -30,6 +30,14 @@ WHERE id = $1;
 SELECT * FROM campaigns
 WHERE id = $1;
 
+-- name: QueryExpired :many
+SELECT * FROM campaigns
+WHERE
+    status = 'ACTIVE'
+    AND date_to IS NOT NULL
+    AND date_to <= NOW()
+ORDER BY date_to ASC, id ASC;
+
 -- name: Query :many
 SELECT * FROM campaigns
 WHERE

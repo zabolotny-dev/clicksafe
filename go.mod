@@ -2,7 +2,10 @@ module github.com/zabolotny-dev/clicksafe
 
 go 1.25.9
 
-require github.com/ardanlabs/conf/v3 v3.11.0
+require (
+	github.com/ardanlabs/conf/v3 v3.11.0
+	github.com/wneessen/go-mail v0.7.2
+)
 
 require google.golang.org/protobuf v1.36.11 // indirect
 

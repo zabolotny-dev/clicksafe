@@ -5,7 +5,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/domain/campaignapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/departmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/employeeapp"
-	"github.com/zabolotny-dev/clicksafe/app/domain/eventapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/messageapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/organizationapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/targetapp"
@@ -13,7 +12,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
@@ -21,7 +19,6 @@ import (
 
 type Config struct {
 	Log             *logger.Logger
-	EventBus        *eventbus.Business
 	OrganizationBus *organizationbus.Business
 	DepartmentBus   *departmentbus.Business
 	EmployeeBus     *employeebus.Business
@@ -32,10 +29,6 @@ type Config struct {
 
 func Add(e *echo.Echo, cfg Config) {
 	e.HTTPErrorHandler = errs.NewEchoHandler(cfg.Log)
-
-	eventapp.Routes(e, eventapp.Config{
-		EventBus: cfg.EventBus,
-	})
 
 	organizationapp.Routes(e, organizationapp.Config{
 		OrganizationBus: cfg.OrganizationBus,

@@ -14,3 +14,9 @@ type Event struct {
 	Type       event.EventType
 	OccurredAt time.Time
 }
+
+type NewEvent struct {
+	CampaignID uuid.UUID
+	EmployeeID uuid.UUID
+	Type       event.EventType
+}

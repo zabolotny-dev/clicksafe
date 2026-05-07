@@ -148,6 +148,43 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Campaign, error)
 	return i, err
 }
 
+const queryExpired = `-- name: QueryExpired :many
+SELECT id, message_id, label, status, date_from, date_to, attributes FROM campaigns
+WHERE
+    status = 'ACTIVE'
+    AND date_to IS NOT NULL
+    AND date_to <= NOW()
+ORDER BY date_to ASC, id ASC
+`
+
+func (q *Queries) QueryExpired(ctx context.Context) ([]Campaign, error) {
+	rows, err := q.db.Query(ctx, queryExpired)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Campaign
+	for rows.Next() {
+		var i Campaign
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Label,
+			&i.Status,
+			&i.DateFrom,
+			&i.DateTo,
+			&i.Attributes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const save = `-- name: Save :exec
 INSERT INTO campaigns (
     id,

@@ -143,6 +143,20 @@ func (s *Store) Query(ctx context.Context, filter campaignbus.CampaignQueryFilte
 	return bcmps, nil
 }
 
+func (s *Store) QueryExpired(ctx context.Context) ([]campaignbus.Campaign, error) {
+	cmps, err := s.q.QueryExpired(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("db: %w", err)
+	}
+
+	bcmps, err := toBusCampaigns(cmps)
+	if err != nil {
+		return nil, fmt.Errorf("db: %w", err)
+	}
+
+	return bcmps, nil
+}
+
 func (s *Store) Delete(ctx context.Context, campaign campaignbus.Campaign) error {
 	err := s.q.Delete(ctx, campaign.ID)
 	if err != nil {

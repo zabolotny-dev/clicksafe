@@ -43,6 +43,7 @@ type CampaignStorer interface {
 	Query(ctx context.Context, filter CampaignQueryFilter, orderBy order.By, page page.Page) ([]Campaign, error)
 	Delete(ctx context.Context, campaign Campaign) error
 	Count(ctx context.Context, filter CampaignQueryFilter) (int, error)
+	QueryExpired(ctx context.Context) ([]Campaign, error)
 }
 
 func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Campaign, error) {
@@ -124,6 +125,8 @@ func (b *CampaignBusiness) Delete(ctx context.Context, campaign Campaign) error 
 	return nil
 }
 
+// TODO решить как там где проверять, что сообщение имеет html файл
+// не хватает проверки что хватает всех полей у таргетов для рендера шаблонов
 func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campaign, error) {
 	if !isValidCampaignTransition(campaign.Status, Active) {
 		return Campaign{}, fmt.Errorf("start: %w: cannot move from %s to %s", ErrInvalidStatusTransition, campaign.Status, Active)
@@ -184,6 +187,41 @@ func (b *CampaignBusiness) Count(ctx context.Context, filter CampaignQueryFilter
 		return 0, fmt.Errorf("count: %w", err)
 	}
 	return count, nil
+}
+
+func (b *CampaignBusiness) CompleteExpired(ctx context.Context) []error {
+	var errs []error
+	campaigns, err := b.campaignStorer.QueryExpired(ctx)
+
+	if err != nil {
+		errs = append(errs, fmt.Errorf("completeexpired: %w", err))
+		return errs
+	}
+
+	if len(campaigns) == 0 {
+		return nil
+	}
+
+	var readyCmp []Campaign
+	for _, campaign := range campaigns {
+		targetCount, err := b.targetStorer.Count(ctx, TargetQueryFilter{CampaignID: &campaign.ID, Status: &Pending})
+		if err != nil {
+			errs = append(errs, fmt.Errorf("completeexpired: campaignID[%s]: %w", campaign.ID, err))
+			continue
+		}
+		if targetCount != 0 {
+			continue
+		}
+		readyCmp = append(readyCmp, campaign)
+	}
+
+	for _, campaign := range readyCmp {
+		if _, err := b.changeStatus(ctx, campaign, Completed, "completeexpired"); err != nil {
+			errs = append(errs, fmt.Errorf("completeexpired: campaignID[%s]: %w", campaign.ID, err))
+		}
+	}
+
+	return errs
 }
 
 func (b *CampaignBusiness) changeStatus(ctx context.Context, campaign Campaign, status CampaignStatus, op string) (Campaign, error) {

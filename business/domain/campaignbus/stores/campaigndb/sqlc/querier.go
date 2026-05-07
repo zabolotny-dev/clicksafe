@@ -15,6 +15,7 @@ type Querier interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	Query(ctx context.Context, arg QueryParams) ([]Campaign, error)
 	QueryByID(ctx context.Context, id uuid.UUID) (Campaign, error)
+	QueryExpired(ctx context.Context) ([]Campaign, error)
 	Save(ctx context.Context, arg SaveParams) error
 	Update(ctx context.Context, arg UpdateParams) error
 }

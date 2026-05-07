@@ -13,9 +13,11 @@ import (
 	"github.com/ardanlabs/conf/v3"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
+	"github.com/zabolotny-dev/clicksafe/api/service/workers"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/campaigndb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/targetdb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/deliverybus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus/stores/departmentdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -30,6 +32,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
+	"github.com/zabolotny-dev/clicksafe/foundation/mail"
 )
 
 func main() {
@@ -71,6 +74,18 @@ func run(ctx context.Context, log *logger.Logger) error {
 			MessageRootDir    string `conf:"default:./private/messages"`
 			MessagePathPrefix string `conf:"default:/messages"`
 		}
+		Worker struct {
+			Interval time.Duration `conf:"default:1m"`
+		}
+		SMTP struct {
+			Host     string        `conf:"default:localhost"`
+			Port     int           `conf:"default:1025"`
+			Username string        `conf:"noprint"`
+			Password string        `conf:"noprint"`
+			Timeout  time.Duration `conf:"default:10s"`
+			TLS      string        `conf:"default:none"`
+			SSL      bool          `conf:"default:false"`
+		}
 	}{}
 
 	const prefix = "API"
@@ -101,6 +116,24 @@ func run(ctx context.Context, log *logger.Logger) error {
 	defer db.Close()
 
 	// -------------------------------------------------------------------------
+	// SMTP Support
+
+	smtpClient, err := mail.New(
+		mail.Config{
+			Host:      cfg.SMTP.Host,
+			Port:      cfg.SMTP.Port,
+			Username:  cfg.SMTP.Username,
+			Password:  cfg.SMTP.Password,
+			Timeout:   cfg.SMTP.Timeout,
+			TLSPolicy: mail.TLSPolicy(cfg.SMTP.TLS),
+			SSL:       cfg.SMTP.SSL,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("creating smtp client: %w", err)
+	}
+
+	// -------------------------------------------------------------------------
 	// Create Business Packages
 
 	publicFileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
@@ -129,6 +162,14 @@ func run(ctx context.Context, log *logger.Logger) error {
 	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore)
 	targetBus := campaignbus.NewTargetBusiness(campaignStore, targetStore)
 
+	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, smtpClient, eventBus)
+
+	// -------------------------------------------------------------------------
+	// Start Workers
+
+	workers := workers.NewWorker(log, campaignBus, deliverybus, cfg.Worker.Interval)
+	workers.Run(ctx)
+
 	// -------------------------------------------------------------------------
 	// Start API Service
 
@@ -141,7 +182,6 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	build.Add(e, build.Config{
 		Log:             log,
-		EventBus:        eventBus,
 		OrganizationBus: organizationBus,
 		DepartmentBus:   departmentBus,
 		EmployeeBus:     employeeBus,
@@ -171,6 +211,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	select {
 	case err := <-serverErrors:
+		workers.Stop(ctx)
 		return fmt.Errorf("server error: %w", err)
 
 	case sig := <-shutdown:
@@ -183,6 +224,10 @@ func run(ctx context.Context, log *logger.Logger) error {
 		if err := s.Shutdown(ctx); err != nil {
 			s.Close()
 			return fmt.Errorf("server shutdown: %w", err)
+		}
+
+		if err := workers.Stop(ctx); err != nil {
+			log.Error(ctx, "shutdown", "status", "stopping workers", "err", err)
 		}
 	}
 

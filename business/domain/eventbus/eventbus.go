@@ -24,9 +24,14 @@ func NewBusinnes(storer Storer) *Business {
 	return &b
 }
 
-func (b *Business) Publish(ctx context.Context, event Event) error {
-	event.ID = uuid.New()
-	event.OccurredAt = time.Now().UTC()
+func (b *Business) Publish(ctx context.Context, e NewEvent) error {
+	event := Event{
+		ID:         uuid.New(),
+		CampaignID: e.CampaignID,
+		EmployeeID: e.EmployeeID,
+		Type:       e.Type,
+		OccurredAt: time.Now().UTC(),
+	}
 
 	if err := b.storer.Save(ctx, event); err != nil {
 		return fmt.Errorf("publish: %w", err)
