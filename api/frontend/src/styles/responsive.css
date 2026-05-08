@@ -30,7 +30,10 @@
   }
 
   .form-grid,
-  .selection-summary {
+  .selection-summary,
+  .selection-summary.three-up,
+  .target-tools,
+  .inline-form {
     grid-template-columns: 1fr;
   }
 

@@ -10,13 +10,16 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 	"github.com/zabolotny-dev/clicksafe/business/types/date"
+	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
 type Campaign struct {
 	ID         uuid.UUID
 	MessageID  *uuid.UUID
+	LandingID  *uuid.UUID
 	Label      label.Label
+	Domain     domain.Domain
 	Status     CampaignStatus
 	DateRange  date.Null
 	Attributes map[string]string
@@ -24,14 +27,18 @@ type Campaign struct {
 
 type NewCampaign struct {
 	MessageID  *uuid.UUID
+	LandingID  *uuid.UUID
 	Label      label.Label
+	Domain     domain.Domain
 	DateRange  date.Null
 	Attributes map[string]string
 }
 
 type UpdateCampaign struct {
 	MessageID  *uuid.UUID
+	LandingID  *uuid.UUID
 	Label      *label.Label
+	Domain     *domain.Domain
 	DateRange  *date.Null
 	Attributes *map[string]string
 }
@@ -50,7 +57,9 @@ func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Camp
 	cmp := Campaign{
 		ID:         uuid.New(),
 		MessageID:  campaign.MessageID,
+		LandingID:  campaign.LandingID,
 		Label:      campaign.Label,
+		Domain:     campaign.Domain,
 		Status:     Draft,
 		DateRange:  campaign.DateRange,
 		Attributes: campaign.Attributes,
@@ -71,8 +80,19 @@ func (b *CampaignBusiness) Update(ctx context.Context, cmp Campaign, upd UpdateC
 		cmp.MessageID = upd.MessageID
 	}
 
+	if upd.LandingID != nil {
+		cmp.LandingID = upd.LandingID
+	}
+
 	if upd.Label != nil {
 		cmp.Label = *upd.Label
+	}
+
+	if upd.Domain != nil {
+		if cmp.Status != Draft && cmp.Status != Paused {
+			return Campaign{}, fmt.Errorf("update: %w: cannot change domain in %s status", ErrCampaignLocked, cmp.Status)
+		}
+		cmp.Domain = *upd.Domain
 	}
 
 	if upd.DateRange != nil {
@@ -134,6 +154,10 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 
 	if campaign.MessageID == nil {
 		return Campaign{}, fmt.Errorf("start: %w", ErrMessageRequired)
+	}
+
+	if campaign.Domain.IsEmpty() {
+		return Campaign{}, fmt.Errorf("start: %w", ErrDomainRequired)
 	}
 
 	if !campaign.DateRange.Valid() {

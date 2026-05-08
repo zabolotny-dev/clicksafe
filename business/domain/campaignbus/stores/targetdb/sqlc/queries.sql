@@ -95,3 +95,7 @@ FROM (
         UNNEST(@created_ats::timestamptz[])   AS created_at
 ) AS data
 WHERE targets.id = data.id;
+
+-- name: QueryByToken :one
+SELECT * FROM targets
+WHERE token = $1;

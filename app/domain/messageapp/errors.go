@@ -34,8 +34,11 @@ func mapBusErr(err error, msg string) error {
 		}
 		return fe.ToError(errs.FailedPrecondition, missingVars.Error())
 
-	case errors.Is(err, resolverbus.ErrEmployeeIDRequired):
+	case errors.Is(err, resolverbus.ErrTargetIDRequired):
 		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, resolverbus.ErrTargetNotFound):
+		return errs.New(errs.NotFound, err)
 
 	case errors.Is(err, resolverbus.ErrEmployeeNotFound):
 		return errs.New(errs.NotFound, err)
@@ -48,6 +51,9 @@ func mapBusErr(err error, msg string) error {
 
 	case errors.Is(err, resolverbus.ErrUnsupportedPath):
 		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, resolverbus.ErrDomainRequired):
+		return errs.New(errs.FailedPrecondition, resolverbus.ErrDomainRequired)
 
 	default:
 		return errs.Errorf(errs.InternalOnlyLog, "%s: %s", msg, err)

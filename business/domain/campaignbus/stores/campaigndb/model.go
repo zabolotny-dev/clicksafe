@@ -6,6 +6,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/campaigndb/sqlc"
 	"github.com/zabolotny-dev/clicksafe/business/types/date"
+	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
@@ -20,7 +21,9 @@ func toDBCampaign(c campaignbus.Campaign) (sqlc.Campaign, error) {
 	return sqlc.Campaign{
 		ID:         c.ID,
 		MessageID:  c.MessageID,
+		LandingID:  c.LandingID,
 		Label:      c.Label.String(),
+		Domain:     c.Domain.String(),
 		Status:     c.Status.String(),
 		DateFrom:   dateFrom,
 		DateTo:     dateTo,
@@ -41,6 +44,11 @@ func toBusCampaign(c sqlc.Campaign) (campaignbus.Campaign, error) {
 		return campaignbus.Campaign{}, err
 	}
 
+	domain, err := domain.Parse(c.Domain)
+	if err != nil {
+		return campaignbus.Campaign{}, err
+	}
+
 	status, err := campaignbus.ParseCampaignStatus(c.Status)
 	if err != nil {
 		return campaignbus.Campaign{}, err
@@ -54,7 +62,9 @@ func toBusCampaign(c sqlc.Campaign) (campaignbus.Campaign, error) {
 	return campaignbus.Campaign{
 		ID:         c.ID,
 		MessageID:  c.MessageID,
+		LandingID:  c.LandingID,
 		Label:      campaignLabel,
+		Domain:     domain,
 		Status:     status,
 		DateRange:  dateRange,
 		Attributes: attributes,

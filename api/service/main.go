@@ -24,11 +24,16 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus/stores/employeedb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus/stores/eventdb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus/stores/landingdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus/stores/messagedb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/visitbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus/stores/vtargetdb"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
@@ -73,6 +78,8 @@ func run(ctx context.Context, log *logger.Logger) error {
 			PathPrefix        string `conf:"default:/uploads"`
 			MessageRootDir    string `conf:"default:./private/messages"`
 			MessagePathPrefix string `conf:"default:/messages"`
+			LandingRootDir    string `conf:"default:./private/landings"`
+			LandingPathPrefix string `conf:"default:/landings"`
 		}
 		Worker struct {
 			Interval time.Duration `conf:"default:1m"`
@@ -138,6 +145,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	publicFileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
 	messageFileStore := filestore.New(cfg.Storage.MessageRootDir, cfg.Storage.MessagePathPrefix)
+	landingFileStore := filestore.New(cfg.Storage.LandingRootDir, cfg.Storage.LandingPathPrefix)
 
 	eventStore := eventdb.NewStore(db)
 	eventBus := eventbus.NewBusinnes(eventStore)
@@ -151,18 +159,26 @@ func run(ctx context.Context, log *logger.Logger) error {
 	employeeStore := employeedb.NewStore(db)
 	employeeBus := employeebus.NewBusiness(employeeStore)
 
-	resolverBus := resolverbus.NewBusiness(employeeBus, departmentBus, organizationBus)
-
-	messageStore := messagedb.NewStore(db)
-	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
-
 	targetStore := targetdb.NewStore(db)
 	campaignStore := campaigndb.NewStore(db)
 
 	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore)
 	targetBus := campaignbus.NewTargetBusiness(campaignStore, targetStore)
 
+	vtargetStore := vtargetdb.NewStore(db)
+	vtargetBus := vtargetbus.NewBusiness(vtargetStore)
+
+	resolverBus := resolverbus.NewBusiness(targetBus, targetBus, employeeBus, departmentBus, organizationBus)
+
+	messageStore := messagedb.NewStore(db)
+	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
+
+	landingStore := landingdb.NewStore(db)
+	landingBus := landingbus.NewBusiness(landingStore, landingFileStore, resolverBus)
+
 	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, smtpClient, eventBus)
+
+	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus)
 
 	// -------------------------------------------------------------------------
 	// Start Workers
@@ -185,9 +201,12 @@ func run(ctx context.Context, log *logger.Logger) error {
 		OrganizationBus: organizationBus,
 		DepartmentBus:   departmentBus,
 		EmployeeBus:     employeeBus,
+		LandingBus:      landingBus,
 		MessageBus:      messageBus,
 		CampaignBus:     campaignBus,
 		TargetBus:       targetBus,
+		VTargetBus:      vtargetBus,
+		VisitBus:        visitBus,
 	})
 
 	s := http.Server{

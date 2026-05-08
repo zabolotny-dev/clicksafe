@@ -22,7 +22,7 @@ defineProps({
       <div class="brand-mark">CS</div>
       <div>
         <strong>ClickSafe</strong>
-        <span>API Console</span>
+        <span>Admin Panel</span>
       </div>
     </div>
 

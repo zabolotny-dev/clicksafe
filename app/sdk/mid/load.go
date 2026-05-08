@@ -9,6 +9,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 )
 
@@ -107,6 +108,41 @@ func LoadMessage(messageBus *messagebus.Business) echo.MiddlewareFunc {
 
 				c.SetRequest(c.Request().WithContext(
 					setMessage(c.Request().Context(), message),
+				))
+			}
+
+			return next(c)
+		}
+
+		return h
+	}
+
+	return m
+}
+
+func LoadLanding(landingBus *landingbus.Business) echo.MiddlewareFunc {
+	m := func(next echo.HandlerFunc) echo.HandlerFunc {
+		h := func(c *echo.Context) error {
+			id := c.Param("id")
+
+			if id != "" {
+				landingID, err := uuid.Parse(id)
+				if err != nil {
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
+				}
+
+				landing, err := landingBus.QueryByID(c.Request().Context(), landingID)
+				if err != nil {
+					switch {
+					case errors.Is(err, landingbus.ErrNotFound):
+						return errs.New(errs.NotFound, err)
+					default:
+						return errs.Errorf(errs.InternalOnlyLog, "querybyid: landingID[%s]: %s", landingID, err)
+					}
+				}
+
+				c.SetRequest(c.Request().WithContext(
+					setLanding(c.Request().Context(), landing),
 				))
 			}
 

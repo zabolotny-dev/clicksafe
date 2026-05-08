@@ -18,7 +18,7 @@ COPY --from=builder /clicksafe_tool /clicksafe_tool
 
 RUN chmod +x /clicksafe_api /clicksafe_tool
 
-RUN mkdir -p /var/www/my-app/public /var/www/my-app/private/messages && chown -R appuser:appgroup /var/www/my-app/public /var/www/my-app/private
+RUN mkdir -p /var/www/my-app/public /var/www/my-app/private/messages /var/www/my-app/private/landings && chown -R appuser:appgroup /var/www/my-app/public /var/www/my-app/private
 
 USER appuser
 

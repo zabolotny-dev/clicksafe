@@ -8,13 +8,16 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/types/date"
+	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
 type Campaign struct {
 	ID         uuid.UUID         `json:"id"`
 	MessageID  *uuid.UUID        `json:"message_id"`
+	LandingID  *uuid.UUID        `json:"landing_id"`
 	Label      string            `json:"label"`
+	Domain     string            `json:"domain"`
 	Status     string            `json:"status"`
 	DateFrom   *time.Time        `json:"date_from"`
 	DateTo     *time.Time        `json:"date_to"`
@@ -23,7 +26,9 @@ type Campaign struct {
 
 type NewCampaign struct {
 	MessageID  string            `json:"message_id"`
+	LandingID  string            `json:"landing_id"`
 	Label      string            `json:"label"`
+	Domain     string            `json:"domain"`
 	DateFrom   time.Time         `json:"date_from"`
 	DateTo     time.Time         `json:"date_to"`
 	Attributes map[string]string `json:"attributes"`
@@ -31,7 +36,9 @@ type NewCampaign struct {
 
 type UpdateCampaign struct {
 	MessageID  *string            `json:"message_id"`
+	LandingID  *string            `json:"landing_id"`
 	Label      *string            `json:"label"`
+	Domain     *string            `json:"domain"`
 	DateFrom   *time.Time         `json:"date_from"`
 	DateTo     *time.Time         `json:"date_to"`
 	Attributes *map[string]string `json:"attributes"`
@@ -50,9 +57,24 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 		}
 	}
 
+	var lID *uuid.UUID
+	if req.LandingID != "" {
+		id, err := uuid.Parse(req.LandingID)
+		if err != nil {
+			errors.Add("landing_id", err)
+		} else {
+			lID = &id
+		}
+	}
+
 	label, err := label.Parse(req.Label)
 	if err != nil {
 		errors.Add("label", err)
+	}
+
+	domain, err := domain.Parse(req.Domain)
+	if err != nil {
+		errors.Add("domain", err)
 	}
 
 	dater, err := date.ParseNull(req.DateFrom, req.DateTo)
@@ -67,7 +89,9 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 
 	return campaignbus.NewCampaign{
 		MessageID:  mID,
+		LandingID:  lID,
 		Label:      label,
+		Domain:     domain,
 		DateRange:  dater,
 		Attributes: req.Attributes,
 	}, nil
@@ -86,7 +110,9 @@ func toAppCampaign(cmp campaignbus.Campaign) Campaign {
 	return Campaign{
 		ID:         cmp.ID,
 		MessageID:  cmp.MessageID,
+		LandingID:  cmp.LandingID,
 		Label:      cmp.Label.String(),
+		Domain:     cmp.Domain.String(),
 		Status:     cmp.Status.String(),
 		DateFrom:   dateFrom,
 		DateTo:     dateTo,
@@ -115,6 +141,16 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 		}
 	}
 
+	var lID *uuid.UUID
+	if req.LandingID != nil {
+		id, err := uuid.Parse(*req.LandingID)
+		if err != nil {
+			fieldErrors.Add("landing_id", err)
+		} else {
+			lID = &id
+		}
+	}
+
 	var lbl *label.Label
 	if req.Label != nil {
 		parsed, err := label.Parse(*req.Label)
@@ -122,6 +158,15 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 			fieldErrors.Add("label", err)
 		}
 		lbl = &parsed
+	}
+
+	var dmn *domain.Domain
+	if req.Domain != nil {
+		parsed, err := domain.Parse(*req.Domain)
+		if err != nil {
+			fieldErrors.Add("domain", err)
+		}
+		dmn = &parsed
 	}
 
 	var dater *date.Null
@@ -147,7 +192,9 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 
 	return campaignbus.UpdateCampaign{
 		MessageID:  mID,
+		LandingID:  lID,
 		Label:      lbl,
+		Domain:     dmn,
 		DateRange:  dater,
 		Attributes: req.Attributes,
 	}, nil

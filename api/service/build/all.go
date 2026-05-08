@@ -5,15 +5,21 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/domain/campaignapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/departmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/employeeapp"
+	"github.com/zabolotny-dev/clicksafe/app/domain/landingapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/messageapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/organizationapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/targetapp"
+	"github.com/zabolotny-dev/clicksafe/app/domain/visitapp"
+	"github.com/zabolotny-dev/clicksafe/app/domain/vtargetapp"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/visitbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 )
 
@@ -22,9 +28,12 @@ type Config struct {
 	OrganizationBus *organizationbus.Business
 	DepartmentBus   *departmentbus.Business
 	EmployeeBus     *employeebus.Business
+	LandingBus      *landingbus.Business
 	MessageBus      *messagebus.Business
 	CampaignBus     *campaignbus.CampaignBusiness
 	TargetBus       *campaignbus.TargetBusiness
+	VTargetBus      *vtargetbus.Business
+	VisitBus        *visitbus.Business
 }
 
 func Add(e *echo.Echo, cfg Config) {
@@ -46,11 +55,23 @@ func Add(e *echo.Echo, cfg Config) {
 		MessageBus: cfg.MessageBus,
 	})
 
+	landingapp.Routes(e, landingapp.Config{
+		LandingBus: cfg.LandingBus,
+	})
+
 	campaignapp.Routes(e, campaignapp.Config{
 		CampaignBus: cfg.CampaignBus,
 	})
 
 	targetapp.Routes(e, targetapp.Config{
 		TargetBus: cfg.TargetBus,
+	})
+
+	vtargetapp.Routes(e, vtargetapp.Config{
+		VTargetBus: cfg.VTargetBus,
+	})
+
+	visitapp.Routes(e, visitapp.Config{
+		VisitBus: cfg.VisitBus,
 	})
 }

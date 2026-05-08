@@ -36,7 +36,7 @@ type UpdateMessage struct {
 }
 
 type RenderMessage struct {
-	EmployeeID string `json:"employee_id"`
+	TargetID string `json:"target_id"`
 }
 
 type RenderedMessage struct {
@@ -133,12 +133,12 @@ func toBusRenderScope(req RenderMessage) (resolverbus.Scope, error) {
 	var errors errs.FieldErrors
 	var scope resolverbus.Scope
 
-	if req.EmployeeID != "" {
-		id, err := uuid.Parse(req.EmployeeID)
+	if req.TargetID != "" {
+		id, err := uuid.Parse(req.TargetID)
 		if err != nil {
-			errors.Add("employee_id", err)
+			errors.Add("target_id", err)
 		}
-		scope.EmployeeID = id
+		scope.TargetID = id
 	}
 
 	if len(errors) > 0 {

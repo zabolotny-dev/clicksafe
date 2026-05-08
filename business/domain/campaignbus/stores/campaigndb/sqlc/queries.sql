@@ -2,25 +2,29 @@
 INSERT INTO campaigns (
     id,
     message_id,
+    landing_id,
     label,
+    domain,
     status,
     date_from,
     date_to,
     attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 );
 
 -- name: Update :exec
 UPDATE campaigns
 SET
     message_id = $1,
-    label = $2,
-    status = $3,
-    date_from = $4,
-    date_to = $5,
-    attributes = $6
-WHERE id = $7;
+    landing_id = $2,
+    label = $3,
+    domain = $4,
+    status = $5,
+    date_from = $6,
+    date_to = $7,
+    attributes = $8
+WHERE id = $9;
 
 -- name: Delete :exec
 DELETE FROM campaigns

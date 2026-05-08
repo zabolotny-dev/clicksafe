@@ -138,6 +138,23 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target
 	return busTarget, nil
 }
 
+func (s *Store) QueryByToken(ctx context.Context, token string) (campaignbus.Target, error) {
+	target, err := s.q.QueryByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return campaignbus.Target{}, campaignbus.ErrTargetNotFound
+		}
+		return campaignbus.Target{}, fmt.Errorf("db: %w", err)
+	}
+
+	busTarget, err := toBusTarget(target)
+	if err != nil {
+		return campaignbus.Target{}, fmt.Errorf("db: %w", err)
+	}
+
+	return busTarget, nil
+}
+
 func (s *Store) Query(ctx context.Context, filter campaignbus.TargetQueryFilter) ([]campaignbus.Target, error) {
 	dbFilter := toDBFilter(filter)
 	targets, err := s.q.Query(ctx, sqlc.QueryParams{

@@ -64,11 +64,14 @@ services:
       - API_STORAGE_PATH_PREFIX=/public
       - API_STORAGE_MESSAGE_ROOT_DIR=/var/www/my-app/private/messages
       - API_STORAGE_MESSAGE_PATH_PREFIX=/messages
+      - API_STORAGE_LANDING_ROOT_DIR=/var/www/my-app/private/landings
+      - API_STORAGE_LANDING_PATH_PREFIX=/landings
     env_file:
       - ../../.env
     volumes:
       - uploads_data:/var/www/my-app/public
       - message_content_data:/var/www/my-app/private/messages
+      - landing_content_data:/var/www/my-app/private/landings
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,5 +110,6 @@ volumes:
   postgres_data:
   uploads_data:
   message_content_data:
+  landing_content_data:
   caddy_data:
   caddy_config:

@@ -7,6 +7,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 )
 
@@ -18,6 +19,7 @@ const (
 	messageKey
 	campaignKey
 	targetKey
+	landingKey
 )
 
 func setDepartment(ctx context.Context, d departmentbus.Department) context.Context {
@@ -54,6 +56,18 @@ func GetMessage(ctx context.Context) (messagebus.Message, error) {
 		return messagebus.Message{}, errors.New("message not found in context")
 	}
 	return m, nil
+}
+
+func setLanding(ctx context.Context, landing landingbus.Landing) context.Context {
+	return context.WithValue(ctx, landingKey, landing)
+}
+
+func GetLanding(ctx context.Context) (landingbus.Landing, error) {
+	landing, ok := ctx.Value(landingKey).(landingbus.Landing)
+	if !ok {
+		return landingbus.Landing{}, errors.New("landing not found in context")
+	}
+	return landing, nil
 }
 
 func setCampaign(ctx context.Context, c campaignbus.Campaign) context.Context {

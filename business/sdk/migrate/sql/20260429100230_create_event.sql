@@ -41,9 +41,18 @@ CREATE TABLE IF NOT EXISTS messages (
     required_vars TEXT[]
 );
 
+CREATE TABLE IF NOT EXISTS landings (
+    id UUID PRIMARY KEY,
+    label VARCHAR(255) NOT NULL UNIQUE,
+    content_path VARCHAR(255),
+    required_vars TEXT[]
+);
+
 CREATE TABLE IF NOT EXISTS campaigns (
     id UUID PRIMARY KEY,
     message_id UUID REFERENCES messages(id) ON DELETE RESTRICT,
+    landing_id UUID REFERENCES landings(id) ON DELETE RESTRICT,
+    domain VARCHAR(255) NOT NULL,
     label VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(64) NOT NULL,
     date_from TIMESTAMPTZ,
@@ -73,6 +82,7 @@ DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS departments;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS landings;
 DROP TABLE IF EXISTS campaigns;
 DROP TABLE IF EXISTS targets;
 -- +goose StatementEnd

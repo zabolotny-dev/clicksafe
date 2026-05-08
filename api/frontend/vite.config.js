@@ -8,7 +8,10 @@ const apiRoutes = [
   '/department',
   '/employee',
   '/message',
-  '/events',
+  '/landing',
+  '/campaign',
+  '/target',
+  '/vtarget',
   '/public',
 ]
 

@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 )
 
 type resolveState struct {
-	employee employeebus.Employee
+	target campaignbus.Target
+
+	employeeBus employeeQuerier
+	employee    employeebus.Employee
+	empLoaded   bool
 
 	departmentBus departmentQuerier
 	department    departmentbus.Department
@@ -22,6 +27,10 @@ type resolveState struct {
 	organizationBus organizationGetter
 	organization    organizationbus.Organization
 	orgLoaded       bool
+
+	targetLinkBus targetLinkResolver
+	targetLink    string
+	linkLoaded    bool
 }
 
 func (s *resolveState) resolvePath(ctx context.Context, path string) (string, bool, error) {
@@ -55,7 +64,12 @@ func (s *resolveState) resolvePath(ctx context.Context, path string) (string, bo
 func (s *resolveState) rootValue(ctx context.Context, root string) (reflect.Value, bool, error) {
 	switch root {
 	case rootEmployee:
-		return reflect.ValueOf(s.employee), false, nil
+		employee, err := s.loadEmployee(ctx)
+		if err != nil {
+			return reflect.Value{}, false, err
+		}
+
+		return reflect.ValueOf(employee), false, nil
 
 	case rootDepartment:
 		department, isMissing, err := s.loadDepartment(ctx)
@@ -73,9 +87,38 @@ func (s *resolveState) rootValue(ctx context.Context, root string) (reflect.Valu
 
 		return reflect.ValueOf(organization), false, nil
 
+	case rootTarget:
+		targetData, err := s.loadTarget(ctx)
+		if err != nil {
+			return reflect.Value{}, false, err
+		}
+
+		return reflect.ValueOf(targetData), false, nil
+
 	default:
 		return reflect.Value{}, false, fmt.Errorf("%w: %s", ErrUnsupportedPath, root)
 	}
+}
+
+func (s *resolveState) loadEmployee(ctx context.Context) (employeebus.Employee, error) {
+	if s.empLoaded {
+		return s.employee, nil
+	}
+
+	s.empLoaded = true
+
+	employee, err := s.employeeBus.QueryByID(ctx, s.target.EmployeeID)
+	if err != nil {
+		if errors.Is(err, employeebus.ErrNotFound) {
+			return employeebus.Employee{}, fmt.Errorf("resolve employee: %w", ErrEmployeeNotFound)
+		}
+
+		return employeebus.Employee{}, fmt.Errorf("resolve employee: %w", err)
+	}
+
+	s.employee = employee
+
+	return s.employee, nil
 }
 
 func (s *resolveState) loadDepartment(ctx context.Context) (departmentbus.Department, bool, error) {
@@ -89,11 +132,16 @@ func (s *resolveState) loadDepartment(ctx context.Context) (departmentbus.Depart
 
 	s.depLoaded = true
 
-	if s.employee.DepartmentID == nil {
+	employee, err := s.loadEmployee(ctx)
+	if err != nil {
+		return departmentbus.Department{}, false, err
+	}
+
+	if employee.DepartmentID == nil {
 		return departmentbus.Department{}, true, nil
 	}
 
-	department, err := s.departmentBus.QueryByID(ctx, *s.employee.DepartmentID)
+	department, err := s.departmentBus.QueryByID(ctx, *employee.DepartmentID)
 	if err != nil {
 		if errors.Is(err, departmentbus.ErrNotFound) {
 			return departmentbus.Department{}, false, fmt.Errorf("resolve department: %w", ErrDepartmentNotFound)
@@ -127,4 +175,28 @@ func (s *resolveState) loadOrganization(ctx context.Context) (organizationbus.Or
 	s.organization = organization
 
 	return s.organization, nil
+}
+
+type targetData struct {
+	Link string
+}
+
+func (s *resolveState) loadTarget(ctx context.Context) (targetData, error) {
+	if s.linkLoaded {
+		return targetData{Link: s.targetLink}, nil
+	}
+
+	s.linkLoaded = true
+
+	link, err := s.targetLinkBus.PhishingURL(ctx, s.target.ID)
+	if err != nil {
+		if errors.Is(err, campaignbus.ErrDomainRequired) {
+			return targetData{}, fmt.Errorf("resolve target link: %w", ErrDomainRequired)
+		}
+		return targetData{}, fmt.Errorf("resolve target link: %w", err)
+	}
+
+	s.targetLink = link
+
+	return targetData{Link: s.targetLink}, nil
 }

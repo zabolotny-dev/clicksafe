@@ -34,6 +34,8 @@ var (
 	ErrDateRangeExpired  = errors.New("campaign date range is expired")
 	ErrTargetsRequired   = errors.New("campaign requires at least one target")
 	ErrCampaignLocked    = errors.New("campaign locked")
+	ErrDomainRequired    = errors.New("campaign domain is required")
+	ErrLandingNotFound   = errors.New("landing not found")
 )
 
 // =============================================================================

@@ -18,13 +18,13 @@ defineEmits(['bootstrap', 'refresh'])
 <template>
   <header class="topbar">
     <div>
-      <div class="mini-label">app layer demo</div>
+      <div class="mini-label">admin workspace</div>
       <h1>{{ activeTitle }}</h1>
     </div>
     <div class="topbar-actions">
       <el-button
         :icon="Refresh"
-        :loading="loading.organization || loading.departments || loading.employees || loading.messages"
+        :loading="loading.organization || loading.departments || loading.employees || loading.messages || loading.landings || loading.campaigns || loading.targets"
         @click="$emit('refresh')"
       >
         Обновить

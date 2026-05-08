@@ -27,6 +27,19 @@ http:// {
 		reverse_proxy api:8080
 	}
 
+	handle /vtarget* {
+		reverse_proxy api:8080
+	}
+
+	handle /landing* {
+		reverse_proxy api:8080
+	}
+
+	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+	handle @visit {
+		reverse_proxy api:8080
+	}
+
 	handle_path /public/* {
 		root * /var/www/my-app/public
 		file_server

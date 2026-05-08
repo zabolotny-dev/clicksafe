@@ -102,7 +102,7 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 	}
 
 	html, err := b.messageRenderer.Render(ctx, msg, resolverbus.Scope{
-		EmployeeID: emp.ID,
+		TargetID: t.ID,
 	})
 	if err != nil {
 		return fmt.Errorf("processtarget: %w", err)

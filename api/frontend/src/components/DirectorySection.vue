@@ -1,22 +1,18 @@
 <script setup>
-import { Delete, Plus, Refresh, Select } from '@element-plus/icons-vue'
+import { Close, Delete, Edit, Plus, Refresh, Select } from '@element-plus/icons-vue'
 
 const selectedEmployeeId = defineModel('selectedEmployeeId', { type: String, required: true })
 
 defineProps({
-  createDepartment: {
-    type: Function,
-    required: true,
-  },
-  createEmployee: {
-    type: Function,
-    required: true,
-  },
   deleteDepartment: {
     type: Function,
     required: true,
   },
   deleteEmployee: {
+    type: Function,
+    required: true,
+  },
+  departmentById: {
     type: Function,
     required: true,
   },
@@ -30,6 +26,14 @@ defineProps({
   },
   departmentResult: {
     type: Object,
+    required: true,
+  },
+  editDepartment: {
+    type: Function,
+    required: true,
+  },
+  editEmployee: {
+    type: Function,
     required: true,
   },
   employeeForm: {
@@ -56,6 +60,22 @@ defineProps({
     type: Function,
     required: true,
   },
+  resetDepartmentForm: {
+    type: Function,
+    required: true,
+  },
+  resetEmployeeForm: {
+    type: Function,
+    required: true,
+  },
+  saveDepartment: {
+    type: Function,
+    required: true,
+  },
+  saveEmployee: {
+    type: Function,
+    required: true,
+  },
   shortId: {
     type: Function,
     required: true,
@@ -69,9 +89,10 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">POST /department</div>
-            <h2>Отдел</h2>
+            <div class="mini-label">{{ departmentForm.id ? 'PUT /department/:id' : 'POST /department' }}</div>
+            <h2>{{ departmentForm.id ? 'Редактировать отдел' : 'Новый отдел' }}</h2>
           </div>
+          <el-button v-if="departmentForm.id" :icon="Close" @click="resetDepartmentForm" />
         </div>
         <el-form label-position="top">
           <el-form-item label="Label">
@@ -82,11 +103,11 @@ defineProps({
           </el-form-item>
           <el-button
             type="primary"
-            :icon="Plus"
+            :icon="departmentForm.id ? Edit : Plus"
             :loading="loading.departments"
-            @click="createDepartment"
+            @click="saveDepartment"
           >
-            Создать отдел
+            {{ departmentForm.id ? 'Сохранить отдел' : 'Создать отдел' }}
           </el-button>
         </el-form>
       </section>
@@ -94,9 +115,10 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">POST /employee</div>
-            <h2>Сотрудник</h2>
+            <div class="mini-label">{{ employeeForm.id ? 'PUT /employee/:id' : 'POST /employee' }}</div>
+            <h2>{{ employeeForm.id ? 'Редактировать сотрудника' : 'Новый сотрудник' }}</h2>
           </div>
+          <el-button v-if="employeeForm.id" :icon="Close" @click="resetEmployeeForm" />
         </div>
         <el-form label-position="top">
           <el-form-item label="Department">
@@ -130,11 +152,11 @@ defineProps({
           </el-form-item>
           <el-button
             type="primary"
-            :icon="Plus"
+            :icon="employeeForm.id ? Edit : Plus"
             :loading="loading.employees"
-            @click="createEmployee"
+            @click="saveEmployee"
           >
-            Создать сотрудника
+            {{ employeeForm.id ? 'Сохранить сотрудника' : 'Создать сотрудника' }}
           </el-button>
         </el-form>
       </section>
@@ -153,14 +175,15 @@ defineProps({
           <el-input v-model="departmentQuery.label" placeholder="label" clearable />
           <el-button :icon="Select" type="primary" @click="loadDepartments">Фильтр</el-button>
         </div>
-        <el-table :data="departmentResult.items" class="data-table">
+        <el-table :data="departmentResult.items" class="data-table" @row-click="editDepartment">
           <el-table-column prop="label" label="Label" min-width="170" />
           <el-table-column label="ID" width="150">
             <template #default="{ row }">{{ shortId(row.id) }}</template>
           </el-table-column>
-          <el-table-column width="80">
+          <el-table-column width="116" fixed="right">
             <template #default="{ row }">
-              <el-button :icon="Delete" size="small" @click="deleteDepartment(row.id)" />
+              <el-button :icon="Edit" size="small" @click.stop="editDepartment(row)" />
+              <el-button :icon="Delete" size="small" @click.stop="deleteDepartment(row.id)" />
             </template>
           </el-table-column>
         </el-table>
@@ -177,25 +200,38 @@ defineProps({
         <div class="toolbar">
           <el-input v-model="employeeQuery.full_name" placeholder="full_name" clearable />
           <el-input v-model="employeeQuery.email" placeholder="email" clearable />
+          <el-select v-model="employeeQuery.department_id" placeholder="department" clearable filterable>
+            <el-option
+              v-for="department in departmentResult.items"
+              :key="department.id"
+              :label="department.label"
+              :value="department.id"
+            />
+          </el-select>
           <el-button :icon="Select" type="primary" @click="loadEmployees">Фильтр</el-button>
         </div>
         <el-table
           :data="employeeResult.items"
           class="data-table"
           highlight-current-row
-          @row-click="selectedEmployeeId = $event.id"
+          :row-class-name="({ row }) => row.id === selectedEmployeeId ? 'selected-row' : ''"
+          @row-click="editEmployee"
         >
           <el-table-column label="Name" min-width="180">
             <template #default="{ row }">{{ row.first_name }} {{ row.last_name }}</template>
           </el-table-column>
           <el-table-column prop="email" label="Email" min-width="210" />
-          <el-table-column label="Selected" width="110">
+          <el-table-column label="Department" min-width="150">
+            <template #default="{ row }">{{ departmentById(row.department_id)?.label || 'без отдела' }}</template>
+          </el-table-column>
+          <el-table-column label="Selected" width="96">
             <template #default="{ row }">
               <el-tag v-if="row.id === selectedEmployeeId" type="success" effect="plain">да</el-tag>
             </template>
           </el-table-column>
-          <el-table-column width="80">
+          <el-table-column width="116" fixed="right">
             <template #default="{ row }">
+              <el-button :icon="Edit" size="small" @click.stop="editEmployee(row)" />
               <el-button :icon="Delete" size="small" @click.stop="deleteEmployee(row.id)" />
             </template>
           </el-table-column>

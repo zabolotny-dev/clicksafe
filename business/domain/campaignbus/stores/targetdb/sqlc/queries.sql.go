@@ -148,6 +148,26 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Target, error) {
 	return i, err
 }
 
+const queryByToken = `-- name: QueryByToken :one
+SELECT id, token, employee_id, campaign_id, status, scheduled_at, created_at FROM targets
+WHERE token = $1
+`
+
+func (q *Queries) QueryByToken(ctx context.Context, token string) (Target, error) {
+	row := q.db.QueryRow(ctx, queryByToken, token)
+	var i Target
+	err := row.Scan(
+		&i.ID,
+		&i.Token,
+		&i.EmployeeID,
+		&i.CampaignID,
+		&i.Status,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const queryDue = `-- name: QueryDue :many
 SELECT targets.id, targets.token, targets.employee_id, targets.campaign_id, targets.status, targets.scheduled_at, targets.created_at FROM targets
 JOIN campaigns ON campaigns.id = targets.campaign_id

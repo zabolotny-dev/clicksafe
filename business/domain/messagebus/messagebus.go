@@ -187,7 +187,7 @@ func (b *Business) Render(ctx context.Context, msg Message, scope resolverbus.Sc
 
 	tmpl, err := template.New("message").Option("missingkey=error").Parse(string(content))
 	if err != nil {
-		return "", fmt.Errorf("render: parse template: %w", unsupportedTemplateSyntax(err))
+		return "", fmt.Errorf("render: parse template: %w: %v", ErrUnsupportedTemplateSyntax, err)
 	}
 
 	if resolved.Data == nil {

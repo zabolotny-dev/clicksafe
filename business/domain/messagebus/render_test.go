@@ -40,7 +40,7 @@ func TestRenderUsesResolvedDataDirectly(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Department.Label", "Employee.FirstName"}
 
-	rendered, err := business.Render(context.Background(), msg, resolverbus.Scope{EmployeeID: uuid.New()})
+	rendered, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
 	if err != nil {
 		t.Fatalf("Render returned error: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestRenderUsesResolvedDataDirectly(t *testing.T) {
 		t.Fatalf("resolver calls = %d, want 1", resolver.calls)
 	}
 
-	if resolver.scope.EmployeeID == uuid.Nil {
+	if resolver.scope.TargetID == uuid.Nil {
 		t.Fatal("Render did not forward scope to resolver")
 	}
 
@@ -79,7 +79,7 @@ func TestRenderReturnsMissingRequiredVars(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName", "Department.Label"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{EmployeeID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
 	if err == nil {
 		t.Fatal("Render returned nil error")
 	}
@@ -107,7 +107,7 @@ func TestRenderReturnsResolverNotConfigured(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{EmployeeID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
 	if !errors.Is(err, ErrResolverNotConfigured) {
 		t.Fatalf("Render error = %v, want %v", err, ErrResolverNotConfigured)
 	}
@@ -126,7 +126,7 @@ func TestRenderWrapsResolverError(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{EmployeeID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
 	if !errors.Is(err, resolverbus.ErrEmployeeNotFound) {
 		t.Fatalf("Render error = %v, want %v", err, resolverbus.ErrEmployeeNotFound)
 	}
@@ -137,7 +137,7 @@ func TestRenderReturnsContentNotFound(t *testing.T) {
 
 	business := NewBusiness(nil, &fileStoreStub{}, &resolverStub{})
 
-	_, err := business.Render(context.Background(), Message{}, resolverbus.Scope{EmployeeID: uuid.New()})
+	_, err := business.Render(context.Background(), Message{}, resolverbus.Scope{TargetID: uuid.New()})
 	if !errors.Is(err, ErrContentNotFound) {
 		t.Fatalf("Render error = %v, want %v", err, ErrContentNotFound)
 	}
@@ -156,7 +156,7 @@ func TestRenderUsesMissingKeySafetyNet(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{EmployeeID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
 	if err == nil {
 		t.Fatal("Render returned nil error")
 	}
@@ -178,7 +178,7 @@ func TestRenderMapsParseError(t *testing.T) {
 
 	msg := testMessage(contentPath)
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{EmployeeID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
 	if !errors.Is(err, ErrUnsupportedTemplateSyntax) {
 		t.Fatalf("Render error = %v, want %v", err, ErrUnsupportedTemplateSyntax)
 	}

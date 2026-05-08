@@ -17,6 +17,7 @@ type Querier interface {
 	DeleteByCampaignID(ctx context.Context, campaignID uuid.UUID) error
 	Query(ctx context.Context, arg QueryParams) ([]Target, error)
 	QueryByID(ctx context.Context, id uuid.UUID) (Target, error)
+	QueryByToken(ctx context.Context, token string) (Target, error)
 	QueryDue(ctx context.Context, scheduledAt pgtype.Timestamptz) ([]Target, error)
 	Save(ctx context.Context, arg SaveParams) error
 	Update(ctx context.Context, arg UpdateParams) error

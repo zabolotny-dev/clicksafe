@@ -19,6 +19,7 @@ import (
 const (
 	uniqueLabelConstraint = "campaigns_label_key"
 	messageFKConstraint   = "campaigns_message_id_fkey"
+	landingFKConstraint   = "campaigns_landing_id_fkey"
 )
 
 type Store struct {
@@ -37,7 +38,9 @@ func (s *Store) Save(ctx context.Context, campaign campaignbus.Campaign) error {
 	err = s.q.Save(ctx, sqlc.SaveParams{
 		ID:         cmp.ID,
 		MessageID:  cmp.MessageID,
+		LandingID:  cmp.LandingID,
 		Label:      cmp.Label,
+		Domain:     cmp.Domain,
 		Status:     cmp.Status,
 		DateFrom:   cmp.DateFrom,
 		DateTo:     cmp.DateTo,
@@ -55,6 +58,9 @@ func (s *Store) Save(ctx context.Context, campaign campaignbus.Campaign) error {
 			case database.FKViolation:
 				if pgErr.ConstraintName == messageFKConstraint {
 					return campaignbus.ErrMessageNotFound
+				}
+				if pgErr.ConstraintName == landingFKConstraint {
+					return campaignbus.ErrLandingNotFound
 				}
 			}
 		}
@@ -73,7 +79,9 @@ func (s *Store) Update(ctx context.Context, campaign campaignbus.Campaign) error
 
 	err = s.q.Update(ctx, sqlc.UpdateParams{
 		MessageID:  cmp.MessageID,
+		LandingID:  cmp.LandingID,
 		Label:      cmp.Label,
+		Domain:     cmp.Domain,
 		Status:     cmp.Status,
 		DateFrom:   cmp.DateFrom,
 		DateTo:     cmp.DateTo,
@@ -92,6 +100,9 @@ func (s *Store) Update(ctx context.Context, campaign campaignbus.Campaign) error
 			case database.FKViolation:
 				if pgErr.ConstraintName == messageFKConstraint {
 					return campaignbus.ErrMessageNotFound
+				}
+				if pgErr.ConstraintName == landingFKConstraint {
+					return campaignbus.ErrLandingNotFound
 				}
 			}
 		}

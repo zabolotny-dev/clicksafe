@@ -5,7 +5,7 @@ import (
 )
 
 type Scope struct {
-	EmployeeID uuid.UUID
+	TargetID uuid.UUID
 }
 
 type Result struct {

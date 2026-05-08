@@ -30,6 +30,7 @@ type TargetStorer interface {
 	Update(ctx context.Context, t Target) error
 	UpdateMany(ctx context.Context, t []Target) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Target, error)
+	QueryByToken(ctx context.Context, token string) (Target, error)
 	DeleteByCampaignID(ctx context.Context, campaignID uuid.UUID) error
 	QueryDue(ctx context.Context, now time.Time) ([]Target, error)
 	Query(ctx context.Context, filter TargetQueryFilter) ([]Target, error)
@@ -94,6 +95,14 @@ func (b *TargetBusiness) QueryByID(ctx context.Context, id uuid.UUID) (Target, e
 	target, err := b.targetStorer.QueryByID(ctx, id)
 	if err != nil {
 		return Target{}, fmt.Errorf("querybyid: targetID[%s]: %w", id, err)
+	}
+	return target, nil
+}
+
+func (b *TargetBusiness) QueryByToken(ctx context.Context, token string) (Target, error) {
+	target, err := b.targetStorer.QueryByToken(ctx, token)
+	if err != nil {
+		return Target{}, fmt.Errorf("querybytoken: token[%s]: %w", token, err)
 	}
 	return target, nil
 }
@@ -200,6 +209,24 @@ func (b *TargetBusiness) AutoDistribute(ctx context.Context, cmp uuid.UUID) erro
 	}
 
 	return nil
+}
+
+func (b *TargetBusiness) PhishingURL(ctx context.Context, id uuid.UUID) (string, error) {
+	t, err := b.targetStorer.QueryByID(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("phishingurl: targetID[%s]: %w", id, err)
+	}
+
+	cmp, err := b.campaignStorer.QueryByID(ctx, t.CampaignID)
+	if err != nil {
+		return "", fmt.Errorf("phishingurl: campaignID[%s]: %w", t.CampaignID, err)
+	}
+
+	if cmp.Domain.IsEmpty() {
+		return "", fmt.Errorf("phishingurl: campaignID[%s]: %w", cmp.ID, ErrDomainRequired)
+	}
+
+	return cmp.Domain.String() + "/" + t.Token, nil
 }
 
 func generateToken() string {

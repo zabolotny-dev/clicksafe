@@ -38,6 +38,12 @@ func mapBusErr(err error, op string) error {
 	case errors.Is(err, campaignbus.ErrCampaignLocked):
 		return errs.New(errs.FailedPrecondition, err)
 
+	case errors.Is(err, campaignbus.ErrDomainRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrLandingNotFound):
+		return errs.New(errs.NotFound, err)
+
 	case errors.As(err, &unscheduledTargets):
 		var fe errs.FieldErrors
 		for _, t := range unscheduledTargets.TargetIDs {

@@ -2,29 +2,27 @@
 import {
   Delete,
   DocumentChecked,
+  Edit,
   MagicStick,
   Plus,
   Refresh,
   Select,
+  Close,
   UploadFilled,
   View,
 } from '@element-plus/icons-vue'
 
 const selectedMessageId = defineModel('selectedMessageId', { type: String, required: true })
-const selectedEmployeeId = defineModel('selectedEmployeeId', { type: String, required: true })
+const selectedTargetId = defineModel('selectedTargetId', { type: String, required: true })
 const templateText = defineModel('templateText', { type: String, required: true })
 
 defineProps({
-  createMessage: {
-    type: Function,
-    required: true,
-  },
   deleteMessage: {
     type: Function,
     required: true,
   },
-  employeeResult: {
-    type: Object,
+  editMessage: {
+    type: Function,
     required: true,
   },
   loading: {
@@ -71,15 +69,27 @@ defineProps({
     type: String,
     default: '',
   },
-  selectedEmployee: {
-    type: Object,
-    default: null,
+  resetMessageForm: {
+    type: Function,
+    required: true,
+  },
+  saveMessage: {
+    type: Function,
+    required: true,
   },
   selectedMessage: {
     type: Object,
     default: null,
   },
+  selectedTarget: {
+    type: Object,
+    default: null,
+  },
   shortId: {
+    type: Function,
+    required: true,
+  },
+  targetName: {
     type: Function,
     required: true,
   },
@@ -89,6 +99,10 @@ defineProps({
   },
   uploadTemplateText: {
     type: Function,
+    required: true,
+  },
+  vtargetResult: {
+    type: Object,
     required: true,
   },
 })
@@ -101,7 +115,7 @@ defineProps({
         <div class="panel-heading">
           <div>
             <div class="mini-label">GET /message</div>
-            <h2>Шаблоны</h2>
+            <h2>Письма</h2>
           </div>
           <el-button :icon="Refresh" :loading="loading.messages" @click="loadMessages" />
         </div>
@@ -117,7 +131,7 @@ defineProps({
           :data="messageResult.items"
           highlight-current-row
           :row-class-name="({ row }) => row.id === selectedMessageId ? 'selected-row' : ''"
-          @row-click="selectedMessageId = $event.id"
+          @row-click="editMessage"
         >
           <el-table-column prop="label" label="Label" min-width="180" />
           <el-table-column prop="subject" label="Subject" min-width="180" />
@@ -128,7 +142,7 @@ defineProps({
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="Vars" min-width="180">
+          <el-table-column label="Vars" min-width="200">
             <template #default="{ row }">
               <div class="tag-line">
                 <el-tag
@@ -142,20 +156,10 @@ defineProps({
               </div>
             </template>
           </el-table-column>
-          <el-table-column width="148" fixed="right">
+          <el-table-column width="116" fixed="right">
             <template #default="{ row }">
-              <el-button
-                size="small"
-                :type="row.id === selectedMessageId ? 'primary' : 'default'"
-                @click.stop="selectedMessageId = row.id"
-              >
-                Выбрать
-              </el-button>
-              <el-button
-                size="small"
-                :icon="Delete"
-                @click.stop="deleteMessage(row.id)"
-              />
+              <el-button :icon="Edit" size="small" @click.stop="editMessage(row)" />
+              <el-button :icon="Delete" size="small" @click.stop="deleteMessage(row.id)" />
             </template>
           </el-table-column>
         </el-table>
@@ -164,9 +168,10 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">POST /message</div>
-            <h2>Новый message</h2>
+            <div class="mini-label">{{ messageForm.id ? 'PUT /message/:id' : 'POST /message' }}</div>
+            <h2>{{ messageForm.id ? 'Редактировать письмо' : 'Новое письмо' }}</h2>
           </div>
+          <el-button v-if="messageForm.id" :icon="Close" @click="resetMessageForm" />
         </div>
 
         <el-form label-position="top">
@@ -186,11 +191,11 @@ defineProps({
           </el-form-item>
           <el-button
             type="primary"
-            :icon="Plus"
+            :icon="messageForm.id ? Edit : Plus"
             :loading="loading.messages"
-            @click="createMessage"
+            @click="saveMessage"
           >
-            Создать
+            {{ messageForm.id ? 'Сохранить письмо' : 'Создать письмо' }}
           </el-button>
         </el-form>
       </section>
@@ -201,7 +206,7 @@ defineProps({
         <div class="panel-heading">
           <div>
             <div class="mini-label">PUT /message/:id/content</div>
-            <h2>HTML-шаблон</h2>
+            <h2>HTML письма</h2>
           </div>
           <el-tag effect="plain">{{ shortId(selectedMessageId) }}</el-tag>
         </div>
@@ -264,23 +269,23 @@ defineProps({
         <div class="panel-heading">
           <div>
             <div class="mini-label">POST /message/:id/render</div>
-            <h2>Рендер</h2>
+            <h2>Предпросмотр</h2>
           </div>
         </div>
 
         <el-form label-position="top">
-          <el-form-item label="Employee">
+          <el-form-item label="Target">
             <el-select
-              v-model="selectedEmployeeId"
+              v-model="selectedTargetId"
               filterable
-              placeholder="Выбери сотрудника"
+              placeholder="Выбери target из кампании"
               class="full-width"
             >
               <el-option
-                v-for="employee in employeeResult.items"
-                :key="employee.id"
-                :label="`${employee.first_name} ${employee.last_name} - ${employee.email}`"
-                :value="employee.id"
+                v-for="target in vtargetResult.items"
+                :key="target.id"
+                :label="`${target.first_name} ${target.last_name} - ${target.status}`"
+                :value="target.id"
               />
             </el-select>
           </el-form-item>
@@ -288,22 +293,20 @@ defineProps({
             type="primary"
             :icon="MagicStick"
             :loading="loading.render"
-            @click="renderMessage"
+            @click="renderMessage()"
           >
-            Получить результат
+            Показать письмо
           </el-button>
         </el-form>
 
         <div class="selection-summary">
           <div>
             <span>Message</span>
-            <strong>{{ selectedMessage?.label || 'не выбран' }}</strong>
+            <strong>{{ selectedMessage?.label || 'не выбрано' }}</strong>
           </div>
           <div>
-            <span>Employee</span>
-            <strong>
-              {{ selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : 'не выбран' }}
-            </strong>
+            <span>Target</span>
+            <strong>{{ targetName(selectedTarget) }}</strong>
           </div>
         </div>
 

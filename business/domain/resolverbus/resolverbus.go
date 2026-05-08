@@ -6,18 +6,29 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 )
 
 var (
-	ErrEmployeeIDRequired   = errors.New("employee id is required")
+	ErrTargetIDRequired     = errors.New("target id is required")
+	ErrTargetNotFound       = errors.New("target not found")
 	ErrEmployeeNotFound     = errors.New("employee not found")
 	ErrDepartmentNotFound   = errors.New("department not found")
 	ErrOrganizationNotFound = errors.New("organization not found")
 	ErrUnsupportedPath      = errors.New("unsupported resolver path")
+	ErrDomainRequired       = errors.New("domain not found")
 )
+
+type targetQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target, error)
+}
+
+type targetLinkResolver interface {
+	PhishingURL(ctx context.Context, id uuid.UUID) (string, error)
+}
 
 type employeeQuerier interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error)
@@ -36,13 +47,17 @@ type ExtBusiness interface {
 }
 
 type Business struct {
+	targetQuerier   targetQuerier
+	targetLinkBus   targetLinkResolver
 	employeeBus     employeeQuerier
 	departmentBus   departmentQuerier
 	organizationBus organizationGetter
 }
 
-func NewBusiness(employeeBus employeeQuerier, departmentBus departmentQuerier, organizationBus organizationGetter) *Business {
+func NewBusiness(targetQuerier targetQuerier, targetLinkBus targetLinkResolver, employeeBus employeeQuerier, departmentBus departmentQuerier, organizationBus organizationGetter) *Business {
 	return &Business{
+		targetQuerier:   targetQuerier,
+		targetLinkBus:   targetLinkBus,
 		employeeBus:     employeeBus,
 		departmentBus:   departmentBus,
 		organizationBus: organizationBus,
@@ -54,20 +69,26 @@ func (b *Business) Resolve(ctx context.Context, scope Scope, paths []string) (Re
 		return Result{Data: map[string]any{}}, nil
 	}
 
-	if scope.EmployeeID == uuid.Nil {
-		return Result{}, ErrEmployeeIDRequired
+	if scope.TargetID == uuid.Nil {
+		return Result{}, ErrTargetIDRequired
 	}
 
-	employee, err := b.employeeBus.QueryByID(ctx, scope.EmployeeID)
+	target, err := b.targetQuerier.QueryByID(ctx, scope.TargetID)
 	if err != nil {
-		if errors.Is(err, employeebus.ErrNotFound) {
-			return Result{}, ErrEmployeeNotFound
+		if errors.Is(err, campaignbus.ErrTargetNotFound) {
+			return Result{}, ErrTargetNotFound
 		}
 
-		return Result{}, fmt.Errorf("resolve employee: %w", err)
+		return Result{}, fmt.Errorf("resolve target: %w", err)
 	}
 
-	state := resolveState{employee: employee, departmentBus: b.departmentBus, organizationBus: b.organizationBus}
+	state := resolveState{
+		target:          target,
+		employeeBus:     b.employeeBus,
+		departmentBus:   b.departmentBus,
+		organizationBus: b.organizationBus,
+		targetLinkBus:   b.targetLinkBus,
+	}
 	result := Result{Data: make(map[string]any)}
 	missingSeen := make(map[string]struct{}, len(paths))
 

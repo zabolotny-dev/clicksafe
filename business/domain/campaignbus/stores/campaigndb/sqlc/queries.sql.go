@@ -54,7 +54,7 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 const query = `-- name: Query :many
-SELECT id, message_id, label, status, date_from, date_to, attributes FROM campaigns
+SELECT id, message_id, landing_id, label, domain, status, date_from, date_to, attributes FROM campaigns
 WHERE
     ($1::uuid IS NULL OR id = $1)
     AND
@@ -112,7 +112,9 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Campaign, error
 		if err := rows.Scan(
 			&i.ID,
 			&i.MessageID,
+			&i.LandingID,
 			&i.Label,
+			&i.Domain,
 			&i.Status,
 			&i.DateFrom,
 			&i.DateTo,
@@ -129,7 +131,7 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Campaign, error
 }
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, message_id, label, status, date_from, date_to, attributes FROM campaigns
+SELECT id, message_id, landing_id, label, domain, status, date_from, date_to, attributes FROM campaigns
 WHERE id = $1
 `
 
@@ -139,7 +141,9 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Campaign, error)
 	err := row.Scan(
 		&i.ID,
 		&i.MessageID,
+		&i.LandingID,
 		&i.Label,
+		&i.Domain,
 		&i.Status,
 		&i.DateFrom,
 		&i.DateTo,
@@ -149,7 +153,7 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Campaign, error)
 }
 
 const queryExpired = `-- name: QueryExpired :many
-SELECT id, message_id, label, status, date_from, date_to, attributes FROM campaigns
+SELECT id, message_id, landing_id, label, domain, status, date_from, date_to, attributes FROM campaigns
 WHERE
     status = 'ACTIVE'
     AND date_to IS NOT NULL
@@ -169,7 +173,9 @@ func (q *Queries) QueryExpired(ctx context.Context) ([]Campaign, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.MessageID,
+			&i.LandingID,
 			&i.Label,
+			&i.Domain,
 			&i.Status,
 			&i.DateFrom,
 			&i.DateTo,
@@ -189,20 +195,24 @@ const save = `-- name: Save :exec
 INSERT INTO campaigns (
     id,
     message_id,
+    landing_id,
     label,
+    domain,
     status,
     date_from,
     date_to,
     attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 `
 
 type SaveParams struct {
 	ID         uuid.UUID
 	MessageID  *uuid.UUID
+	LandingID  *uuid.UUID
 	Label      string
+	Domain     string
 	Status     string
 	DateFrom   pgtype.Timestamptz
 	DateTo     pgtype.Timestamptz
@@ -213,7 +223,9 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 	_, err := q.db.Exec(ctx, save,
 		arg.ID,
 		arg.MessageID,
+		arg.LandingID,
 		arg.Label,
+		arg.Domain,
 		arg.Status,
 		arg.DateFrom,
 		arg.DateTo,
@@ -226,17 +238,21 @@ const update = `-- name: Update :exec
 UPDATE campaigns
 SET
     message_id = $1,
-    label = $2,
-    status = $3,
-    date_from = $4,
-    date_to = $5,
-    attributes = $6
-WHERE id = $7
+    landing_id = $2,
+    label = $3,
+    domain = $4,
+    status = $5,
+    date_from = $6,
+    date_to = $7,
+    attributes = $8
+WHERE id = $9
 `
 
 type UpdateParams struct {
 	MessageID  *uuid.UUID
+	LandingID  *uuid.UUID
 	Label      string
+	Domain     string
 	Status     string
 	DateFrom   pgtype.Timestamptz
 	DateTo     pgtype.Timestamptz
@@ -247,7 +263,9 @@ type UpdateParams struct {
 func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
 	_, err := q.db.Exec(ctx, update,
 		arg.MessageID,
+		arg.LandingID,
 		arg.Label,
+		arg.Domain,
 		arg.Status,
 		arg.DateFrom,
 		arg.DateTo,
