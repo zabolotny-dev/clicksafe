@@ -1,6 +1,7 @@
 package vtargetbus
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,4 +23,7 @@ type Target struct {
 type Event struct {
 	Type       string
 	OccurredAt time.Time
+	IPAddress  netip.Addr
+	UserAgent  string
+	Referer    string
 }

@@ -34,6 +34,10 @@ func (r Range) IsActive(now time.Time) bool {
 	return !now.Before(r.start) && now.Before(r.end)
 }
 
+func (r Range) IsExpired(now time.Time) bool {
+	return !r.end.After(now.UTC())
+}
+
 func (r Range) Contains(t time.Time) bool {
 	t = t.UTC()
 	return !t.Before(r.start) && t.Before(r.end)

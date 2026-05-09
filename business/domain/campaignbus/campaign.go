@@ -69,6 +69,9 @@ func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Camp
 		if errors.Is(err, ErrMessageNotFound) && campaign.MessageID != nil {
 			return Campaign{}, fmt.Errorf("save: messageID[%s]: %w", *campaign.MessageID, err)
 		}
+		if errors.Is(err, ErrLandingNotFound) && campaign.LandingID != nil {
+			return Campaign{}, fmt.Errorf("save: landingID[%s]: %w", *campaign.LandingID, err)
+		}
 		return Campaign{}, fmt.Errorf("save: %w", err)
 	}
 
@@ -112,6 +115,9 @@ func (b *CampaignBusiness) Update(ctx context.Context, cmp Campaign, upd UpdateC
 	if err := b.campaignStorer.Update(ctx, cmp); err != nil {
 		if errors.Is(err, ErrMessageNotFound) && upd.MessageID != nil {
 			return Campaign{}, fmt.Errorf("update: messageID[%s]: %w", *upd.MessageID, err)
+		}
+		if errors.Is(err, ErrLandingNotFound) && upd.LandingID != nil {
+			return Campaign{}, fmt.Errorf("update: landingID[%s]: %w", *upd.LandingID, err)
 		}
 		return Campaign{}, fmt.Errorf("update: %w", err)
 	}
@@ -164,7 +170,7 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: %w", ErrDateRangeRequired)
 	}
 
-	if !campaign.DateRange.Range().End().After(time.Now().UTC()) {
+	if campaign.DateRange.Range().IsExpired(time.Now().UTC()) {
 		return Campaign{}, fmt.Errorf("start: %w", ErrDateRangeExpired)
 	}
 

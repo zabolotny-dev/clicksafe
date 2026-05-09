@@ -145,7 +145,7 @@ func (b *TargetBusiness) UpdateSchedule(ctx context.Context, t Target, scheduled
 		return Target{}, fmt.Errorf("updateschedule: %w: cannot change schedule in %s target status", ErrTargetLocked, t.Status)
 	}
 
-	if scheduledAt.Before(cmp.DateRange.Range().Start()) || scheduledAt.After(cmp.DateRange.Range().End()) {
+	if !cmp.DateRange.Range().Contains(scheduledAt) {
 		return Target{}, fmt.Errorf("updateschedule: %w", ErrInvalidScheduleWindow)
 	}
 
@@ -168,14 +168,6 @@ func (b *TargetBusiness) AutoDistribute(ctx context.Context, cmp uuid.UUID) erro
 		return fmt.Errorf("autodistribute: %w", ErrInvalidScheduleWindow)
 	}
 
-	dateRange := campaign.DateRange.Range()
-	from := dateRange.Start()
-	to := dateRange.End()
-
-	if !to.After(from) {
-		return fmt.Errorf("autodistribute: %w", ErrInvalidScheduleWindow)
-	}
-
 	if campaign.Status != Draft && campaign.Status != Paused {
 		return fmt.Errorf("autodistribute: %w: cannot change schedule in %s campaign status", ErrTargetLocked, campaign.Status)
 	}
@@ -193,8 +185,9 @@ func (b *TargetBusiness) AutoDistribute(ctx context.Context, cmp uuid.UUID) erro
 		return nil
 	}
 
-	from = from.UTC()
-	to = to.UTC()
+	dateRange := campaign.DateRange.Range()
+	from := dateRange.Start().UTC()
+	to := dateRange.End().UTC()
 
 	step := to.Sub(from) / time.Duration(len(targets))
 	halfStep := step / 2
@@ -236,7 +229,7 @@ func generateToken() string {
 func isValidTargetTransition(current, next TargetStatus) bool {
 	switch current {
 	case Pending:
-		return next == Sent || next == Failed
+		return next == Sent || next == Failed || next == Clicked
 	case Sent:
 		return next == Opened || next == Clicked || next == Failed
 	case Opened:

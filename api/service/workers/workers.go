@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/deliverybus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/deliverybus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 	"github.com/zabolotny-dev/clicksafe/foundation/worker"
 )

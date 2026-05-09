@@ -1,4 +1,3 @@
-// Package domain represents a validated phishing page domain in the system.
 package domain
 
 import (

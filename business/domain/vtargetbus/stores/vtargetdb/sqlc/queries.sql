@@ -45,6 +45,9 @@ SELECT
     mt.scheduled_at,
     mt.created_at,
     ev.type AS event_type,
+    ev.ip_address AS event_ip_address,
+    ev.user_agent AS event_user_agent,
+    ev.referer AS event_referer,
     ev.occurred_at AS event_occurred_at
 FROM matched_targets mt
 LEFT JOIN events ev

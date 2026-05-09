@@ -56,11 +56,10 @@ func (b *Business) SendMail(ctx context.Context) []error {
 	targets, err := b.targetQuerier.QueryDue(ctx)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("sendmail: %w", err))
-		return errs
 	}
 
 	if len(targets) == 0 {
-		return nil
+		return errs
 	}
 
 	for _, t := range targets {

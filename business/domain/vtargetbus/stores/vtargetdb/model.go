@@ -1,6 +1,7 @@
 package vtargetdb
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,7 +50,7 @@ func toBusTargets(rows []sqlc.QueryRow) []vtargetbus.Target {
 			indexByID[row.ID] = idx
 		}
 
-		event, ok := toBusEvent(row.EventType, row.EventOccurredAt)
+		event, ok := toBusEvent(row)
 		if ok {
 			targets[idx].Events = append(targets[idx].Events, event)
 		}
@@ -67,14 +68,22 @@ func toBusTimePtr(value pgtype.Timestamptz) *time.Time {
 	return &t
 }
 
-func toBusEvent(eventType pgtype.Text, occurredAt pgtype.Timestamp) (vtargetbus.Event, bool) {
-	if !eventType.Valid || !occurredAt.Valid {
+func toBusEvent(row sqlc.QueryRow) (vtargetbus.Event, bool) {
+	if !row.EventType.Valid || !row.EventOccurredAt.Valid {
 		return vtargetbus.Event{}, false
 	}
 
+	var ipAddr netip.Addr
+	if row.EventIpAddress != nil {
+		ipAddr = *row.EventIpAddress
+	}
+
 	return vtargetbus.Event{
-		Type:       eventType.String,
-		OccurredAt: occurredAt.Time.UTC(),
+		Type:       row.EventType.String,
+		OccurredAt: row.EventOccurredAt.Time.UTC(),
+		IPAddress:  ipAddr,
+		UserAgent:  row.EventUserAgent.String,
+		Referer:    row.EventReferer.String,
 	}, true
 }
 

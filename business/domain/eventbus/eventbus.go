@@ -31,6 +31,9 @@ func (b *Business) Publish(ctx context.Context, e NewEvent) error {
 		EmployeeID: e.EmployeeID,
 		Type:       e.Type,
 		OccurredAt: time.Now().UTC(),
+		IPAddress:  e.IPAddress,
+		UserAgent:  e.UserAgent,
+		Referer:    e.Referer,
 	}
 
 	if err := b.storer.Save(ctx, event); err != nil {

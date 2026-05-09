@@ -7,14 +7,26 @@ package sqlc
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const saveEvent = `-- name: SaveEvent :exec
-INSERT INTO events (id, campaign_id, employee_id, type, occurred_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO events (
+	id, 
+	campaign_id, 
+	employee_id, 
+	type, 
+	ip_address, 
+	user_agent, 
+	referer, 
+	occurred_at
+)
+VALUES (
+	$1, $2, $3, $4, $5, $6, $7, $8
+)
 `
 
 type SaveEventParams struct {
@@ -22,6 +34,9 @@ type SaveEventParams struct {
 	CampaignID uuid.UUID
 	EmployeeID uuid.UUID
 	Type       string
+	IpAddress  *netip.Addr
+	UserAgent  pgtype.Text
+	Referer    pgtype.Text
 	OccurredAt pgtype.Timestamp
 }
 
@@ -31,6 +46,9 @@ func (q *Queries) SaveEvent(ctx context.Context, arg SaveEventParams) error {
 		arg.CampaignID,
 		arg.EmployeeID,
 		arg.Type,
+		arg.IpAddress,
+		arg.UserAgent,
+		arg.Referer,
 		arg.OccurredAt,
 	)
 	return err

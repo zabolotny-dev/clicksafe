@@ -1,6 +1,7 @@
 package vtargetapp
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,8 +22,11 @@ type Target struct {
 }
 
 type Event struct {
-	Type       string    `json:"type"`
-	OccurredAt time.Time `json:"occurred_at"`
+	Type       string      `json:"type"`
+	IPAddress  *netip.Addr `json:"ip_address,omitempty"`
+	UserAgent  string      `json:"user_agent,omitempty"`
+	Referer    string      `json:"referer,omitempty"`
+	OccurredAt time.Time   `json:"occurred_at"`
 }
 
 func toAppTarget(t vtargetbus.Target) Target {
@@ -52,8 +56,17 @@ func toAppTargets(targets []vtargetbus.Target) []Target {
 func toAppEvents(events []vtargetbus.Event) []Event {
 	result := make([]Event, len(events))
 	for i, event := range events {
+		var ipAddr *netip.Addr
+		if event.IPAddress.IsValid() {
+			addr := event.IPAddress
+			ipAddr = &addr
+		}
+
 		result[i] = Event{
 			Type:       event.Type,
+			IPAddress:  ipAddr,
+			UserAgent:  event.UserAgent,
+			Referer:    event.Referer,
 			OccurredAt: event.OccurredAt,
 		}
 	}

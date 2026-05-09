@@ -3,6 +3,7 @@ package visitbus
 import (
 	"context"
 	"fmt"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
@@ -30,6 +31,13 @@ type eventPublisher interface {
 	Publish(ctx context.Context, e eventbus.NewEvent) error
 }
 
+type TargetData struct {
+	IpAddress netip.Addr
+	UserAgent string
+	Referer   string
+	Token     string
+}
+
 type Business struct {
 	targetQuerier   targetQuerier
 	campaignQuerier campaignQuerier
@@ -46,8 +54,8 @@ func NewBusiness(t targetQuerier, c campaignQuerier, l landingRenderer, ep event
 	}
 }
 
-func (b *Business) Serve(ctx context.Context, token string) (string, error) {
-	target, err := b.targetQuerier.QueryByToken(ctx, token)
+func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
+	target, err := b.targetQuerier.QueryByToken(ctx, td.Token)
 	if err != nil {
 		return "", fmt.Errorf("serve: query target: %w", err)
 	}
@@ -80,13 +88,16 @@ func (b *Business) Serve(ctx context.Context, token string) (string, error) {
 	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
 		CampaignID: target.CampaignID,
 		EmployeeID: target.EmployeeID,
-		Type:       event.LINK_OPENED,
+		Type:       event.LinkOpened,
+		IPAddress:  td.IpAddress,
+		UserAgent:  td.UserAgent,
+		Referer:    td.Referer,
 	}); err != nil {
 		return "", fmt.Errorf("serve: publish event: %w", err)
 	}
 
-	if target.Status == campaignbus.Sent {
-		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Opened); err != nil {
+	if target.Status == campaignbus.Sent || target.Status == campaignbus.Pending {
+		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Clicked); err != nil {
 			return "", fmt.Errorf("serve: change target status: %w", err)
 		}
 	}

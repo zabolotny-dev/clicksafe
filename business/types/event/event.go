@@ -5,9 +5,9 @@ import "fmt"
 var (
 	MessageSent    = newEvent("MESSAGE_SENT")
 	DeliveryFailed = newEvent("DELIVERY_FAILED")
-	EMAIL_OPENED   = newEvent("EMAIL_OPENED")
-	LINK_OPENED    = newEvent("LINK_OPENED")
-	DATA_SENT      = newEvent("DATA_SENT")
+	EmailOpened    = newEvent("EMAIL_OPENED")
+	LinkOpened     = newEvent("LINK_OPENED")
+	DataSent       = newEvent("DATA_SENT")
 )
 
 var events = make(map[string]EventType)

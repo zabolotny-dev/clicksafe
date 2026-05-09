@@ -5,6 +5,8 @@
 package sqlc
 
 import (
+	"net/netip"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -30,6 +32,9 @@ type Event struct {
 	EmployeeID uuid.UUID
 	Type       string
 	OccurredAt pgtype.Timestamp
+	IpAddress  *netip.Addr
+	UserAgent  pgtype.Text
+	Referer    pgtype.Text
 }
 
 type Target struct {

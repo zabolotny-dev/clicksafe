@@ -18,8 +18,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/visitbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/visitbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 )
 
@@ -38,6 +38,7 @@ type Config struct {
 
 func Add(e *echo.Echo, cfg Config) {
 	e.HTTPErrorHandler = errs.NewEchoHandler(cfg.Log)
+	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
 	organizationapp.Routes(e, organizationapp.Config{
 		OrganizationBus: cfg.OrganizationBus,
@@ -72,6 +73,7 @@ func Add(e *echo.Echo, cfg Config) {
 	})
 
 	visitapp.Routes(e, visitapp.Config{
+		Log:      cfg.Log,
 		VisitBus: cfg.VisitBus,
 	})
 }
