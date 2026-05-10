@@ -105,7 +105,8 @@ func (e *Error) Equal(e2 *Error) bool {
 // FieldError is used to indicate an error with a specific request field.
 type FieldError struct {
 	Field string `json:"field"`
-	Err   string `json:"error"`
+	Err   string `json:"error,omitempty"`
+	Value any    `json:"value,omitempty"`
 }
 
 // FieldErrors represents a collection of field errors.
@@ -128,6 +129,13 @@ func (fe *FieldErrors) Add(field string, err error) {
 	*fe = append(*fe, FieldError{
 		Field: field,
 		Err:   err.Error(),
+	})
+}
+
+func (fe *FieldErrors) AddValue(field string, value any) {
+	*fe = append(*fe, FieldError{
+		Field: field,
+		Value: value,
 	})
 }
 

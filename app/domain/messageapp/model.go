@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 	"github.com/zabolotny-dev/clicksafe/business/types/subject"
 )
@@ -127,25 +126,6 @@ func toBusUpdateMessage(req UpdateMessage) (messagebus.UpdateMessage, error) {
 		FromName:  fromName,
 		Subject:   sub,
 	}, nil
-}
-
-func toBusRenderScope(req RenderMessage) (resolverbus.Scope, error) {
-	var errors errs.FieldErrors
-	var scope resolverbus.Scope
-
-	if req.TargetID != "" {
-		id, err := uuid.Parse(req.TargetID)
-		if err != nil {
-			errors.Add("target_id", err)
-		}
-		scope.TargetID = id
-	}
-
-	if len(errors) > 0 {
-		return resolverbus.Scope{}, errors.ToError(errs.InvalidArgument, "validation failed")
-	}
-
-	return scope, nil
 }
 
 func toAppMessage(msg messagebus.Message) Message {

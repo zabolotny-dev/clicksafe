@@ -9,7 +9,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/types/event"
 )
 
@@ -24,7 +23,7 @@ type campaignQuerier interface {
 
 type landingRenderer interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (landingbus.Landing, error)
-	Render(ctx context.Context, landing landingbus.Landing, scope resolverbus.Scope) (string, error)
+	Render(ctx context.Context, landing landingbus.Landing, targetID uuid.UUID) (string, error)
 }
 
 type eventPublisher interface {
@@ -78,9 +77,7 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 		return "", fmt.Errorf("serve: query landing: %w", err)
 	}
 
-	html, err := b.landingRenderer.Render(ctx, landing, resolverbus.Scope{
-		TargetID: target.ID,
-	})
+	html, err := b.landingRenderer.Render(ctx, landing, target.ID)
 	if err != nil {
 		return "", fmt.Errorf("serve: render landing: %w", err)
 	}

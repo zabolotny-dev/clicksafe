@@ -3,6 +3,7 @@ package landingapp
 import (
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
@@ -161,17 +162,17 @@ func (a *app) render(c *echo.Context) error {
 		return errs.New(errs.InvalidArgument, err)
 	}
 
-	scope, err := toBusRenderScope(req)
-	if err != nil {
-		return err
-	}
-
 	landing, err := mid.GetLanding(c.Request().Context())
 	if err != nil {
 		return errs.Errorf(errs.Internal, "render: %s", err)
 	}
 
-	content, err := a.landingBus.Render(c.Request().Context(), landing, scope)
+	tID, err := uuid.Parse(req.TargetID)
+	if err != nil {
+		return errs.NewFieldErrors("target_id", err, errs.InvalidArgument, "invalid target id")
+	}
+
+	content, err := a.landingBus.Render(c.Request().Context(), landing, tID)
 	if err != nil {
 		return mapBusErr(err, "render")
 	}

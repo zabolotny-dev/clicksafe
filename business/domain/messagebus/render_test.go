@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
@@ -19,14 +18,12 @@ func TestRenderUsesResolvedDataDirectly(t *testing.T) {
 
 	contentPath := file.MustParse("/uploads/message.html")
 	resolver := &resolverStub{
-		result: resolverbus.Result{
-			Data: map[string]any{
-				"Employee": map[string]any{
-					"FirstName": "Ivan",
-				},
-				"Department": map[string]any{
-					"Label": "Human Resources",
-				},
+		data: map[string]any{
+			"Employee": map[string]any{
+				"FirstName": "Ivan",
+			},
+			"Department": map[string]any{
+				"Label": "Human Resources",
 			},
 		},
 	}
@@ -40,7 +37,7 @@ func TestRenderUsesResolvedDataDirectly(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Department.Label", "Employee.FirstName"}
 
-	rendered, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
+	rendered, err := business.Render(context.Background(), msg, uuid.New())
 	if err != nil {
 		t.Fatalf("Render returned error: %v", err)
 	}
@@ -53,7 +50,7 @@ func TestRenderUsesResolvedDataDirectly(t *testing.T) {
 		t.Fatalf("resolver calls = %d, want 1", resolver.calls)
 	}
 
-	if resolver.scope.TargetID == uuid.Nil {
+	if resolver.targetID == uuid.Nil {
 		t.Fatal("Render did not forward scope to resolver")
 	}
 
@@ -71,15 +68,13 @@ func TestRenderReturnsMissingRequiredVars(t *testing.T) {
 			contentPath.String(): []byte("<p>{{ .Employee.FirstName }}</p><p>{{ .Department.Label }}</p>"),
 		},
 	}, &resolverStub{
-		result: resolverbus.Result{
-			Missing: []string{"Department.Label"},
-		},
+		missing: []string{"Department.Label"},
 	})
 
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName", "Department.Label"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, uuid.New())
 	if err == nil {
 		t.Fatal("Render returned nil error")
 	}
@@ -107,7 +102,7 @@ func TestRenderReturnsResolverNotConfigured(t *testing.T) {
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, uuid.New())
 	if !errors.Is(err, ErrResolverNotConfigured) {
 		t.Fatalf("Render error = %v, want %v", err, ErrResolverNotConfigured)
 	}
@@ -116,19 +111,21 @@ func TestRenderReturnsResolverNotConfigured(t *testing.T) {
 func TestRenderWrapsResolverError(t *testing.T) {
 	t.Parallel()
 
+	testErr := errors.New("resolver error")
+
 	contentPath := file.MustParse("/uploads/message.html")
 	business := NewBusiness(nil, &fileStoreStub{
 		contents: map[string][]byte{
 			contentPath.String(): []byte("<p>{{ .Employee.FirstName }}</p>"),
 		},
-	}, &resolverStub{err: resolverbus.ErrEmployeeNotFound})
+	}, &resolverStub{err: testErr})
 
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
-	if !errors.Is(err, resolverbus.ErrEmployeeNotFound) {
-		t.Fatalf("Render error = %v, want %v", err, resolverbus.ErrEmployeeNotFound)
+	_, err := business.Render(context.Background(), msg, uuid.New())
+	if !errors.Is(err, testErr) {
+		t.Fatalf("Render error = %v, want %v", err, testErr)
 	}
 }
 
@@ -137,7 +134,7 @@ func TestRenderReturnsContentNotFound(t *testing.T) {
 
 	business := NewBusiness(nil, &fileStoreStub{}, &resolverStub{})
 
-	_, err := business.Render(context.Background(), Message{}, resolverbus.Scope{TargetID: uuid.New()})
+	_, err := business.Render(context.Background(), Message{}, uuid.New())
 	if !errors.Is(err, ErrContentNotFound) {
 		t.Fatalf("Render error = %v, want %v", err, ErrContentNotFound)
 	}
@@ -151,12 +148,12 @@ func TestRenderUsesMissingKeySafetyNet(t *testing.T) {
 		contents: map[string][]byte{
 			contentPath.String(): []byte("<p>{{ .Employee.FirstName }}</p>"),
 		},
-	}, &resolverStub{result: resolverbus.Result{Data: map[string]any{}}})
+	}, &resolverStub{data: map[string]any{}})
 
 	msg := testMessage(contentPath)
 	msg.RequiredVars = []string{"Employee.FirstName"}
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, uuid.New())
 	if err == nil {
 		t.Fatal("Render returned nil error")
 	}
@@ -174,11 +171,11 @@ func TestRenderMapsParseError(t *testing.T) {
 		contents: map[string][]byte{
 			contentPath.String(): []byte("{{"),
 		},
-	}, &resolverStub{result: resolverbus.Result{Data: map[string]any{}}})
+	}, &resolverStub{data: map[string]any{}})
 
 	msg := testMessage(contentPath)
 
-	_, err := business.Render(context.Background(), msg, resolverbus.Scope{TargetID: uuid.New()})
+	_, err := business.Render(context.Background(), msg, uuid.New())
 	if !errors.Is(err, ErrUnsupportedTemplateSyntax) {
 		t.Fatalf("Render error = %v, want %v", err, ErrUnsupportedTemplateSyntax)
 	}
@@ -193,23 +190,24 @@ func testMessage(contentPath file.Path) Message {
 }
 
 type resolverStub struct {
-	result resolverbus.Result
-	err    error
-	paths  []string
-	scope  resolverbus.Scope
-	calls  int
+	data    map[string]any
+	missing []string
+	err     error
+	paths   []string
+	targetID uuid.UUID
+	calls   int
 }
 
-func (s *resolverStub) Resolve(ctx context.Context, scope resolverbus.Scope, paths []string) (resolverbus.Result, error) {
+func (s *resolverStub) Resolve(ctx context.Context, targetID uuid.UUID, paths []string) (map[string]any, []string, error) {
 	s.calls++
-	s.scope = scope
+	s.targetID = targetID
 	s.paths = append([]string(nil), paths...)
 
 	if s.err != nil {
-		return resolverbus.Result{}, s.err
+		return nil, nil, s.err
 	}
 
-	return s.result, nil
+	return s.data, s.missing, nil
 }
 
 type fileStoreStub struct {

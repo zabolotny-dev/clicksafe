@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 	"github.com/zabolotny-dev/clicksafe/business/types/date"
@@ -41,6 +44,24 @@ type UpdateCampaign struct {
 	Domain     *domain.Domain
 	DateRange  *date.Null
 	Attributes *map[string]string
+}
+
+type TargetMissingVars struct {
+	TargetID   uuid.UUID
+	EmployeeID uuid.UUID
+	Vars       []string
+}
+
+type MessageQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (messagebus.Message, error)
+}
+
+type LandingQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (landingbus.Landing, error)
+}
+
+type VarsValidator interface {
+	Validate(ctx context.Context, campaign Campaign, targets []Target, requiredVars []string) ([]TargetMissingVars, error)
 }
 
 type CampaignStorer interface {
@@ -151,8 +172,6 @@ func (b *CampaignBusiness) Delete(ctx context.Context, campaign Campaign) error 
 	return nil
 }
 
-// TODO решить как там где проверять, что сообщение имеет html файл
-// не хватает проверки что хватает всех полей у таргетов для рендера шаблонов
 func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campaign, error) {
 	if !isValidCampaignTransition(campaign.Status, Active) {
 		return Campaign{}, fmt.Errorf("start: %w: cannot move from %s to %s", ErrInvalidStatusTransition, campaign.Status, Active)
@@ -160,6 +179,10 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 
 	if campaign.MessageID == nil {
 		return Campaign{}, fmt.Errorf("start: %w", ErrMessageRequired)
+	}
+
+	if campaign.LandingID == nil {
+		return Campaign{}, fmt.Errorf("start: %w", ErrLandingRequired)
 	}
 
 	if campaign.Domain.IsEmpty() {
@@ -174,22 +197,20 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: %w", ErrDateRangeExpired)
 	}
 
-	targetCount, err := b.targetStorer.Count(ctx, TargetQueryFilter{CampaignID: &campaign.ID})
+	targets, err := b.targetStorer.Query(ctx, TargetQueryFilter{CampaignID: &campaign.ID})
 	if err != nil {
-		return Campaign{}, fmt.Errorf("start: count targets: %w", err)
+		return Campaign{}, fmt.Errorf("start: query targets: %w", err)
 	}
 
-	if targetCount == 0 {
+	if len(targets) == 0 {
 		return Campaign{}, fmt.Errorf("start: %w", ErrTargetsRequired)
 	}
 
-	hasSchedule := false
-	noScheduleTargets, err := b.targetStorer.Query(ctx, TargetQueryFilter{
-		CampaignID:  &campaign.ID,
-		HasSchedule: &hasSchedule,
-	})
-	if err != nil {
-		return Campaign{}, fmt.Errorf("start: query targets: %w", err)
+	var noScheduleTargets []Target
+	for _, t := range targets {
+		if t.ScheduledAt == nil {
+			noScheduleTargets = append(noScheduleTargets, t)
+		}
 	}
 
 	if len(noScheduleTargets) > 0 {
@@ -198,6 +219,47 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 			ids[i] = t.ID
 		}
 		return Campaign{}, fmt.Errorf("start: %w", &ErrUnscheduledTargets{TargetIDs: ids})
+	}
+
+	vars := make(map[string]struct{})
+	message, err := b.messageProvider.QueryByID(ctx, *campaign.MessageID)
+	if err != nil {
+		return Campaign{}, fmt.Errorf("start: query message: %w", err)
+	}
+
+	if !message.ContentPath.Valid() {
+		return Campaign{}, fmt.Errorf("start: %w", ErrMessageHTMLRequired)
+	}
+
+	landing, err := b.landingProvider.QueryByID(ctx, *campaign.LandingID)
+	if err != nil {
+		return Campaign{}, fmt.Errorf("start: query landing: %w", err)
+	}
+
+	if !landing.ContentPath.Valid() {
+		return Campaign{}, fmt.Errorf("start: %w", ErrLandingHTMLRequired)
+	}
+
+	for _, v := range message.RequiredVars {
+		vars[v] = struct{}{}
+	}
+	for _, v := range landing.RequiredVars {
+		vars[v] = struct{}{}
+	}
+
+	var reqVars []string
+	for k := range vars {
+		reqVars = append(reqVars, k)
+	}
+	sort.Strings(reqVars)
+
+	res, err := b.varsValidator.Validate(ctx, campaign, targets, reqVars)
+	if err != nil {
+		return Campaign{}, fmt.Errorf("start: %w", err)
+	}
+
+	if len(res) > 0 {
+		return Campaign{}, fmt.Errorf("start: %w", &ErrTargetsMissingVars{Targets: res})
 	}
 
 	return b.changeStatus(ctx, campaign, Active, "start")

@@ -10,7 +10,6 @@ import (
 	"os"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
@@ -31,13 +30,17 @@ type FileStorage interface {
 	Delete(ctx context.Context, p file.Path) error
 }
 
+type Resolver interface {
+	Resolve(ctx context.Context, targetID uuid.UUID, paths []string) (data map[string]any, missing []string, err error)
+}
+
 type Business struct {
 	storer    Storer
 	fileStore FileStorage
-	resolver  resolverbus.ExtBusiness
+	resolver  Resolver
 }
 
-func NewBusiness(s Storer, fileStore FileStorage, resolver resolverbus.ExtBusiness) *Business {
+func NewBusiness(s Storer, fileStore FileStorage, resolver Resolver) *Business {
 	return &Business{storer: s, fileStore: fileStore, resolver: resolver}
 }
 
@@ -166,7 +169,7 @@ func (b *Business) ReadContent(ctx context.Context, msg Message) ([]byte, error)
 	return content, nil
 }
 
-func (b *Business) Render(ctx context.Context, msg Message, scope resolverbus.Scope) (string, error) {
+func (b *Business) Render(ctx context.Context, msg Message, targetID uuid.UUID) (string, error) {
 	if b.resolver == nil {
 		return "", fmt.Errorf("render: %w", ErrResolverNotConfigured)
 	}
@@ -176,13 +179,13 @@ func (b *Business) Render(ctx context.Context, msg Message, scope resolverbus.Sc
 		return "", fmt.Errorf("render: read content: %w", err)
 	}
 
-	resolved, err := b.resolver.Resolve(ctx, scope, msg.RequiredVars)
+	data, missing, err := b.resolver.Resolve(ctx, targetID, msg.RequiredVars)
 	if err != nil {
 		return "", fmt.Errorf("render: resolve: %w", err)
 	}
 
-	if len(resolved.Missing) > 0 {
-		return "", &MissingRequiredVarsError{Vars: append([]string(nil), resolved.Missing...)}
+	if len(missing) > 0 {
+		return "", &MissingRequiredVarsError{Vars: append([]string(nil), missing...)}
 	}
 
 	tmpl, err := template.New("message").Option("missingkey=error").Parse(string(content))
@@ -190,12 +193,8 @@ func (b *Business) Render(ctx context.Context, msg Message, scope resolverbus.Sc
 		return "", fmt.Errorf("render: parse template: %w: %v", ErrUnsupportedTemplateSyntax, err)
 	}
 
-	if resolved.Data == nil {
-		resolved.Data = map[string]any{}
-	}
-
 	var out bytes.Buffer
-	if err := tmpl.Execute(&out, resolved.Data); err != nil {
+	if err := tmpl.Execute(&out, data); err != nil {
 		return "", fmt.Errorf("render: execute template: %w", err)
 	}
 

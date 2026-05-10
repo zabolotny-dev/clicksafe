@@ -9,7 +9,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/types/event"
 )
 
@@ -27,7 +26,7 @@ type employeeQuerier interface {
 }
 type messageRenderer interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (messagebus.Message, error)
-	Render(ctx context.Context, msg messagebus.Message, scope resolverbus.Scope) (string, error)
+	Render(ctx context.Context, msg messagebus.Message, targetID uuid.UUID) (string, error)
 }
 
 type Deliverer interface {
@@ -100,9 +99,7 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
-	html, err := b.messageRenderer.Render(ctx, msg, resolverbus.Scope{
-		TargetID: t.ID,
-	})
+	html, err := b.messageRenderer.Render(ctx, msg, t.ID)
 	if err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}

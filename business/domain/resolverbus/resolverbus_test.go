@@ -12,6 +12,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
+	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 	"github.com/zabolotny-dev/clicksafe/business/types/name"
 	"github.com/zabolotny-dev/clicksafe/business/types/phone"
@@ -31,7 +32,7 @@ func TestResolve(t *testing.T) {
 
 	business := NewBusiness(targetQBus, &targetLinkResolverStub{}, employeeBus, departmentBus, organizationBus)
 
-	result, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{
+	data, missing, err := business.Resolve(context.Background(), targetID, []string{
 		"Employee.FirstName",
 		"Employee.Email.Address",
 		"Employee.Attributes.Bebra",
@@ -42,30 +43,32 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
 
-	expected := Result{
-		Data: map[string]any{
-			"Employee": map[string]any{
-				"FirstName": "Ivan",
-				"Email": map[string]any{
-					"Address": "ivan@example.com",
-				},
-				"Attributes": map[string]any{
-					"Bebra": "123",
-				},
+	expectedData := map[string]any{
+		"Employee": map[string]any{
+			"FirstName": "Ivan",
+			"Email": map[string]any{
+				"Address": "ivan@example.com",
 			},
-			"Department": map[string]any{
-				"Label": "Human Resources",
+			"Attributes": map[string]any{
+				"Bebra": "123",
 			},
-			"Organization": map[string]any{
-				"Attributes": map[string]any{
-					"SupportEmail": "support@clicksafe.test",
-				},
+		},
+		"Department": map[string]any{
+			"Label": "Human Resources",
+		},
+		"Organization": map[string]any{
+			"Attributes": map[string]any{
+				"SupportEmail": "support@clicksafe.test",
 			},
 		},
 	}
 
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("Resolve result = %#v, want %#v", result, expected)
+	if !reflect.DeepEqual(data, expectedData) {
+		t.Fatalf("Resolve data = %#v, want %#v", data, expectedData)
+	}
+
+	if len(missing) > 0 {
+		t.Fatalf("Resolve missing = %v, want empty", missing)
 	}
 
 	if employeeBus.calls != 1 {
@@ -92,7 +95,7 @@ func TestResolveMissingPathsPreserveOrderAndDedupe(t *testing.T) {
 
 	business := NewBusiness(targetQBus, &targetLinkResolverStub{}, employeeBus, &departmentQuerierStub{}, &organizationGetterStub{})
 
-	result, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{
+	data, missing, err := business.Resolve(context.Background(), targetID, []string{
 		"Employee.Name",
 		"Employee.Attributes.Unknown",
 		"Department.Label",
@@ -104,12 +107,12 @@ func TestResolveMissingPathsPreserveOrderAndDedupe(t *testing.T) {
 	}
 
 	expectedMissing := []string{"Employee.Name", "Employee.Attributes.Unknown", "Department.Label"}
-	if !reflect.DeepEqual(result.Missing, expectedMissing) {
-		t.Fatalf("Resolve missing = %v, want %v", result.Missing, expectedMissing)
+	if !reflect.DeepEqual(missing, expectedMissing) {
+		t.Fatalf("Resolve missing = %v, want %v", missing, expectedMissing)
 	}
 
-	if !reflect.DeepEqual(result.Data, map[string]any{}) {
-		t.Fatalf("Resolve data = %#v, want empty map", result.Data)
+	if !reflect.DeepEqual(data, map[string]any{}) {
+		t.Fatalf("Resolve data = %#v, want empty map", data)
 	}
 
 	if employeeBus.calls != 1 {
@@ -123,14 +126,17 @@ func TestResolveEmptyPathsDoesNotRequireTarget(t *testing.T) {
 	targetQBus := &targetQuerierStub{err: errors.New("should not be called")}
 	business := NewBusiness(targetQBus, &targetLinkResolverStub{}, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{})
 
-	result, err := business.Resolve(context.Background(), Scope{}, nil)
+	data, missing, err := business.Resolve(context.Background(), uuid.Nil, nil)
 	if err != nil {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
 
-	expected := Result{Data: map[string]any{}}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("Resolve result = %#v, want %#v", result, expected)
+	if data != nil {
+		t.Fatalf("Resolve data = %#v, want nil", data)
+	}
+
+	if missing != nil {
+		t.Fatalf("Resolve missing = %v, want nil", missing)
 	}
 
 	if targetQBus.calls != 0 {
@@ -143,7 +149,7 @@ func TestResolveRequiresTargetID(t *testing.T) {
 
 	business := NewBusiness(&targetQuerierStub{}, &targetLinkResolverStub{}, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{})
 
-	_, err := business.Resolve(context.Background(), Scope{}, []string{"Employee.FirstName"})
+	_, _, err := business.Resolve(context.Background(), uuid.Nil, []string{"Employee.FirstName"})
 	if !errors.Is(err, ErrTargetIDRequired) {
 		t.Fatalf("Resolve error = %v, want %v", err, ErrTargetIDRequired)
 	}
@@ -160,7 +166,7 @@ func TestResolveMapsTargetNotFound(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	_, err := business.Resolve(context.Background(), Scope{TargetID: uuid.New()}, []string{"Employee.FirstName"})
+	_, _, err := business.Resolve(context.Background(), uuid.New(), []string{"Employee.FirstName"})
 	if !errors.Is(err, ErrTargetNotFound) {
 		t.Fatalf("Resolve error = %v, want %v", err, ErrTargetNotFound)
 	}
@@ -178,7 +184,7 @@ func TestResolveMapsEmployeeNotFound(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	_, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{"Employee.FirstName"})
+	_, _, err := business.Resolve(context.Background(), targetID, []string{"Employee.FirstName"})
 	if !errors.Is(err, ErrEmployeeNotFound) {
 		t.Fatalf("Resolve error = %v, want %v", err, ErrEmployeeNotFound)
 	}
@@ -202,7 +208,7 @@ func TestResolveRejectsInvalidPaths(t *testing.T) {
 				&organizationGetterStub{},
 			)
 
-			_, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{path})
+			_, _, err := business.Resolve(context.Background(), targetID, []string{path})
 			if !errors.Is(err, ErrUnsupportedPath) {
 				t.Fatalf("Resolve error = %v, want %v", err, ErrUnsupportedPath)
 			}
@@ -224,7 +230,7 @@ func TestResolveRejectsUnsupportedRoot(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	_, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{"Campaign.Label"})
+	_, _, err := business.Resolve(context.Background(), targetID, []string{"Campaign.Label"})
 	if !errors.Is(err, ErrUnsupportedPath) {
 		t.Fatalf("Resolve error = %v, want %v", err, ErrUnsupportedPath)
 	}
@@ -245,7 +251,7 @@ func TestResolveReturnsDepartmentLookupError(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	_, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{"Department.Label"})
+	_, _, err := business.Resolve(context.Background(), targetID, []string{"Department.Label"})
 	if err == nil {
 		t.Fatal("Resolve returned nil error")
 	}
@@ -273,7 +279,7 @@ func TestResolveReturnsOrganizationLookupError(t *testing.T) {
 		&organizationGetterStub{err: organizationbus.ErrNotFound},
 	)
 
-	_, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{"Organization.Label"})
+	_, _, err := business.Resolve(context.Background(), targetID, []string{"Organization.Label"})
 	if err == nil {
 		t.Fatal("Resolve returned nil error")
 	}
@@ -303,17 +309,18 @@ func TestResolveTreatsNullOptionalLeafAsMissing(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	result, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{"Employee.Phone"})
+	data, missing, err := business.Resolve(context.Background(), targetID, []string{"Employee.Phone"})
 	if err != nil {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
 
-	expected := Result{
-		Data:    map[string]any{},
-		Missing: []string{"Employee.Phone"},
+	if !reflect.DeepEqual(data, map[string]any{}) {
+		t.Fatalf("Resolve data = %#v, want empty map", data)
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("Resolve result = %#v, want %#v", result, expected)
+
+	expectedMissing := []string{"Employee.Phone"}
+	if !reflect.DeepEqual(missing, expectedMissing) {
+		t.Fatalf("Resolve missing = %v, want %v", missing, expectedMissing)
 	}
 }
 
@@ -332,22 +339,24 @@ func TestResolveTargetLink(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	result, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{
+	data, missing, err := business.Resolve(context.Background(), targetID, []string{
 		"Target.Link",
 	})
 	if err != nil {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
 
-	expected := Result{
-		Data: map[string]any{
-			"Target": map[string]any{
-				"Link": "https://phishing.example.com/abc-123",
-			},
+	expectedData := map[string]any{
+		"Target": map[string]any{
+			"Link": "https://phishing.example.com/abc-123",
 		},
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("Resolve result = %#v, want %#v", result, expected)
+	if !reflect.DeepEqual(data, expectedData) {
+		t.Fatalf("Resolve data = %#v, want %#v", data, expectedData)
+	}
+
+	if len(missing) > 0 {
+		t.Fatalf("Resolve missing = %v, want empty", missing)
 	}
 
 	if targetStub.calls != 1 {
@@ -371,7 +380,7 @@ func TestResolveTargetLinkCachesResult(t *testing.T) {
 	)
 
 	// Resolve Target.Link twice in same call — should only call PhishingURL once
-	result, err := business.Resolve(context.Background(), Scope{TargetID: targetID}, []string{
+	data, missing, err := business.Resolve(context.Background(), targetID, []string{
 		"Target.Link",
 		"Target.Link",
 	})
@@ -379,19 +388,129 @@ func TestResolveTargetLinkCachesResult(t *testing.T) {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
 
-	expected := Result{
-		Data: map[string]any{
-			"Target": map[string]any{
-				"Link": "https://phishing.example.com/abc-123",
-			},
+	expectedData := map[string]any{
+		"Target": map[string]any{
+			"Link": "https://phishing.example.com/abc-123",
 		},
 	}
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("Resolve result = %#v, want %#v", result, expected)
+	if !reflect.DeepEqual(data, expectedData) {
+		t.Fatalf("Resolve data = %#v, want %#v", data, expectedData)
+	}
+
+	if len(missing) > 0 {
+		t.Fatalf("Resolve missing = %v, want empty", missing)
 	}
 
 	if targetStub.calls != 1 {
 		t.Fatalf("target stub calls = %d, want 1 (should be cached)", targetStub.calls)
+	}
+}
+
+func TestValidateReturnsMissingVarsForTargets(t *testing.T) {
+	t.Parallel()
+
+	campaignID := uuid.New()
+	departmentID := uuid.New()
+	firstTargetID := uuid.New()
+	secondTargetID := uuid.New()
+	firstEmployeeID := uuid.New()
+	secondEmployeeID := uuid.New()
+
+	firstEmployee := testEmployee(firstEmployeeID, nil)
+	firstEmployee.Phone = phone.Null{}
+	secondEmployee := testEmployee(secondEmployeeID, &departmentID)
+
+	targetLinkStub := &targetLinkResolverStub{err: errors.New("should not be called")}
+	targetQuerier := &targetQuerierStub{err: errors.New("should not be called")}
+	employeeBus := &employeeQuerierByIDStub{
+		employees: map[uuid.UUID]employeebus.Employee{
+			firstEmployeeID:  firstEmployee,
+			secondEmployeeID: secondEmployee,
+		},
+	}
+	departmentBus := &departmentQuerierStub{department: testDepartment(departmentID)}
+	organizationBus := &organizationGetterStub{organization: testOrganization()}
+
+	business := NewBusiness(targetQuerier, targetLinkStub, employeeBus, departmentBus, organizationBus)
+
+	targets := []campaignbus.Target{
+		{
+			ID:         firstTargetID,
+			Token:      "first-token",
+			EmployeeID: firstEmployeeID,
+			CampaignID: campaignID,
+			Status:     campaignbus.Pending,
+		},
+		{
+			ID:         secondTargetID,
+			Token:      "second-token",
+			EmployeeID: secondEmployeeID,
+			CampaignID: campaignID,
+			Status:     campaignbus.Pending,
+		},
+	}
+
+	missing, err := business.Validate(context.Background(), campaignbus.Campaign{
+		ID:     campaignID,
+		Domain: domain.MustParse("https://phishing.example.com"),
+	}, targets, []string{
+		"Employee.Phone",
+		"Department.Label",
+		"Organization.Label",
+		"Target.Link",
+	})
+	if err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+
+	expected := []campaignbus.TargetMissingVars{
+		{
+			TargetID:   firstTargetID,
+			EmployeeID: firstEmployeeID,
+			Vars:       []string{"Employee.Phone", "Department.Label"},
+		},
+	}
+	if !reflect.DeepEqual(missing, expected) {
+		t.Fatalf("Validate missing = %#v, want %#v", missing, expected)
+	}
+
+	if targetQuerier.calls != 0 {
+		t.Fatalf("target querier calls = %d, want 0", targetQuerier.calls)
+	}
+
+	if targetLinkStub.calls != 0 {
+		t.Fatalf("target link calls = %d, want 0", targetLinkStub.calls)
+	}
+
+	if employeeBus.calls != 2 {
+		t.Fatalf("employee bus calls = %d, want 2", employeeBus.calls)
+	}
+
+	if departmentBus.calls != 1 {
+		t.Fatalf("department bus calls = %d, want 1", departmentBus.calls)
+	}
+
+	if organizationBus.calls != 1 {
+		t.Fatalf("organization bus calls = %d, want 1", organizationBus.calls)
+	}
+}
+
+func TestValidateRequiresDomainForTargetLink(t *testing.T) {
+	t.Parallel()
+
+	business := NewBusiness(
+		&targetQuerierStub{},
+		&targetLinkResolverStub{},
+		&employeeQuerierStub{},
+		&departmentQuerierStub{},
+		&organizationGetterStub{},
+	)
+
+	_, err := business.Validate(context.Background(), campaignbus.Campaign{}, []campaignbus.Target{
+		testTarget(uuid.New(), uuid.New()),
+	}, []string{"Target.Link"})
+	if !errors.Is(err, ErrDomainRequired) {
+		t.Fatalf("Validate error = %v, want %v", err, ErrDomainRequired)
 	}
 }
 
@@ -496,6 +615,22 @@ func (s *employeeQuerierStub) QueryByID(ctx context.Context, id uuid.UUID) (empl
 	}
 
 	return s.employee, nil
+}
+
+type employeeQuerierByIDStub struct {
+	employees map[uuid.UUID]employeebus.Employee
+	calls     int
+}
+
+func (s *employeeQuerierByIDStub) QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error) {
+	s.calls++
+
+	employee, ok := s.employees[id]
+	if !ok {
+		return employeebus.Employee{}, employeebus.ErrNotFound
+	}
+
+	return employee, nil
 }
 
 type departmentQuerierStub struct {

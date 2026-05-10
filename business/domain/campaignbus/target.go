@@ -64,6 +64,9 @@ func (b *TargetBusiness) Save(ctx context.Context, tn NewTarget) (Target, error)
 		if errors.Is(err, ErrEmployeeNotFound) {
 			return Target{}, fmt.Errorf("save: employeeID[%s]: %w", tn.EmployeeID, err)
 		}
+		if errors.Is(err, ErrTargetAlreadyExists) {
+			return Target{}, fmt.Errorf("save: employeeID[%s]: %w", tn.EmployeeID, err)
+		}
 		return Target{}, fmt.Errorf("save: %w", err)
 	}
 

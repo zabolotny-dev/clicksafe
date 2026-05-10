@@ -10,7 +10,6 @@ var allowedTemplateRoots = map[string]struct{}{
 	"Organization": {},
 	"Department":   {},
 	"Employee":     {},
-	"Campaign":     {},
 	"Target":       {},
 }
 

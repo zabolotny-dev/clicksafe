@@ -159,14 +159,12 @@ func run(ctx context.Context, log *logger.Logger) error {
 	employeeStore := employeedb.NewStore(db)
 	employeeBus := employeebus.NewBusiness(employeeStore)
 
-	targetStore := targetdb.NewStore(db)
-	campaignStore := campaigndb.NewStore(db)
-
-	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore)
-	targetBus := campaignbus.NewTargetBusiness(campaignStore, targetStore)
-
 	vtargetStore := vtargetdb.NewStore(db)
 	vtargetBus := vtargetbus.NewBusiness(vtargetStore)
+
+	targetStore := targetdb.NewStore(db)
+	campaignStore := campaigndb.NewStore(db)
+	targetBus := campaignbus.NewTargetBusiness(campaignStore, targetStore)
 
 	resolverBus := resolverbus.NewBusiness(targetBus, targetBus, employeeBus, departmentBus, organizationBus)
 
@@ -175,6 +173,8 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	landingStore := landingdb.NewStore(db)
 	landingBus := landingbus.NewBusiness(landingStore, landingFileStore, resolverBus)
+
+	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, resolverBus)
 
 	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, smtpClient, eventBus)
 

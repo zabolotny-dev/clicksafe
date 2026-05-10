@@ -4,7 +4,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
-	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
@@ -67,25 +66,6 @@ func toBusUpdateLanding(req UpdateLanding) (landingbus.UpdateLanding, error) {
 	return landingbus.UpdateLanding{
 		Label: lbl,
 	}, nil
-}
-
-func toBusRenderScope(req RenderLanding) (resolverbus.Scope, error) {
-	var fieldErrors errs.FieldErrors
-	var scope resolverbus.Scope
-
-	if req.TargetID != "" {
-		id, err := uuid.Parse(req.TargetID)
-		if err != nil {
-			fieldErrors.Add("target_id", err)
-		}
-		scope.TargetID = id
-	}
-
-	if len(fieldErrors) > 0 {
-		return resolverbus.Scope{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
-	}
-
-	return scope, nil
 }
 
 func toAppLanding(landing landingbus.Landing) Landing {
