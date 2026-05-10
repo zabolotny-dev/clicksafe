@@ -3,6 +3,9 @@ package deliverybus
 import (
 	"context"
 	"fmt"
+	"html"
+	"net/url"
+	"regexp"
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
@@ -11,6 +14,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/types/event"
 )
+
+var closeBodyTag = regexp.MustCompile(`(?i)</body>`)
 
 type targetQuerier interface {
 	QueryDue(ctx context.Context) ([]campaignbus.Target, error)
@@ -104,6 +109,11 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
+	html, err = addOpenTrackingPixel(html, cmp, t)
+	if err != nil {
+		return fmt.Errorf("processtarget: %w", err)
+	}
+
 	if err := b.deliverer.Send(ctx, emp.Email.Address, msg.FromEmail.Address, msg.Subject.String(), html); err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}
@@ -121,4 +131,24 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 	}
 
 	return nil
+}
+
+func addOpenTrackingPixel(body string, cmp campaignbus.Campaign, t campaignbus.Target) (string, error) {
+	if cmp.Domain.IsEmpty() {
+		return "", campaignbus.ErrDomainRequired
+	}
+
+	pixelURL := cmp.Domain.String() + "/" + url.PathEscape(t.Token) + ".gif"
+	pixel := fmt.Sprintf(
+		`<img src="%s" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;outline:0;" />`,
+		html.EscapeString(pixelURL),
+	)
+
+	closeBodyMatches := closeBodyTag.FindAllStringIndex(body, -1)
+	if len(closeBodyMatches) == 0 {
+		return body + "\n" + pixel, nil
+	}
+
+	closeBodyIdx := closeBodyMatches[len(closeBodyMatches)-1][0]
+	return body[:closeBodyIdx] + pixel + "\n" + body[closeBodyIdx:], nil
 }

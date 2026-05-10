@@ -93,11 +93,46 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 		return "", fmt.Errorf("serve: publish event: %w", err)
 	}
 
-	if target.Status == campaignbus.Sent || target.Status == campaignbus.Pending {
+	if target.Status == campaignbus.Sent || target.Status == campaignbus.Pending || target.Status == campaignbus.Opened {
 		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Clicked); err != nil {
 			return "", fmt.Errorf("serve: change target status: %w", err)
 		}
 	}
 
 	return html, nil
+}
+
+func (b *Business) TrackOpen(ctx context.Context, td TargetData) error {
+	target, err := b.targetQuerier.QueryByToken(ctx, td.Token)
+	if err != nil {
+		return fmt.Errorf("trackopen: query target: %w", err)
+	}
+
+	cmp, err := b.campaignQuerier.QueryByID(ctx, target.CampaignID)
+	if err != nil {
+		return fmt.Errorf("trackopen: query campaign: %w", err)
+	}
+
+	if cmp.Status != campaignbus.Active {
+		return fmt.Errorf("trackopen: campaign is not active")
+	}
+
+	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
+		CampaignID: target.CampaignID,
+		EmployeeID: target.EmployeeID,
+		Type:       event.EmailOpened,
+		IPAddress:  td.IpAddress,
+		UserAgent:  td.UserAgent,
+		Referer:    td.Referer,
+	}); err != nil {
+		return fmt.Errorf("trackopen: publish event: %w", err)
+	}
+
+	if target.Status == campaignbus.Sent {
+		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Opened); err != nil {
+			return fmt.Errorf("trackopen: change target status: %w", err)
+		}
+	}
+
+	return nil
 }

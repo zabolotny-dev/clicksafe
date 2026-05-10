@@ -14,5 +14,5 @@ type Config struct {
 func Routes(router *echo.Echo, cfg Config) {
 	api := newApp(cfg.Log, cfg.VisitBus)
 
-	router.GET("/:token", api.serve)
+	router.GET("/:token", api.handleVisit)
 }
