@@ -11,35 +11,28 @@ import (
 )
 
 type Message struct {
-	ID           uuid.UUID `json:"id"`
-	Label        string    `json:"label"`
-	FromEmail    string    `json:"from_email"`
-	FromName     string    `json:"from_name"`
-	Subject      string    `json:"subject"`
-	HasContent   bool      `json:"has_content"`
-	RequiredVars []string  `json:"required_vars"`
+	ID           uuid.UUID     `json:"id"`
+	Label        string        `json:"label"`
+	FromEmail    string        `json:"from_email"`
+	FromName     string        `json:"from_name"`
+	Subject      string        `json:"subject"`
+	AttachmentID uuid.NullUUID `json:"attachment_id"`
 }
 
 type NewMessage struct {
-	Label     string `json:"label"`
-	FromEmail string `json:"from_email"`
-	FromName  string `json:"from_name"`
-	Subject   string `json:"subject"`
+	Label        string `json:"label"`
+	FromEmail    string `json:"from_email"`
+	FromName     string `json:"from_name"`
+	Subject      string `json:"subject"`
+	AttachmentID string `json:"attachment_id"`
 }
 
 type UpdateMessage struct {
-	Label     *string `json:"label"`
-	FromEmail *string `json:"from_email"`
-	FromName  *string `json:"from_name"`
-	Subject   *string `json:"subject"`
-}
-
-type RenderMessage struct {
-	TargetID string `json:"target_id"`
-}
-
-type RenderedMessage struct {
-	Content string `json:"content"`
+	Label        *string `json:"label"`
+	FromEmail    *string `json:"from_email"`
+	FromName     *string `json:"from_name"`
+	Subject      *string `json:"subject"`
+	AttachmentID *string `json:"attachment_id"`
 }
 
 func toBusNewMessage(req NewMessage) (messagebus.NewMessage, error) {
@@ -65,15 +58,25 @@ func toBusNewMessage(req NewMessage) (messagebus.NewMessage, error) {
 		errors.Add("subject", err)
 	}
 
+	var attachmentID uuid.NullUUID
+	if req.AttachmentID != "" {
+		parsed, err := uuid.Parse(req.AttachmentID)
+		if err != nil {
+			errors.Add("attachment_id", err)
+		}
+		attachmentID = uuid.NullUUID{UUID: parsed, Valid: true}
+	}
+
 	if len(errors) > 0 {
 		return messagebus.NewMessage{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return messagebus.NewMessage{
-		Label:     lbl,
-		FromEmail: *fromEmail,
-		FromName:  fromName,
-		Subject:   sub,
+		Label:        lbl,
+		FromEmail:    *fromEmail,
+		FromName:     fromName,
+		Subject:      sub,
+		AttachmentID: attachmentID,
 	}, nil
 }
 
@@ -116,15 +119,29 @@ func toBusUpdateMessage(req UpdateMessage) (messagebus.UpdateMessage, error) {
 		sub = &parsed
 	}
 
+	var attachmentID *uuid.NullUUID
+	if req.AttachmentID != nil {
+		attachmentID = &uuid.NullUUID{}
+		if id := *req.AttachmentID; id != "" {
+			parsed, err := uuid.Parse(id)
+			if err != nil {
+				errors.Add("attachment_id", err)
+			}
+			attachmentID.UUID = parsed
+			attachmentID.Valid = err == nil
+		}
+	}
+
 	if len(errors) > 0 {
 		return messagebus.UpdateMessage{}, errors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return messagebus.UpdateMessage{
-		Label:     lbl,
-		FromEmail: fromEmail,
-		FromName:  fromName,
-		Subject:   sub,
+		Label:        lbl,
+		FromEmail:    fromEmail,
+		FromName:     fromName,
+		Subject:      sub,
+		AttachmentID: attachmentID,
 	}, nil
 }
 
@@ -135,8 +152,7 @@ func toAppMessage(msg messagebus.Message) Message {
 		FromEmail:    msg.FromEmail.Address,
 		FromName:     msg.FromName.String(),
 		Subject:      msg.Subject.String(),
-		HasContent:   msg.ContentPath.Valid(),
-		RequiredVars: msg.RequiredVars,
+		AttachmentID: msg.AttachmentID,
 	}
 }
 

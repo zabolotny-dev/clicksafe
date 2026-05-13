@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	uniqueLabelConstraint = "messages_label_key"
+	uniqueLabelConstraint  = "messages_label_key"
+	attachmentFKConstraint = "messages_attachment_id_fkey"
 )
 
 type Store struct {
@@ -37,8 +38,7 @@ func (s *Store) Save(ctx context.Context, msg messagebus.Message) error {
 		FromEmail:    dbMsg.FromEmail,
 		FromName:     dbMsg.FromName,
 		Subject:      dbMsg.Subject,
-		ContentPath:  dbMsg.ContentPath,
-		RequiredVars: dbMsg.RequiredVars,
+		AttachmentID: dbMsg.AttachmentID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -47,6 +47,12 @@ func (s *Store) Save(ctx context.Context, msg messagebus.Message) error {
 				return messagebus.ErrUniqueLabel
 			}
 		}
+		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
+			if pgErr.ConstraintName == attachmentFKConstraint {
+				return messagebus.ErrInvalidAttachment
+			}
+		}
+
 		return fmt.Errorf("db: %w", err)
 	}
 
@@ -62,8 +68,7 @@ func (s *Store) Update(ctx context.Context, msg messagebus.Message) error {
 		FromEmail:    dbMsg.FromEmail,
 		FromName:     dbMsg.FromName,
 		Subject:      dbMsg.Subject,
-		ContentPath:  dbMsg.ContentPath,
-		RequiredVars: dbMsg.RequiredVars,
+		AttachmentID: dbMsg.AttachmentID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -72,6 +77,12 @@ func (s *Store) Update(ctx context.Context, msg messagebus.Message) error {
 				return messagebus.ErrUniqueLabel
 			}
 		}
+		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
+			if pgErr.ConstraintName == attachmentFKConstraint {
+				return messagebus.ErrInvalidAttachment
+			}
+		}
+
 		return fmt.Errorf("db: %w", err)
 	}
 

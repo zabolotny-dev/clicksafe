@@ -3,7 +3,6 @@ package landingapp
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
@@ -115,67 +114,4 @@ func (a *app) deleteByID(c *echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusOK)
-}
-
-func (a *app) saveContent(c *echo.Context) error {
-	landing, err := mid.GetLanding(c.Request().Context())
-	if err != nil {
-		return errs.Errorf(errs.Internal, "savecontent: %s", err)
-	}
-
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "savecontent: file: %s", err)
-	}
-
-	file, err := fileHeader.Open()
-	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "savecontent: open: %s", err)
-	}
-	defer file.Close()
-
-	updated, err := a.landingBus.SaveContent(c.Request().Context(), landing, file)
-	if err != nil {
-		return mapBusErr(err, "savecontent")
-	}
-
-	return c.JSON(http.StatusOK, toAppLanding(updated))
-}
-
-func (a *app) readContent(c *echo.Context) error {
-	landing, err := mid.GetLanding(c.Request().Context())
-	if err != nil {
-		return errs.Errorf(errs.Internal, "readcontent: %s", err)
-	}
-
-	content, err := a.landingBus.ReadContent(c.Request().Context(), landing)
-	if err != nil {
-		return mapBusErr(err, "readcontent")
-	}
-
-	return c.Blob(http.StatusOK, "text/html; charset=utf-8", content)
-}
-
-func (a *app) render(c *echo.Context) error {
-	var req RenderLanding
-	if err := c.Bind(&req); err != nil {
-		return errs.New(errs.InvalidArgument, err)
-	}
-
-	landing, err := mid.GetLanding(c.Request().Context())
-	if err != nil {
-		return errs.Errorf(errs.Internal, "render: %s", err)
-	}
-
-	tID, err := uuid.Parse(req.TargetID)
-	if err != nil {
-		return errs.NewFieldErrors("target_id", err, errs.InvalidArgument, "invalid target id")
-	}
-
-	content, err := a.landingBus.Render(c.Request().Context(), landing, tID)
-	if err != nil {
-		return mapBusErr(err, "render")
-	}
-
-	return c.JSON(http.StatusOK, RenderedLanding{Content: content})
 }

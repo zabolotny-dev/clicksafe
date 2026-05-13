@@ -17,6 +17,18 @@ const selectedTargetId = defineModel('selectedTargetId', { type: String, require
 const templateText = defineModel('templateText', { type: String, required: true })
 
 defineProps({
+  attachmentIDOf: {
+    type: Function,
+    required: true,
+  },
+  attachmentLabel: {
+    type: Function,
+    required: true,
+  },
+  attachmentUrl: {
+    type: Function,
+    required: true,
+  },
   deleteMessage: {
     type: Function,
     required: true,
@@ -45,6 +57,10 @@ defineProps({
     type: Object,
     required: true,
   },
+  htmlAttachments: {
+    type: Array,
+    required: true,
+  },
   onTemplateFileChange: {
     type: Function,
     required: true,
@@ -68,6 +84,10 @@ defineProps({
   renderedContent: {
     type: String,
     default: '',
+  },
+  requiredVarsFor: {
+    type: Function,
+    required: true,
   },
   resetMessageForm: {
     type: Function,
@@ -135,18 +155,23 @@ defineProps({
         >
           <el-table-column prop="label" label="Label" min-width="180" />
           <el-table-column prop="subject" label="Subject" min-width="180" />
-          <el-table-column label="Content" width="110">
+          <el-table-column label="Attachment" min-width="190">
             <template #default="{ row }">
-              <el-tag :type="row.has_content ? 'success' : 'info'" effect="plain">
-                {{ row.has_content ? 'есть' : 'нет' }}
-              </el-tag>
+              <el-link
+                v-if="attachmentIDOf(row)"
+                :href="attachmentUrl(attachmentIDOf(row))"
+                target="_blank"
+              >
+                {{ attachmentLabel(attachmentIDOf(row)) }}
+              </el-link>
+              <el-tag v-else type="info" effect="plain">нет</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="Vars" min-width="200">
             <template #default="{ row }">
               <div class="tag-line">
                 <el-tag
-                  v-for="variable in row.required_vars"
+                  v-for="variable in requiredVarsFor(row)"
                   :key="variable"
                   size="small"
                   effect="plain"
@@ -189,6 +214,22 @@ defineProps({
           <el-form-item label="Subject">
             <el-input v-model="messageForm.subject" />
           </el-form-item>
+          <el-form-item label="Attachment">
+            <el-select
+              v-model="messageForm.attachment_id"
+              filterable
+              clearable
+              placeholder="HTML attachment"
+              class="full-width"
+            >
+              <el-option
+                v-for="attachment in htmlAttachments"
+                :key="attachment.id"
+                :label="`${attachment.label}${attachment.type} - ${shortId(attachment.id)}`"
+                :value="attachment.id"
+              />
+            </el-select>
+          </el-form-item>
           <el-button
             type="primary"
             :icon="messageForm.id ? Edit : Plus"
@@ -205,7 +246,7 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">PUT /message/:id/content</div>
+            <div class="mini-label">POST /attachment + PUT /message/:id</div>
             <h2>HTML письма</h2>
           </div>
           <el-tag effect="plain">{{ shortId(selectedMessageId) }}</el-tag>
@@ -253,10 +294,10 @@ defineProps({
           </el-button>
         </div>
 
-        <div v-if="selectedMessage?.required_vars?.length" class="vars-strip">
+        <div v-if="requiredVarsFor(selectedMessage).length" class="vars-strip">
           <span>Required vars</span>
           <el-tag
-            v-for="variable in selectedMessage.required_vars"
+            v-for="variable in requiredVarsFor(selectedMessage)"
             :key="variable"
             effect="plain"
           >
@@ -268,7 +309,7 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">POST /message/:id/render</div>
+            <div class="mini-label">GET /attachment/:id/render/:target_id</div>
             <h2>Предпросмотр</h2>
           </div>
         </div>

@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/types/file"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 )
 
 var GlobalID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 var (
-	ErrAlreadyExists = errors.New("organization already exists")
-	ErrNotFound      = errors.New("organization not found")
+	ErrAlreadyExists     = errors.New("organization already exists")
+	ErrNotFound          = errors.New("organization not found")
+	ErrInvalidAttachment = errors.New("invalid attachment")
 )
 
 type Storer interface {
@@ -23,20 +23,19 @@ type Storer interface {
 	Update(ctx context.Context, organization Organization) error
 }
 
-type FileStorage interface {
-	Save(ctx context.Context, r io.Reader, ext string) (file.Path, error)
-	Delete(ctx context.Context, u file.Path) error
+type AttachmentQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (attachmentbus.Attachment, error)
 }
 
 type Business struct {
 	storer      Storer
-	fileStorage FileStorage
+	attachments AttachmentQuerier
 }
 
-func NewBusiness(storer Storer, fileStorage FileStorage) *Business {
+func NewBusiness(storer Storer, attachments AttachmentQuerier) *Business {
 	return &Business{
 		storer:      storer,
-		fileStorage: fileStorage,
+		attachments: attachments,
 	}
 }
 
@@ -45,6 +44,19 @@ func (b *Business) Save(ctx context.Context, organization NewOrganization) (Orga
 		ID:         GlobalID,
 		Label:      organization.Label,
 		Attributes: organization.Attributes,
+	}
+
+	if organization.AttachmentID.Valid {
+		atch, err := b.attachments.QueryByID(ctx, organization.AttachmentID.UUID)
+		if err != nil {
+			return Organization{}, fmt.Errorf("save: %w", err)
+		}
+
+		if !atch.Type.IsMedia() {
+			return Organization{}, fmt.Errorf("save: %w", ErrInvalidAttachment)
+		}
+
+		org.AttachmentID = organization.AttachmentID
 	}
 
 	if err := b.storer.Save(ctx, org); err != nil {
@@ -71,62 +83,24 @@ func (b *Business) Update(ctx context.Context, organization Organization, up Upd
 		organization.Attributes = *up.Attributes
 	}
 
+	if up.AttachmentID != nil {
+		if up.AttachmentID.Valid {
+			atch, err := b.attachments.QueryByID(ctx, up.AttachmentID.UUID)
+			if err != nil {
+				return Organization{}, fmt.Errorf("update: %w", err)
+			}
+
+			if !atch.Type.IsMedia() {
+				return Organization{}, fmt.Errorf("update: %w", ErrInvalidAttachment)
+			}
+		}
+
+		organization.AttachmentID = *up.AttachmentID
+	}
+
 	if err := b.storer.Update(ctx, organization); err != nil {
 		return Organization{}, fmt.Errorf("update: %w", err)
 	}
 
 	return organization, nil
-}
-
-func (b *Business) UpdateLogo(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
-	newPath, err := b.fileStorage.Save(ctx, r, ext)
-	if err != nil {
-		return file.Path{}, fmt.Errorf("updatelogo: save file: %w", err)
-	}
-
-	org, err := b.storer.QueryByID(ctx, GlobalID)
-	if err != nil {
-		_ = b.fileStorage.Delete(ctx, newPath)
-		return file.Path{}, fmt.Errorf("updatelogo: get org: %w", err)
-	}
-
-	oldPath := org.LogoPath
-	org.LogoPath = file.NewNullPath(newPath)
-
-	if err := b.storer.Update(ctx, org); err != nil {
-		_ = b.fileStorage.Delete(ctx, newPath)
-		return file.Path{}, fmt.Errorf("updatelogo: update org: %w", err)
-	}
-
-	if oldPath.Valid() && !oldPath.Path().Equal(newPath) {
-		if err = b.fileStorage.Delete(ctx, oldPath.Path()); err != nil {
-			return file.Path{}, fmt.Errorf("updatelogo: delete file: %w", err)
-		}
-	}
-
-	return newPath, nil
-}
-
-func (b *Business) DeleteLogo(ctx context.Context) error {
-	org, err := b.storer.QueryByID(ctx, GlobalID)
-	if err != nil {
-		return fmt.Errorf("deletelogo: get org: %w", err)
-	}
-
-	if !org.LogoPath.Valid() {
-		return nil
-	}
-
-	logoPath := org.LogoPath.Path()
-	org.LogoPath = file.Null{}
-
-	if err := b.storer.Update(ctx, org); err != nil {
-		return fmt.Errorf("deletelogo: update org: %w", err)
-	}
-
-	if err := b.fileStorage.Delete(ctx, logoPath); err != nil {
-		return fmt.Errorf("deletelogo: delete file: %w", err)
-	}
-
-	return nil
 }

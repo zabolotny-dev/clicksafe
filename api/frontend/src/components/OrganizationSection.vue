@@ -2,6 +2,14 @@
 import { Check, Delete, Refresh, UploadFilled } from '@element-plus/icons-vue'
 
 defineProps({
+  attachmentIDOf: {
+    type: Function,
+    required: true,
+  },
+  attachmentUrl: {
+    type: Function,
+    required: true,
+  },
   deleteOrganizationLogo: {
     type: Function,
     required: true,
@@ -23,6 +31,10 @@ defineProps({
     required: true,
   },
   organization: {
+    type: Object,
+    default: null,
+  },
+  organizationAttachment: {
     type: Object,
     default: null,
   },
@@ -84,7 +96,7 @@ defineProps({
     <section class="panel compact-panel">
       <div class="panel-heading">
         <div>
-          <div class="mini-label">PUT /organization/logo | DELETE /organization/logo</div>
+          <div class="mini-label">POST /attachment + PUT /organization</div>
           <h2>Логотип</h2>
         </div>
       </div>
@@ -116,8 +128,12 @@ defineProps({
         </el-button>
       </div>
 
-      <el-link v-if="organization?.logo_path" :href="organization.logo_path" target="_blank">
-        {{ organization.logo_path }}
+      <el-link
+        v-if="attachmentIDOf(organization)"
+        :href="organizationAttachment?.public_path || attachmentUrl(attachmentIDOf(organization))"
+        target="_blank"
+      >
+        {{ organizationAttachment ? `${organizationAttachment.label}${organizationAttachment.type}` : attachmentIDOf(organization) }}
       </el-link>
       <el-empty v-else description="Логотип не загружен" />
     </section>

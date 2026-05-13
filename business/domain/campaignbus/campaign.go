@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
@@ -62,6 +63,10 @@ type LandingQuerier interface {
 
 type VarsValidator interface {
 	Validate(ctx context.Context, campaign Campaign, targets []Target, requiredVars []string) ([]TargetMissingVars, error)
+}
+
+type AttachmentProvider interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (attachmentbus.Attachment, error)
 }
 
 type CampaignStorer interface {
@@ -227,7 +232,7 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: query message: %w", err)
 	}
 
-	if !message.ContentPath.Valid() {
+	if !message.AttachmentID.Valid {
 		return Campaign{}, fmt.Errorf("start: %w", ErrMessageHTMLRequired)
 	}
 
@@ -236,15 +241,18 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: query landing: %w", err)
 	}
 
-	if !landing.ContentPath.Valid() {
+	if !landing.AttachmentID.Valid {
 		return Campaign{}, fmt.Errorf("start: %w", ErrLandingHTMLRequired)
 	}
 
-	for _, v := range message.RequiredVars {
-		vars[v] = struct{}{}
-	}
-	for _, v := range landing.RequiredVars {
-		vars[v] = struct{}{}
+	for _, id := range []uuid.NullUUID{message.AttachmentID, landing.AttachmentID} {
+		att, err := b.attachmentProvider.QueryByID(ctx, id.UUID)
+		if err != nil {
+			return Campaign{}, fmt.Errorf("start: query attachment: %w", err)
+		}
+		for _, v := range att.RequiredVars {
+			vars[v] = struct{}{}
+		}
 	}
 
 	var reqVars []string

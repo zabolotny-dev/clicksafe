@@ -1,9 +1,9 @@
 package landingdb
 
 import (
+	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus/stores/landingdb/sqlc"
-	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
@@ -11,8 +11,7 @@ func toDBLanding(landing landingbus.Landing) sqlc.Landing {
 	return sqlc.Landing{
 		ID:           landing.ID,
 		Label:        landing.Label.String(),
-		ContentPath:  landing.ContentPath.ToSQLNullString(),
-		RequiredVars: landing.RequiredVars,
+		AttachmentID: toDBAttachmentID(landing.AttachmentID),
 	}
 }
 
@@ -22,16 +21,10 @@ func toBusLanding(landing sqlc.Landing) (landingbus.Landing, error) {
 		return landingbus.Landing{}, err
 	}
 
-	contentPath, err := file.ParseNull(landing.ContentPath.String)
-	if err != nil {
-		return landingbus.Landing{}, err
-	}
-
 	return landingbus.Landing{
 		ID:           landing.ID,
 		Label:        lbl,
-		ContentPath:  contentPath,
-		RequiredVars: landing.RequiredVars,
+		AttachmentID: toBusAttachmentID(landing.AttachmentID),
 	}, nil
 }
 
@@ -47,4 +40,24 @@ func toBusLandings(landings []sqlc.Landing) ([]landingbus.Landing, error) {
 	}
 
 	return busLandings, nil
+}
+
+func toDBAttachmentID(id uuid.NullUUID) *uuid.UUID {
+	if !id.Valid {
+		return nil
+	}
+
+	attachmentID := id.UUID
+	return &attachmentID
+}
+
+func toBusAttachmentID(id *uuid.UUID) uuid.NullUUID {
+	if id == nil {
+		return uuid.NullUUID{}
+	}
+
+	return uuid.NullUUID{
+		UUID:  *id,
+		Valid: true,
+	}
 }

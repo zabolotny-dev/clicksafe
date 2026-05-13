@@ -33,6 +33,7 @@ export function useApiConsole() {
     bootstrap: false,
     organization: false,
     logo: false,
+    attachments: false,
     departments: false,
     employees: false,
     messages: false,
@@ -47,9 +48,11 @@ export function useApiConsole() {
   const organization = ref(null)
   const organizationForm = reactive({
     label: 'ClickSafe Demo',
+    attachment_id: '',
     attributes: '{\n  "Domain": "clicksafe.test",\n  "Industry": "Education"\n}',
   })
   const selectedLogoFile = ref(null)
+  const attachmentResult = emptyResult(100)
 
   const departmentQuery = reactive({ page: 1, rows: 25, label: '' })
   const departmentResult = emptyResult()
@@ -79,6 +82,7 @@ export function useApiConsole() {
     from_email: 'training@clicksafe.test',
     from_name: 'ClickSafe Training',
     subject: 'Security awareness training',
+    attachment_id: '',
   })
   const selectedMessageId = ref('')
   const selectedTemplateFile = ref(null)
@@ -91,6 +95,7 @@ export function useApiConsole() {
   const landingForm = reactive({
     id: '',
     label: 'Training Portal Landing',
+    attachment_id: '',
   })
   const selectedLandingId = ref('')
   const selectedLandingFile = ref(null)
@@ -146,6 +151,12 @@ export function useApiConsole() {
     vtargetResult.items.find((target) => target.id === selectedTargetId.value),
   )
 
+  const htmlAttachments = computed(() =>
+    attachmentResult.items.filter((attachment) => attachment.type === '.html'),
+  )
+
+  const organizationAttachment = computed(() => attachmentByID(attachmentIDOf(organization.value)))
+
   const apiBaseLabel = computed(() => apiBaseUrl.value || 'same origin / Vite proxy')
 
   watch(selectedCampaignId, (id) => {
@@ -186,6 +197,121 @@ export function useApiConsole() {
 
     const suffix = query.toString()
     return suffix ? `?${suffix}` : ''
+  }
+
+  function attachmentIDOf(entity) {
+    const value = entity?.attachment_id
+
+    if (!value) {
+      return ''
+    }
+
+    if (typeof value === 'string') {
+      return value
+    }
+
+    if (value.Valid && value.UUID) {
+      return value.UUID
+    }
+
+    return ''
+  }
+
+  function attachmentByID(id) {
+    return id ? attachmentResult.items.find((attachment) => attachment.id === id) : null
+  }
+
+  function attachmentLabel(id) {
+    const attachment = attachmentByID(id)
+    return attachment ? `${attachment.label}${attachment.type}` : shortId(id)
+  }
+
+  function requiredVarsFor(entity) {
+    return attachmentByID(attachmentIDOf(entity))?.required_vars ?? []
+  }
+
+  function messageAttachmentID(messageID) {
+    const message = messageResult.items.find((item) => item.id === messageID)
+
+    if (messageForm.id === messageID) {
+      return messageForm.attachment_id
+    }
+
+    return attachmentIDOf(message)
+  }
+
+  function landingAttachmentID(landingID) {
+    const landing = landingResult.items.find((item) => item.id === landingID)
+
+    if (landingForm.id === landingID) {
+      return landingForm.attachment_id
+    }
+
+    return attachmentIDOf(landing)
+  }
+
+  function attachmentUrl(id) {
+    if (!id) {
+      return ''
+    }
+
+    const base = apiBaseUrl.value.replace(/\/$/, '')
+    return `${base}/attachment/${id}`
+  }
+
+  function uniqueAttachmentFilename(filename = 'attachment.html') {
+    const dotIndex = filename.lastIndexOf('.')
+    const base = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
+    const ext = dotIndex > 0 ? filename.slice(dotIndex) : '.html'
+    const safeBase = (base || 'attachment').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '')
+
+    return `${safeBase || 'attachment'}-${Date.now()}${ext}`
+  }
+
+  function upsertAttachment(attachment) {
+    const index = attachmentResult.items.findIndex((item) => item.id === attachment.id)
+
+    if (index >= 0) {
+      attachmentResult.items[index] = attachment
+      return
+    }
+
+    attachmentResult.items = [attachment, ...attachmentResult.items]
+    attachmentResult.total += 1
+  }
+
+  async function loadAttachmentByID(id) {
+    if (!id || attachmentByID(id)) {
+      return attachmentByID(id)
+    }
+
+    const result = await api.get(`/attachment${buildQuery({ id, rows: 1 })}`)
+    const attachment = result.items?.[0] ?? null
+
+    if (attachment) {
+      upsertAttachment(attachment)
+    }
+
+    return attachment
+  }
+
+  async function loadReferencedAttachments(entities) {
+    const ids = [...new Set(entities.map(attachmentIDOf).filter(Boolean))]
+    await Promise.all(ids.map(loadAttachmentByID))
+  }
+
+  async function uploadAttachment(file, options = {}) {
+    const body = new FormData()
+    body.append('file', file, options.filename ?? file.name)
+
+    if (options.public) {
+      body.append('public', 'true')
+    }
+
+    const attachment = await api.post('/attachment', body)
+    upsertAttachment(attachment)
+
+    return attachment
   }
 
   function parseAttributes(value) {
@@ -296,14 +422,24 @@ export function useApiConsole() {
       try {
         organization.value = await api.get('/organization')
         organizationForm.label = organization.value.label
+        organizationForm.attachment_id = attachmentIDOf(organization.value)
         organizationForm.attributes = pretty(organization.value.attributes ?? {})
+        await loadReferencedAttachments([organization.value])
       } catch (error) {
         if (error.status !== 404) {
           throw error
         }
 
         organization.value = null
+        organizationForm.attachment_id = ''
       }
+    })
+  }
+
+  async function loadAttachments() {
+    return withLoading('attachments', async () => {
+      const query = buildQuery({ page: 1, rows: attachmentResult.rowsPerPage })
+      setQueryResult(attachmentResult, await api.get(`/attachment${query}`))
     })
   }
 
@@ -311,6 +447,7 @@ export function useApiConsole() {
     return withLoading('organization', async () => {
       const payload = {
         label: organizationForm.label,
+        attachment_id: organizationForm.attachment_id,
         attributes: parseAttributes(organizationForm.attributes),
       }
 
@@ -339,10 +476,25 @@ export function useApiConsole() {
     }
 
     return withLoading('logo', async () => {
-      const body = new FormData()
-      body.append('file', selectedLogoFile.value)
-      await api.put('/organization/logo', body)
+      const attachment = await uploadAttachment(selectedLogoFile.value, {
+        filename: uniqueAttachmentFilename(selectedLogoFile.value.name),
+        public: true,
+      })
+
+      if (organization.value) {
+        await api.put('/organization', { attachment_id: attachment.id })
+      } else {
+        await api.post('/organization', {
+          label: organizationForm.label,
+          attachment_id: attachment.id,
+          attributes: parseAttributes(organizationForm.attributes),
+        })
+      }
+
+      organizationForm.attachment_id = attachment.id
+      upsertAttachment(attachment)
       await loadOrganization()
+      await loadAttachments()
     }, 'Логотип загружен')
   }
 
@@ -352,7 +504,8 @@ export function useApiConsole() {
     }
 
     return withLoading('logo', async () => {
-      await api.delete('/organization/logo')
+      await api.put('/organization', { attachment_id: '' })
+      organizationForm.attachment_id = ''
       await loadOrganization()
     }, 'Логотип удален')
   }
@@ -511,6 +664,7 @@ export function useApiConsole() {
       })
       setQueryResult(messageResult, await api.get(`/message${query}`))
       keepSelectedId(messageResult.items, selectedMessageId)
+      await loadReferencedAttachments(messageResult.items)
 
       if (!campaignForm.message_id) {
         campaignForm.message_id = selectedMessageId.value
@@ -524,6 +678,7 @@ export function useApiConsole() {
     messageForm.from_email = row.from_email
     messageForm.from_name = row.from_name
     messageForm.subject = row.subject
+    messageForm.attachment_id = attachmentIDOf(row)
     selectedMessageId.value = row.id
   }
 
@@ -533,6 +688,7 @@ export function useApiConsole() {
     messageForm.from_email = 'training@clicksafe.test'
     messageForm.from_name = 'ClickSafe Training'
     messageForm.subject = 'Security awareness training'
+    messageForm.attachment_id = ''
   }
 
   async function saveMessage() {
@@ -542,6 +698,7 @@ export function useApiConsole() {
         from_email: messageForm.from_email,
         from_name: messageForm.from_name,
         subject: messageForm.subject,
+        attachment_id: messageForm.attachment_id,
       }
 
       const saved = messageForm.id
@@ -593,7 +750,12 @@ export function useApiConsole() {
     }
 
     const source = await selectedTemplateFile.value.text().catch(() => '')
-    return uploadMessageHtml(selectedMessageId.value, selectedTemplateFile.value, source)
+    return uploadMessageHtml(
+      selectedMessageId.value,
+      selectedTemplateFile.value,
+      source,
+      uniqueAttachmentFilename(selectedTemplateFile.value.name),
+    )
   }
 
   async function uploadTemplateText() {
@@ -603,23 +765,32 @@ export function useApiConsole() {
     }
 
     const blob = new Blob([templateText.value], { type: 'text/html;charset=utf-8' })
-    return uploadMessageHtml(selectedMessageId.value, blob, templateText.value, 'message-template.html')
+    return uploadMessageHtml(
+      selectedMessageId.value,
+      blob,
+      templateText.value,
+      uniqueAttachmentFilename('message-template.html'),
+    )
   }
 
   async function uploadMessageHtml(messageID, file, source = '', filename = file.name) {
     return withLoading('content', async () => {
-      const body = new FormData()
-      body.append('file', file, filename)
-      const updated = await api.put(`/message/${messageID}/content`, body)
+      const attachment = await uploadAttachment(file, { filename })
+      const updated = await api.put(`/message/${messageID}`, { attachment_id: attachment.id })
       const index = messageResult.items.findIndex((message) => message.id === updated.id)
 
       if (index >= 0) {
         messageResult.items[index] = updated
       }
 
+      if (messageForm.id === messageID) {
+        messageForm.attachment_id = attachment.id
+      }
+
       if (source) {
         rawTemplateContent.value = source
       }
+      await loadAttachments()
       await loadMessages()
     }, 'HTML письма загружен')
   }
@@ -631,7 +802,13 @@ export function useApiConsole() {
     }
 
     return withLoading('content', async () => {
-      rawTemplateContent.value = await api.get(`/message/${selectedMessageId.value}/content`)
+      const attachmentID = messageAttachmentID(selectedMessageId.value)
+
+      if (!attachmentID) {
+        throw new Error('У письма не выбран HTML attachment')
+      }
+
+      rawTemplateContent.value = await api.get(`/attachment/${attachmentID}`)
       templateText.value = rawTemplateContent.value
     }, 'Исходный HTML письма получен')
   }
@@ -645,6 +822,7 @@ export function useApiConsole() {
       })
       setQueryResult(landingResult, await api.get(`/landing${query}`))
       keepSelectedId(landingResult.items, selectedLandingId)
+      await loadReferencedAttachments(landingResult.items)
 
       if (!campaignForm.landing_id) {
         campaignForm.landing_id = selectedLandingId.value
@@ -655,17 +833,22 @@ export function useApiConsole() {
   function editLanding(row) {
     landingForm.id = row.id
     landingForm.label = row.label
+    landingForm.attachment_id = attachmentIDOf(row)
     selectedLandingId.value = row.id
   }
 
   function resetLandingForm() {
     landingForm.id = ''
     landingForm.label = 'Training Portal Landing'
+    landingForm.attachment_id = ''
   }
 
   async function saveLanding() {
     return withLoading('landings', async () => {
-      const payload = { label: landingForm.label }
+      const payload = {
+        label: landingForm.label,
+        attachment_id: landingForm.attachment_id,
+      }
       const saved = landingForm.id
         ? await api.put(`/landing/${landingForm.id}`, payload)
         : await api.post('/landing', payload)
@@ -715,7 +898,12 @@ export function useApiConsole() {
     }
 
     const source = await selectedLandingFile.value.text().catch(() => '')
-    return uploadLandingHtml(selectedLandingId.value, selectedLandingFile.value, source)
+    return uploadLandingHtml(
+      selectedLandingId.value,
+      selectedLandingFile.value,
+      source,
+      uniqueAttachmentFilename(selectedLandingFile.value.name),
+    )
   }
 
   async function uploadLandingText() {
@@ -725,23 +913,32 @@ export function useApiConsole() {
     }
 
     const blob = new Blob([landingTemplateText.value], { type: 'text/html;charset=utf-8' })
-    return uploadLandingHtml(selectedLandingId.value, blob, landingTemplateText.value, 'landing-template.html')
+    return uploadLandingHtml(
+      selectedLandingId.value,
+      blob,
+      landingTemplateText.value,
+      uniqueAttachmentFilename('landing-template.html'),
+    )
   }
 
   async function uploadLandingHtml(landingID, file, source = '', filename = file.name) {
     return withLoading('landingContent', async () => {
-      const body = new FormData()
-      body.append('file', file, filename)
-      const updated = await api.put(`/landing/${landingID}/content`, body)
+      const attachment = await uploadAttachment(file, { filename })
+      const updated = await api.put(`/landing/${landingID}`, { attachment_id: attachment.id })
       const index = landingResult.items.findIndex((landing) => landing.id === updated.id)
 
       if (index >= 0) {
         landingResult.items[index] = updated
       }
 
+      if (landingForm.id === landingID) {
+        landingForm.attachment_id = attachment.id
+      }
+
       if (source) {
         rawLandingContent.value = source
       }
+      await loadAttachments()
       await loadLandings()
     }, 'HTML лендинга загружен')
   }
@@ -753,7 +950,13 @@ export function useApiConsole() {
     }
 
     return withLoading('landingContent', async () => {
-      rawLandingContent.value = await api.get(`/landing/${selectedLandingId.value}/content`)
+      const attachmentID = landingAttachmentID(selectedLandingId.value)
+
+      if (!attachmentID) {
+        throw new Error('У лендинга не выбран HTML attachment')
+      }
+
+      rawLandingContent.value = await api.get(`/attachment/${attachmentID}`)
       landingTemplateText.value = rawLandingContent.value
     }, 'Исходный HTML лендинга получен')
   }
@@ -772,10 +975,13 @@ export function useApiConsole() {
     }
 
     return withLoading('render', async () => {
-      const rendered = await api.post(`/message/${id}/render`, {
-        target_id: selectedTargetId.value,
-      })
-      renderedContent.value = rendered.content
+      const attachmentID = messageAttachmentID(id)
+
+      if (!attachmentID) {
+        throw new Error('У письма не выбран HTML attachment')
+      }
+
+      renderedContent.value = await api.get(`/attachment/${attachmentID}/render/${selectedTargetId.value}`)
     }, 'Письмо отрендерено')
   }
 
@@ -793,10 +999,13 @@ export function useApiConsole() {
     }
 
     return withLoading('render', async () => {
-      const rendered = await api.post(`/landing/${id}/render`, {
-        target_id: selectedTargetId.value,
-      })
-      renderedLandingContent.value = rendered.content
+      const attachmentID = landingAttachmentID(id)
+
+      if (!attachmentID) {
+        throw new Error('У лендинга не выбран HTML attachment')
+      }
+
+      renderedLandingContent.value = await api.get(`/attachment/${attachmentID}/render/${selectedTargetId.value}`)
     }, 'Лендинг отрендерен')
   }
 
@@ -1055,10 +1264,8 @@ export function useApiConsole() {
     return `${campaign.domain.replace(/\/$/, '')}/${target.token}`
   }
 
-  async function uploadHtml(path, html, filename) {
-    const body = new FormData()
-    body.append('file', new Blob([html], { type: 'text/html;charset=utf-8' }), filename)
-    return api.put(path, body)
+  function htmlBlob(html) {
+    return new Blob([html], { type: 'text/html;charset=utf-8' })
   }
 
   async function queryFirst(path, params, predicate) {
@@ -1069,11 +1276,15 @@ export function useApiConsole() {
   async function ensureOrganization() {
     const payload = {
       label: organizationForm.label,
+      attachment_id: organizationForm.attachment_id,
       attributes: parseAttributes(organizationForm.attributes),
     }
 
     try {
       const existing = await api.get('/organization')
+      if (!payload.attachment_id) {
+        payload.attachment_id = attachmentIDOf(existing)
+      }
       await api.put('/organization', payload)
       return { ...existing, ...payload }
     } catch (error) {
@@ -1123,21 +1334,31 @@ export function useApiConsole() {
   async function ensureMessage() {
     const label = messageForm.label
     const existing = await queryFirst('/message', { label }, (message) => message.label === label)
+    const attachment = await uploadAttachment(htmlBlob(defaultMessageTemplate), {
+      filename: uniqueAttachmentFilename('message-template.html'),
+    })
     const payload = {
       label,
       from_email: messageForm.from_email,
       from_name: messageForm.from_name,
       subject: messageForm.subject,
+      attachment_id: attachment.id,
     }
-    const message = existing ? await api.put(`/message/${existing.id}`, payload) : await api.post('/message', payload)
-    return uploadHtml(`/message/${message.id}/content`, defaultMessageTemplate, 'message-template.html')
+    return existing ? api.put(`/message/${existing.id}`, payload) : api.post('/message', payload)
   }
 
   async function ensureLanding() {
     const label = landingForm.label
     const existing = await queryFirst('/landing', { label }, (landing) => landing.label === label)
-    const landing = existing ? await api.put(`/landing/${existing.id}`, { label }) : await api.post('/landing', { label })
-    return uploadHtml(`/landing/${landing.id}/content`, defaultLandingTemplate, 'landing-template.html')
+    const attachment = await uploadAttachment(htmlBlob(defaultLandingTemplate), {
+      filename: uniqueAttachmentFilename('landing-template.html'),
+    })
+    const payload = {
+      label,
+      attachment_id: attachment.id,
+    }
+
+    return existing ? api.put(`/landing/${existing.id}`, payload) : api.post('/landing', payload)
   }
 
   async function ensureCampaign(messageID, landingID) {
@@ -1256,6 +1477,7 @@ export function useApiConsole() {
 
   async function refreshAll() {
     await Promise.all([
+      loadAttachments(),
       loadOrganization(),
       loadDepartments(),
       loadEmployees(),
@@ -1277,6 +1499,11 @@ export function useApiConsole() {
 
   return {
     activeSection,
+    attachmentByID,
+    attachmentIDOf,
+    attachmentLabel,
+    attachmentResult,
+    attachmentUrl,
     apiBaseLabel,
     apiBaseUrl,
     autoDistributeTargets,
@@ -1313,6 +1540,7 @@ export function useApiConsole() {
     employeeQuery,
     employeeResult,
     formatDate,
+    htmlAttachments,
     landingByID,
     landingForm,
     landingQuery,
@@ -1320,6 +1548,7 @@ export function useApiConsole() {
     landingTemplateText,
     lastError,
     loadCampaigns,
+    loadAttachments,
     loadDepartments,
     loadEmployees,
     loadLandings,
@@ -1338,6 +1567,7 @@ export function useApiConsole() {
     onTemplateFileChange,
     onTemplateFileRemove,
     organization,
+    organizationAttachment,
     organizationForm,
     pretty,
     rawLandingContent,
@@ -1345,6 +1575,7 @@ export function useApiConsole() {
     readLandingContent,
     readTemplateContent,
     refreshAll,
+    requiredVarsFor,
     renderLanding,
     renderMessage,
     renderedContent,

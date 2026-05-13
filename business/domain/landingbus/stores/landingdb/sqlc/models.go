@@ -6,12 +6,10 @@ package sqlc
 
 import (
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Landing struct {
 	ID           uuid.UUID
 	Label        string
-	ContentPath  pgtype.Text
-	RequiredVars []string
+	AttachmentID *uuid.UUID
 }

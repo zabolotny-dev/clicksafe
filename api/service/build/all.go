@@ -21,6 +21,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/visitbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 )
@@ -37,6 +38,7 @@ type Config struct {
 	VTargetBus      *vtargetbus.Business
 	VisitBus        *visitbus.Business
 	AttachmentBus   *attachmentbus.Business
+	RenderBus       *renderbus.Business
 }
 
 func Add(e *echo.Echo, cfg Config) {
@@ -77,6 +79,7 @@ func Add(e *echo.Echo, cfg Config) {
 
 	attachmentapp.Routes(e, attachmentapp.Config{
 		AttachmentBus: cfg.AttachmentBus,
+		RenderBus:     cfg.RenderBus,
 	})
 
 	visitapp.Routes(e, visitapp.Config{

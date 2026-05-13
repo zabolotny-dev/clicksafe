@@ -17,9 +17,6 @@ func Routes(router *echo.Echo, cfg Config) {
 
 	router.GET("/message", api.query)
 	router.POST("/message", api.create)
-	router.PUT("/message/:id/content", api.saveContent, loadMessage)
-	router.GET("/message/:id/content", api.readContent, loadMessage)
-	router.POST("/message/:id/render", api.render, loadMessage)
 	router.GET("/message/:id", api.queryByID, loadMessage)
 	router.PUT("/message/:id", api.update, loadMessage)
 	router.DELETE("/message/:id", api.deleteByID, loadMessage)

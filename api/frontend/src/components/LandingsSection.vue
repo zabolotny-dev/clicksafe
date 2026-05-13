@@ -17,6 +17,18 @@ const selectedTargetId = defineModel('selectedTargetId', { type: String, require
 const landingTemplateText = defineModel('landingTemplateText', { type: String, required: true })
 
 defineProps({
+  attachmentIDOf: {
+    type: Function,
+    required: true,
+  },
+  attachmentLabel: {
+    type: Function,
+    required: true,
+  },
+  attachmentUrl: {
+    type: Function,
+    required: true,
+  },
   deleteLanding: {
     type: Function,
     required: true,
@@ -35,6 +47,10 @@ defineProps({
   },
   landingResult: {
     type: Object,
+    required: true,
+  },
+  htmlAttachments: {
+    type: Array,
     required: true,
   },
   loading: {
@@ -68,6 +84,10 @@ defineProps({
   renderedLandingContent: {
     type: String,
     default: '',
+  },
+  requiredVarsFor: {
+    type: Function,
+    required: true,
   },
   resetLandingForm: {
     type: Function,
@@ -133,18 +153,23 @@ defineProps({
           @row-click="editLanding"
         >
           <el-table-column prop="label" label="Label" min-width="220" />
-          <el-table-column label="Content" width="110">
+          <el-table-column label="Attachment" min-width="190">
             <template #default="{ row }">
-              <el-tag :type="row.has_content ? 'success' : 'info'" effect="plain">
-                {{ row.has_content ? 'есть' : 'нет' }}
-              </el-tag>
+              <el-link
+                v-if="attachmentIDOf(row)"
+                :href="attachmentUrl(attachmentIDOf(row))"
+                target="_blank"
+              >
+                {{ attachmentLabel(attachmentIDOf(row)) }}
+              </el-link>
+              <el-tag v-else type="info" effect="plain">нет</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="Vars" min-width="220">
             <template #default="{ row }">
               <div class="tag-line">
                 <el-tag
-                  v-for="variable in row.required_vars"
+                  v-for="variable in requiredVarsFor(row)"
                   :key="variable"
                   size="small"
                   effect="plain"
@@ -176,6 +201,22 @@ defineProps({
           <el-form-item label="Label">
             <el-input v-model="landingForm.label" />
           </el-form-item>
+          <el-form-item label="Attachment">
+            <el-select
+              v-model="landingForm.attachment_id"
+              filterable
+              clearable
+              placeholder="HTML attachment"
+              class="full-width"
+            >
+              <el-option
+                v-for="attachment in htmlAttachments"
+                :key="attachment.id"
+                :label="`${attachment.label}${attachment.type} - ${shortId(attachment.id)}`"
+                :value="attachment.id"
+              />
+            </el-select>
+          </el-form-item>
           <el-button
             type="primary"
             :icon="landingForm.id ? Edit : Plus"
@@ -192,7 +233,7 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">PUT /landing/:id/content</div>
+            <div class="mini-label">POST /attachment + PUT /landing/:id</div>
             <h2>HTML лендинга</h2>
           </div>
           <el-tag effect="plain">{{ shortId(selectedLandingId) }}</el-tag>
@@ -240,10 +281,10 @@ defineProps({
           </el-button>
         </div>
 
-        <div v-if="selectedLanding?.required_vars?.length" class="vars-strip">
+        <div v-if="requiredVarsFor(selectedLanding).length" class="vars-strip">
           <span>Required vars</span>
           <el-tag
-            v-for="variable in selectedLanding.required_vars"
+            v-for="variable in requiredVarsFor(selectedLanding)"
             :key="variable"
             effect="plain"
           >
@@ -255,7 +296,7 @@ defineProps({
       <section class="panel">
         <div class="panel-heading">
           <div>
-            <div class="mini-label">POST /landing/:id/render</div>
+            <div class="mini-label">GET /attachment/:id/render/:target_id</div>
             <h2>Предпросмотр</h2>
           </div>
         </div>

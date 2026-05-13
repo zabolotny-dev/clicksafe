@@ -29,15 +29,18 @@ func (s *Store) Save(ctx context.Context, org organizationbus.Organization) erro
 	}
 
 	err = s.q.Save(ctx, sqlc.SaveParams{
-		ID:         dbOrg.ID,
-		Label:      dbOrg.Label,
-		LogoPath:   dbOrg.LogoPath,
-		Attributes: dbOrg.Attributes,
+		ID:           dbOrg.ID,
+		Label:        dbOrg.Label,
+		AttachmentID: dbOrg.AttachmentID,
+		Attributes:   dbOrg.Attributes,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
 			return organizationbus.ErrAlreadyExists
+		}
+		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
+			return organizationbus.ErrInvalidAttachment
 		}
 		return fmt.Errorf("db: %w", err)
 	}
@@ -68,12 +71,19 @@ func (s *Store) Update(ctx context.Context, org organizationbus.Organization) er
 	}
 
 	err = s.q.Update(ctx, sqlc.UpdateParams{
-		Label:      dbOrg.Label,
-		LogoPath:   dbOrg.LogoPath,
-		Attributes: dbOrg.Attributes,
-		ID:         dbOrg.ID,
+		ID:           dbOrg.ID,
+		Label:        dbOrg.Label,
+		AttachmentID: dbOrg.AttachmentID,
+		Attributes:   dbOrg.Attributes,
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
+			return organizationbus.ErrAlreadyExists
+		}
+		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
+			return organizationbus.ErrInvalidAttachment
+		}
 		return fmt.Errorf("db: %w", err)
 	}
 

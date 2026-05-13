@@ -6,10 +6,11 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 )
 
 func mapBusErr(err error, msg string) error {
-	var missingVars *attachmentbus.MissingRequiredVarsError
+	var missingVars *renderbus.MissingRequiredVarsError
 
 	switch {
 	case errors.Is(err, attachmentbus.ErrNotFound):
@@ -29,6 +30,9 @@ func mapBusErr(err error, msg string) error {
 
 	case errors.Is(err, attachmentbus.ErrEmptyContent):
 		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, attachmentbus.ErrInUse):
+		return errs.New(errs.FailedPrecondition, err)
 
 	case errors.As(err, &missingVars):
 		var fe errs.FieldErrors
@@ -56,7 +60,16 @@ func mapBusErr(err error, msg string) error {
 		return errs.New(errs.InvalidArgument, err)
 
 	case errors.Is(err, resolverbus.ErrDomainRequired):
-		return errs.New(errs.FailedPrecondition, resolverbus.ErrDomainRequired)
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, renderbus.ErrContentNotFound):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, renderbus.ErrInvalidType):
+		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, renderbus.ErrUnsupportedTemplateSyntax):
+		return errs.New(errs.InvalidArgument, err)
 
 	default:
 		return errs.Errorf(errs.InternalOnlyLog, "%s: %s", msg, err)

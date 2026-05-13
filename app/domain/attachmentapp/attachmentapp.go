@@ -17,14 +17,16 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 )
 
 type app struct {
 	attachmentBus *attachmentbus.Business
+	renderBus     *renderbus.Business
 }
 
-func newApp(d *attachmentbus.Business) *app {
-	return &app{attachmentBus: d}
+func newApp(d *attachmentbus.Business, r *renderbus.Business) *app {
+	return &app{attachmentBus: d, renderBus: r}
 }
 
 func (a *app) save(c *echo.Context) error {
@@ -176,7 +178,7 @@ func (a *app) render(c *echo.Context) error {
 		return errs.Errorf(errs.Internal, "render: %s", err)
 	}
 
-	content, err := a.attachmentBus.Render(c.Request().Context(), atch, targetID)
+	content, err := a.renderBus.Render(c.Request().Context(), atch, targetID)
 	if err != nil {
 		return mapBusErr(err, "render")
 	}

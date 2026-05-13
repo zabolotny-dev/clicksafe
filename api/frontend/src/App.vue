@@ -16,6 +16,9 @@ const consoleState = useApiConsole()
 
 const {
   activeSection,
+  attachmentIDOf,
+  attachmentLabel,
+  attachmentUrl,
   apiBaseLabel,
   apiBaseUrl,
   autoDistributeTargets,
@@ -52,6 +55,7 @@ const {
   employeeQuery,
   employeeResult,
   formatDate,
+  htmlAttachments,
   landingByID,
   landingForm,
   landingQuery,
@@ -77,6 +81,7 @@ const {
   onTemplateFileChange,
   onTemplateFileRemove,
   organization,
+  organizationAttachment,
   organizationForm,
   pretty,
   rawLandingContent,
@@ -86,6 +91,7 @@ const {
   refreshAll,
   renderLanding,
   renderMessage,
+  requiredVarsFor,
   renderedContent,
   renderedLandingContent,
   resetCampaignForm,
@@ -210,8 +216,12 @@ const activeTitle = computed(() => {
         v-model:selected-message-id="selectedMessageId"
         v-model:selected-target-id="selectedTargetId"
         v-model:template-text="templateText"
+        :attachment-i-d-of="attachmentIDOf"
+        :attachment-label="attachmentLabel"
+        :attachment-url="attachmentUrl"
         :delete-message="deleteMessage"
         :edit-message="editMessage"
+        :html-attachments="htmlAttachments"
         :loading="loading"
         :load-messages="loadMessages"
         :message-form="messageForm"
@@ -223,6 +233,7 @@ const activeTitle = computed(() => {
         :read-template-content="readTemplateContent"
         :render-message="renderMessage"
         :rendered-content="renderedContent"
+        :required-vars-for="requiredVarsFor"
         :reset-message-form="resetMessageForm"
         :save-message="saveMessage"
         :selected-message="selectedMessage"
@@ -239,8 +250,12 @@ const activeTitle = computed(() => {
         v-model:selected-landing-id="selectedLandingId"
         v-model:selected-target-id="selectedTargetId"
         v-model:landing-template-text="landingTemplateText"
+        :attachment-i-d-of="attachmentIDOf"
+        :attachment-label="attachmentLabel"
+        :attachment-url="attachmentUrl"
         :delete-landing="deleteLanding"
         :edit-landing="editLanding"
+        :html-attachments="htmlAttachments"
         :landing-form="landingForm"
         :landing-query="landingQuery"
         :landing-result="landingResult"
@@ -252,6 +267,7 @@ const activeTitle = computed(() => {
         :read-landing-content="readLandingContent"
         :render-landing="renderLanding"
         :rendered-landing-content="renderedLandingContent"
+        :required-vars-for="requiredVarsFor"
         :reset-landing-form="resetLandingForm"
         :save-landing="saveLanding"
         :selected-landing="selectedLanding"
@@ -289,12 +305,15 @@ const activeTitle = computed(() => {
 
       <OrganizationSection
         v-else-if="activeSection === 'organization'"
+        :attachment-i-d-of="attachmentIDOf"
+        :attachment-url="attachmentUrl"
         :delete-organization-logo="deleteOrganizationLogo"
         :load-organization="loadOrganization"
         :loading="loading"
         :on-logo-file-change="onLogoFileChange"
         :on-logo-file-remove="onLogoFileRemove"
         :organization="organization"
+        :organization-attachment="organizationAttachment"
         :organization-form="organizationForm"
         :pretty="pretty"
         :save-organization="saveOrganization"

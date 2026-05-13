@@ -54,7 +54,7 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 const query = `-- name: Query :many
-SELECT id, label, from_email, from_name, subject, content_path, required_vars FROM messages
+SELECT id, label, from_email, from_name, subject, attachment_id FROM messages
 WHERE
     -- Точный поиск по ID (если передан)
     ($1::uuid IS NULL OR id = $1)
@@ -120,8 +120,7 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error)
 			&i.FromEmail,
 			&i.FromName,
 			&i.Subject,
-			&i.ContentPath,
-			&i.RequiredVars,
+			&i.AttachmentID,
 		); err != nil {
 			return nil, err
 		}
@@ -134,7 +133,7 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error)
 }
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, label, from_email, from_name, subject, content_path, required_vars FROM messages
+SELECT id, label, from_email, from_name, subject, attachment_id FROM messages
 WHERE id = $1
 `
 
@@ -147,8 +146,7 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Message, error) 
 		&i.FromEmail,
 		&i.FromName,
 		&i.Subject,
-		&i.ContentPath,
-		&i.RequiredVars,
+		&i.AttachmentID,
 	)
 	return i, err
 }
@@ -160,10 +158,9 @@ INSERT INTO messages (
     from_email,
     from_name,
     subject,
-    content_path,
-    required_vars
+    attachment_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6
 )
 `
 
@@ -173,8 +170,7 @@ type SaveParams struct {
 	FromEmail    string
 	FromName     pgtype.Text
 	Subject      pgtype.Text
-	ContentPath  pgtype.Text
-	RequiredVars []string
+	AttachmentID *uuid.UUID
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
@@ -184,8 +180,7 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 		arg.FromEmail,
 		arg.FromName,
 		arg.Subject,
-		arg.ContentPath,
-		arg.RequiredVars,
+		arg.AttachmentID,
 	)
 	return err
 }
@@ -197,9 +192,8 @@ SET
     from_email = $2,
     from_name = $3,
     subject = $4,
-    content_path = $5,
-    required_vars = $6
-WHERE id = $7
+    attachment_id = $5
+WHERE id = $6
 `
 
 type UpdateParams struct {
@@ -207,8 +201,7 @@ type UpdateParams struct {
 	FromEmail    string
 	FromName     pgtype.Text
 	Subject      pgtype.Text
-	ContentPath  pgtype.Text
-	RequiredVars []string
+	AttachmentID *uuid.UUID
 	ID           uuid.UUID
 }
 
@@ -218,8 +211,7 @@ func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
 		arg.FromEmail,
 		arg.FromName,
 		arg.Subject,
-		arg.ContentPath,
-		arg.RequiredVars,
+		arg.AttachmentID,
 		arg.ID,
 	)
 	return err

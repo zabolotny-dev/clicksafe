@@ -5,10 +5,9 @@ INSERT INTO messages (
     from_email,
     from_name,
     subject,
-    content_path,
-    required_vars
+    attachment_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6
 );
 
 -- name: Update :exec
@@ -18,9 +17,8 @@ SET
     from_email = $2,
     from_name = $3,
     subject = $4,
-    content_path = $5,
-    required_vars = $6
-WHERE id = $7;
+    attachment_id = $5
+WHERE id = $6;
 
 -- name: Delete :exec
 DELETE FROM messages

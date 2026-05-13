@@ -6,6 +6,7 @@ import (
 	"net/netip"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
@@ -22,11 +23,18 @@ type campaignQuerier interface {
 
 type landingRenderer interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (landingbus.Landing, error)
-	Render(ctx context.Context, landing landingbus.Landing, targetID uuid.UUID) (string, error)
 }
 
 type eventPublisher interface {
 	Publish(ctx context.Context, e eventbus.NewEvent) error
+}
+
+type AttachmentProvider interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (attachmentbus.Attachment, error)
+}
+
+type RenderProvider interface {
+	Render(ctx context.Context, atch attachmentbus.Attachment, targetID uuid.UUID) ([]byte, error)
 }
 
 type TargetData struct {
@@ -41,14 +49,18 @@ type Business struct {
 	campaignQuerier campaignQuerier
 	landingRenderer landingRenderer
 	eventPub        eventPublisher
+	attachmentBus   AttachmentProvider
+	renderBus       RenderProvider
 }
 
-func NewBusiness(t targetQuerier, c campaignQuerier, l landingRenderer, ep eventPublisher) *Business {
+func NewBusiness(t targetQuerier, c campaignQuerier, l landingRenderer, ep eventPublisher, a AttachmentProvider, r RenderProvider) *Business {
 	return &Business{
 		targetQuerier:   t,
 		campaignQuerier: c,
 		landingRenderer: l,
 		eventPub:        ep,
+		attachmentBus:   a,
+		renderBus:       r,
 	}
 }
 
@@ -76,7 +88,16 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 		return "", fmt.Errorf("serve: query landing: %w", err)
 	}
 
-	html, err := b.landingRenderer.Render(ctx, landing, target.ID)
+	if !landing.AttachmentID.Valid {
+		return "", fmt.Errorf("serve: landing[%s] has no attachment", landing.ID)
+	}
+
+	atch, err := b.attachmentBus.QueryByID(ctx, landing.AttachmentID.UUID)
+	if err != nil {
+		return "", fmt.Errorf("serve: query attachment: %w", err)
+	}
+
+	html, err := b.renderBus.Render(ctx, atch, target.ID)
 	if err != nil {
 		return "", fmt.Errorf("serve: render landing: %w", err)
 	}
@@ -98,7 +119,7 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 		}
 	}
 
-	return html, nil
+	return string(html), nil
 }
 
 func (b *Business) TrackOpen(ctx context.Context, td TargetData) error {

@@ -3,22 +3,26 @@ package messagedb
 import (
 	"net/mail"
 
+	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus/stores/messagedb/sqlc"
-	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 	"github.com/zabolotny-dev/clicksafe/business/types/subject"
 )
 
 func toDBMessage(msg messagebus.Message) sqlc.Message {
+	var id *uuid.UUID
+	if msg.AttachmentID.Valid {
+		id = &msg.AttachmentID.UUID
+	}
+
 	return sqlc.Message{
 		ID:           msg.ID,
 		Label:        msg.Label.String(),
 		FromEmail:    msg.FromEmail.String(),
 		FromName:     msg.FromName.ToSQLNullString(),
 		Subject:      msg.Subject.ToSQLNullString(),
-		ContentPath:  msg.ContentPath.ToSQLNullString(),
-		RequiredVars: msg.RequiredVars,
+		AttachmentID: id,
 	}
 }
 
@@ -43,9 +47,9 @@ func toBusMessage(msg sqlc.Message) (messagebus.Message, error) {
 		return messagebus.Message{}, err
 	}
 
-	contentPath, err := file.ParseNull(msg.ContentPath.String)
-	if err != nil {
-		return messagebus.Message{}, err
+	var id uuid.NullUUID
+	if msg.AttachmentID != nil {
+		id = uuid.NullUUID{UUID: *msg.AttachmentID, Valid: true}
 	}
 
 	return messagebus.Message{
@@ -54,8 +58,7 @@ func toBusMessage(msg sqlc.Message) (messagebus.Message, error) {
 		FromEmail:    *fromEmail,
 		FromName:     fromName,
 		Subject:      sub,
-		ContentPath:  contentPath,
-		RequiredVars: msg.RequiredVars,
+		AttachmentID: id,
 	}, nil
 }
 

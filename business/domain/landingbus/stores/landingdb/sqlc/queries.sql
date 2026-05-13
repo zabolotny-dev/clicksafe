@@ -2,19 +2,17 @@
 INSERT INTO landings (
     id,
     label,
-    content_path,
-    required_vars
+    attachment_id
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3
 );
 
 -- name: Update :exec
 UPDATE landings
 SET
     label = $1,
-    content_path = $2,
-    required_vars = $3
-WHERE id = $4;
+    attachment_id = $2
+WHERE id = $3;
 
 -- name: Delete :exec
 DELETE FROM landings

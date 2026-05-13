@@ -9,11 +9,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, label, logo_path, attributes FROM organizations WHERE id = $1
+SELECT id, label, attachment_id, attributes FROM organizations WHERE id = $1
 `
 
 func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Organization, error) {
@@ -22,29 +21,29 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Organization, er
 	err := row.Scan(
 		&i.ID,
 		&i.Label,
-		&i.LogoPath,
+		&i.AttachmentID,
 		&i.Attributes,
 	)
 	return i, err
 }
 
 const save = `-- name: Save :exec
-INSERT INTO organizations (id, label, logo_path, attributes)
+INSERT INTO organizations (id, label, attachment_id, attributes)
 VALUES ($1, $2, $3, $4)
 `
 
 type SaveParams struct {
-	ID         uuid.UUID
-	Label      string
-	LogoPath   pgtype.Text
-	Attributes []byte
+	ID           uuid.UUID
+	Label        string
+	AttachmentID *uuid.UUID
+	Attributes   []byte
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 	_, err := q.db.Exec(ctx, save,
 		arg.ID,
 		arg.Label,
-		arg.LogoPath,
+		arg.AttachmentID,
 		arg.Attributes,
 	)
 	return err
@@ -52,21 +51,21 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 
 const update = `-- name: Update :exec
 UPDATE organizations
-SET label = $1, logo_path = $2, attributes = $3
+SET label = $1, attachment_id = $2, attributes = $3
 WHERE id = $4
 `
 
 type UpdateParams struct {
-	Label      string
-	LogoPath   pgtype.Text
-	Attributes []byte
-	ID         uuid.UUID
+	Label        string
+	AttachmentID *uuid.UUID
+	Attributes   []byte
+	ID           uuid.UUID
 }
 
 func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
 	_, err := q.db.Exec(ctx, update,
 		arg.Label,
-		arg.LogoPath,
+		arg.AttachmentID,
 		arg.Attributes,
 		arg.ID,
 	)

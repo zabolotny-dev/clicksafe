@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS messages (
     from_email VARCHAR(255) NOT NULL,
     from_name VARCHAR(255),
     subject VARCHAR(255),
-    content_path VARCHAR(255),
-    required_vars TEXT[]
+    attachment_id UUID REFERENCES attachments(id) ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS idx_messages_attachment_id ON messages(attachment_id);

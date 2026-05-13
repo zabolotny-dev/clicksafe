@@ -78,6 +78,11 @@ func (s *Store) Update(ctx context.Context, atch attachmentbus.Attachment) error
 
 func (s *Store) Delete(ctx context.Context, atch attachmentbus.Attachment) error {
 	if err := s.q.Delete(ctx, atch.ID); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
+			return attachmentbus.ErrInUse
+		}
+
 		return fmt.Errorf("db: %w", err)
 	}
 

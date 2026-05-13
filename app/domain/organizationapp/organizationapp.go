@@ -2,7 +2,6 @@ package organizationapp
 
 import (
 	"net/http"
-	"path"
 
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
@@ -67,37 +66,4 @@ func (a *app) update(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, toAppOrganization(updated))
-}
-
-func (a *app) updateLogo(c *echo.Context) error {
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "updatelogo: file: %s", err)
-	}
-
-	file, err := fileHeader.Open()
-	if err != nil {
-		return errs.Errorf(errs.InvalidArgument, "updatelogo: open: %s", err)
-	}
-	defer file.Close()
-
-	ext := path.Ext(fileHeader.Filename)
-	if ext == "" {
-		return errs.Errorf(errs.InvalidArgument, "updatelogo: invalid extension")
-	}
-
-	logoPath, err := a.organizationBus.UpdateLogo(c.Request().Context(), file, ext)
-	if err != nil {
-		return mapBusErr(err, "updatelogo")
-	}
-
-	return c.JSON(http.StatusOK, Logo{Path: logoPath})
-}
-
-func (a *app) deleteLogo(c *echo.Context) error {
-	if err := a.organizationBus.DeleteLogo(c.Request().Context()); err != nil {
-		return mapBusErr(err, "deletelogo")
-	}
-
-	return c.NoContent(http.StatusNoContent)
 }

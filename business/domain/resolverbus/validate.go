@@ -35,7 +35,7 @@ func (b *Business) Validate(ctx context.Context, campaign campaignbus.Campaign, 
 			employeeBus:     b.employeeBus,
 			departmentBus:   departmentBus,
 			organizationBus: organizationBus,
-			targetLinkBus:   b.targetLinkBus,
+			targetQuerier:   b.targetQuerier,
 		}
 
 		if needsTargetLink {

@@ -24,9 +24,6 @@ var (
 
 type targetQuerier interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target, error)
-}
-
-type targetLinkResolver interface {
 	PhishingURL(ctx context.Context, id uuid.UUID) (string, error)
 }
 
@@ -44,16 +41,14 @@ type organizationGetter interface {
 
 type Business struct {
 	targetQuerier   targetQuerier
-	targetLinkBus   targetLinkResolver
 	employeeBus     employeeQuerier
 	departmentBus   departmentQuerier
 	organizationBus organizationGetter
 }
 
-func NewBusiness(targetQuerier targetQuerier, targetLinkBus targetLinkResolver, employeeBus employeeQuerier, departmentBus departmentQuerier, organizationBus organizationGetter) *Business {
+func NewBusiness(targetQuerier targetQuerier, employeeBus employeeQuerier, departmentBus departmentQuerier, organizationBus organizationGetter) *Business {
 	return &Business{
 		targetQuerier:   targetQuerier,
-		targetLinkBus:   targetLinkBus,
 		employeeBus:     employeeBus,
 		departmentBus:   departmentBus,
 		organizationBus: organizationBus,
@@ -83,7 +78,7 @@ func (b *Business) Resolve(ctx context.Context, targerID uuid.UUID, paths []stri
 		employeeBus:     b.employeeBus,
 		departmentBus:   b.departmentBus,
 		organizationBus: b.organizationBus,
-		targetLinkBus:   b.targetLinkBus,
+		targetQuerier:   b.targetQuerier,
 	}
 	data = make(map[string]any)
 	missingSeen := make(map[string]struct{}, len(paths))

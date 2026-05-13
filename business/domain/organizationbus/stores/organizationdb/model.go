@@ -3,9 +3,9 @@ package organizationdb
 import (
 	"encoding/json"
 
+	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb/sqlc"
-	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
@@ -15,11 +15,16 @@ func toDBOrganization(org organizationbus.Organization) (sqlc.Organization, erro
 		return sqlc.Organization{}, err
 	}
 
+	var id *uuid.UUID
+	if org.AttachmentID.Valid {
+		id = &org.AttachmentID.UUID
+	}
+
 	return sqlc.Organization{
-		ID:         org.ID,
-		Label:      org.Label.String(),
-		LogoPath:   org.LogoPath.ToSQLNullString(),
-		Attributes: attributes,
+		ID:           org.ID,
+		Label:        org.Label.String(),
+		AttachmentID: id,
+		Attributes:   attributes,
 	}, nil
 }
 
@@ -31,9 +36,12 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 		}
 	}
 
-	logoPath, err := file.ParseNull(org.LogoPath.String)
-	if err != nil {
-		return organizationbus.Organization{}, err
+	var attachmentID uuid.NullUUID
+	if org.AttachmentID != nil {
+		attachmentID = uuid.NullUUID{
+			UUID:  *org.AttachmentID,
+			Valid: true,
+		}
 	}
 
 	orgLabel, err := label.Parse(org.Label)
@@ -42,9 +50,9 @@ func toBusOrganization(org sqlc.Organization) (organizationbus.Organization, err
 	}
 
 	return organizationbus.Organization{
-		ID:         org.ID,
-		Label:      orgLabel,
-		LogoPath:   logoPath,
-		Attributes: attributes,
+		ID:           org.ID,
+		Label:        orgLabel,
+		AttachmentID: attachmentID,
+		Attributes:   attributes,
 	}, nil
 }

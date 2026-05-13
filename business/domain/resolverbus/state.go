@@ -28,7 +28,7 @@ type resolveState struct {
 	organization    organizationbus.Organization
 	orgLoaded       bool
 
-	targetLinkBus targetLinkResolver
+	targetQuerier targetQuerier
 	targetLink    string
 	linkLoaded    bool
 }
@@ -188,7 +188,7 @@ func (s *resolveState) loadTarget(ctx context.Context) (targetData, error) {
 
 	s.linkLoaded = true
 
-	link, err := s.targetLinkBus.PhishingURL(ctx, s.target.ID)
+	link, err := s.targetQuerier.PhishingURL(ctx, s.target.ID)
 	if err != nil {
 		if errors.Is(err, campaignbus.ErrDomainRequired) {
 			return targetData{}, fmt.Errorf("resolve target link: %w", ErrDomainRequired)

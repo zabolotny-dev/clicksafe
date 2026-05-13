@@ -1,17 +1,13 @@
 package messagebus
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
-	"github.com/zabolotny-dev/clicksafe/business/types/file"
 )
 
 type Storer interface {
@@ -23,24 +19,17 @@ type Storer interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
-type FileStorage interface {
-	Save(ctx context.Context, r io.Reader, ext string) (file.Path, error)
-	Read(ctx context.Context, p file.Path) ([]byte, error)
-	Delete(ctx context.Context, p file.Path) error
-}
-
-type Resolver interface {
-	Resolve(ctx context.Context, targetID uuid.UUID, paths []string) (data map[string]any, missing []string, err error)
+type AttachmentQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (attachmentbus.Attachment, error)
 }
 
 type Business struct {
-	storer    Storer
-	fileStore FileStorage
-	resolver  Resolver
+	storer            Storer
+	attachmentQuerier AttachmentQuerier
 }
 
-func NewBusiness(s Storer, fileStore FileStorage, resolver Resolver) *Business {
-	return &Business{storer: s, fileStore: fileStore, resolver: resolver}
+func NewBusiness(s Storer, attachmentQuerier AttachmentQuerier) *Business {
+	return &Business{storer: s, attachmentQuerier: attachmentQuerier}
 }
 
 func (b *Business) Save(ctx context.Context, msg NewMessage) (Message, error) {
@@ -50,6 +39,19 @@ func (b *Business) Save(ctx context.Context, msg NewMessage) (Message, error) {
 		FromEmail: msg.FromEmail,
 		FromName:  msg.FromName,
 		Subject:   msg.Subject,
+	}
+
+	if msg.AttachmentID.Valid {
+		atch, err := b.attachmentQuerier.QueryByID(ctx, msg.AttachmentID.UUID)
+		if err != nil {
+			return Message{}, fmt.Errorf("save: %w", err)
+		}
+
+		if atch.Type != attachmentbus.Html {
+			return Message{}, fmt.Errorf("save: %w", ErrInvalidAttachment)
+		}
+
+		message.AttachmentID = msg.AttachmentID
 	}
 
 	if err := b.storer.Save(ctx, message); err != nil {
@@ -71,6 +73,21 @@ func (b *Business) Update(ctx context.Context, msg Message, up UpdateMessage) (M
 	}
 	if up.Subject != nil {
 		msg.Subject = *up.Subject
+	}
+
+	if up.AttachmentID != nil {
+		if up.AttachmentID.Valid {
+			atch, err := b.attachmentQuerier.QueryByID(ctx, up.AttachmentID.UUID)
+			if err != nil {
+				return Message{}, fmt.Errorf("update: %w", err)
+			}
+
+			if atch.Type != attachmentbus.Html {
+				return Message{}, fmt.Errorf("update: %w", ErrInvalidAttachment)
+			}
+		}
+
+		msg.AttachmentID = *up.AttachmentID
 	}
 
 	if err := b.storer.Update(ctx, msg); err != nil {
@@ -113,80 +130,4 @@ func (b *Business) Count(ctx context.Context, filter QueryFilter) (int, error) {
 	}
 
 	return count, nil
-}
-
-func (b *Business) SaveContent(ctx context.Context, msg Message, r io.Reader) (Message, error) {
-	content, err := io.ReadAll(r)
-	if err != nil {
-		return Message{}, fmt.Errorf("savecontent: read: %w", err)
-	}
-
-	if len(bytes.TrimSpace(content)) == 0 {
-		return Message{}, ErrEmptyContent
-	}
-
-	requiredVars, err := validateAndExtractRequiredVars(content)
-	if err != nil {
-		return Message{}, fmt.Errorf("savecontent: %w", err)
-	}
-
-	newPath, err := b.fileStore.Save(ctx, bytes.NewReader(content), ".html")
-	if err != nil {
-		return Message{}, fmt.Errorf("savecontent: save file: %w", err)
-	}
-
-	oldPath := msg.ContentPath
-
-	msg.ContentPath = file.NewNullPath(newPath)
-	msg.RequiredVars = requiredVars
-
-	if err := b.storer.Update(ctx, msg); err != nil {
-		_ = b.fileStore.Delete(ctx, newPath)
-		return Message{}, fmt.Errorf("savecontent: update: %w", err)
-	}
-
-	if oldPath.Valid() && !oldPath.Path().Equal(newPath) {
-		_ = b.fileStore.Delete(ctx, oldPath.Path())
-	}
-
-	return msg, nil
-}
-
-func (b *Business) ReadContent(ctx context.Context, msg Message) ([]byte, error) {
-	if !msg.ContentPath.Valid() {
-		return nil, fmt.Errorf("readcontent: %w", ErrContentNotFound)
-	}
-
-	content, err := b.fileStore.Read(ctx, msg.ContentPath.Path())
-	if err != nil {
-		if errors.Is(err, filestore.ErrNotFound) {
-			return nil, fmt.Errorf("readcontent: %w", ErrContentNotFound)
-		}
-		return nil, fmt.Errorf("readcontent: read file: %w", err)
-	}
-
-	return content, nil
-}
-
-func (b *Business) Render(ctx context.Context, msg Message, targetID uuid.UUID) (string, error) {
-	content, err := b.ReadContent(ctx, msg)
-	if err != nil {
-		return "", fmt.Errorf("render: read content: %w", err)
-	}
-
-	data, missing, err := b.resolver.Resolve(ctx, targetID, msg.RequiredVars)
-	if err != nil {
-		return "", fmt.Errorf("render: resolve: %w", err)
-	}
-
-	if len(missing) > 0 {
-		return "", &MissingRequiredVarsError{Vars: append([]string(nil), missing...)}
-	}
-
-	res, err := renderMessage(content, data)
-	if err != nil {
-		return "", fmt.Errorf("render: %w", err)
-	}
-
-	return string(res), nil
 }

@@ -2,7 +2,6 @@ package attachmentbus
 
 import (
 	"errors"
-	"fmt"
 )
 
 var (
@@ -12,12 +11,5 @@ var (
 	ErrInvalidType               = errors.New("invalid attachment type")
 	ErrContentNotFound           = errors.New("content not found")
 	ErrEmptyContent              = errors.New("content is empty")
+	ErrInUse                     = errors.New("attachment is in use")
 )
-
-type MissingRequiredVarsError struct {
-	Vars []string
-}
-
-func (e *MissingRequiredVarsError) Error() string {
-	return fmt.Sprintf("missing %d required template vars", len(e.Vars))
-}

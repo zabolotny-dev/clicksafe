@@ -15,6 +15,5 @@ type Message struct {
 	FromEmail    string
 	FromName     pgtype.Text
 	Subject      pgtype.Text
-	ContentPath  pgtype.Text
-	RequiredVars []string
+	AttachmentID *uuid.UUID
 }

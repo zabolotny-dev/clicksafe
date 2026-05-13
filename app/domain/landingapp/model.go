@@ -8,26 +8,19 @@ import (
 )
 
 type Landing struct {
-	ID           uuid.UUID `json:"id"`
-	Label        string    `json:"label"`
-	HasContent   bool      `json:"has_content"`
-	RequiredVars []string  `json:"required_vars"`
+	ID           uuid.UUID     `json:"id"`
+	Label        string        `json:"label"`
+	AttachmentID uuid.NullUUID `json:"attachment_id"`
 }
 
 type NewLanding struct {
-	Label string `json:"label"`
+	Label        string `json:"label"`
+	AttachmentID string `json:"attachment_id"`
 }
 
 type UpdateLanding struct {
-	Label *string `json:"label"`
-}
-
-type RenderLanding struct {
-	TargetID string `json:"target_id"`
-}
-
-type RenderedLanding struct {
-	Content string `json:"content"`
+	Label        *string `json:"label"`
+	AttachmentID *string `json:"attachment_id"`
 }
 
 func toBusNewLanding(req NewLanding) (landingbus.NewLanding, error) {
@@ -38,12 +31,22 @@ func toBusNewLanding(req NewLanding) (landingbus.NewLanding, error) {
 		fieldErrors.Add("label", err)
 	}
 
+	var attachmentID uuid.NullUUID
+	if req.AttachmentID != "" {
+		parsed, err := uuid.Parse(req.AttachmentID)
+		if err != nil {
+			fieldErrors.Add("attachment_id", err)
+		}
+		attachmentID = uuid.NullUUID{UUID: parsed, Valid: true}
+	}
+
 	if len(fieldErrors) > 0 {
 		return landingbus.NewLanding{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return landingbus.NewLanding{
-		Label: lbl,
+		Label:        lbl,
+		AttachmentID: attachmentID,
 	}, nil
 }
 
@@ -59,12 +62,26 @@ func toBusUpdateLanding(req UpdateLanding) (landingbus.UpdateLanding, error) {
 		lbl = &parsed
 	}
 
+	var attachmentID *uuid.NullUUID
+	if req.AttachmentID != nil {
+		attachmentID = &uuid.NullUUID{}
+		if id := *req.AttachmentID; id != "" {
+			parsed, err := uuid.Parse(id)
+			if err != nil {
+				fieldErrors.Add("attachment_id", err)
+			}
+			attachmentID.UUID = parsed
+			attachmentID.Valid = err == nil
+		}
+	}
+
 	if len(fieldErrors) > 0 {
 		return landingbus.UpdateLanding{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return landingbus.UpdateLanding{
-		Label: lbl,
+		Label:        lbl,
+		AttachmentID: attachmentID,
 	}, nil
 }
 
@@ -72,8 +89,7 @@ func toAppLanding(landing landingbus.Landing) Landing {
 	return Landing{
 		ID:           landing.ID,
 		Label:        landing.Label.String(),
-		HasContent:   landing.ContentPath.Valid(),
-		RequiredVars: landing.RequiredVars,
+		AttachmentID: landing.AttachmentID,
 	}
 }
 

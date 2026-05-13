@@ -16,7 +16,10 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 )
 
-const uniqueLabelConstraint = "landings_label_key"
+const (
+	uniqueLabelConstraint  = "landings_label_key"
+	attachmentFKConstraint = "landings_attachment_id_fkey"
+)
 
 type Store struct {
 	q *sqlc.Queries
@@ -32,14 +35,20 @@ func (s *Store) Save(ctx context.Context, landing landingbus.Landing) error {
 	err := s.q.Save(ctx, sqlc.SaveParams{
 		ID:           dbLanding.ID,
 		Label:        dbLanding.Label,
-		ContentPath:  dbLanding.ContentPath,
-		RequiredVars: dbLanding.RequiredVars,
+		AttachmentID: dbLanding.AttachmentID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			if pgErr.ConstraintName == uniqueLabelConstraint {
-				return landingbus.ErrUniqueLabel
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				if pgErr.ConstraintName == uniqueLabelConstraint {
+					return landingbus.ErrUniqueLabel
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == attachmentFKConstraint {
+					return landingbus.ErrInvalidAttachment
+				}
 			}
 		}
 		return fmt.Errorf("db: %w", err)
@@ -54,14 +63,20 @@ func (s *Store) Update(ctx context.Context, landing landingbus.Landing) error {
 	err := s.q.Update(ctx, sqlc.UpdateParams{
 		ID:           dbLanding.ID,
 		Label:        dbLanding.Label,
-		ContentPath:  dbLanding.ContentPath,
-		RequiredVars: dbLanding.RequiredVars,
+		AttachmentID: dbLanding.AttachmentID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
-			if pgErr.ConstraintName == uniqueLabelConstraint {
-				return landingbus.ErrUniqueLabel
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				if pgErr.ConstraintName == uniqueLabelConstraint {
+					return landingbus.ErrUniqueLabel
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == attachmentFKConstraint {
+					return landingbus.ErrInvalidAttachment
+				}
 			}
 		}
 		return fmt.Errorf("db: %w", err)

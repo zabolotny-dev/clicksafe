@@ -37,6 +37,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/deliverybus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/visitbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 	"github.com/zabolotny-dev/clicksafe/foundation/mail"
@@ -76,12 +77,6 @@ func run(ctx context.Context, log *logger.Logger) error {
 			MaxOpenConns int    `conf:"default:25"`
 		}
 		Storage struct {
-			RootDir              string `conf:"default:./public"`
-			PathPrefix           string `conf:"default:/uploads"`
-			MessageRootDir       string `conf:"default:./private/messages"`
-			MessagePathPrefix    string `conf:"default:/messages"`
-			LandingRootDir       string `conf:"default:./private/landings"`
-			LandingPathPrefix    string `conf:"default:/landings"`
 			AttachmentRootDir    string `conf:"default:./private/attachment"`
 			AttachmentPathPrefix string `conf:"default:/attachment"`
 		}
@@ -147,16 +142,10 @@ func run(ctx context.Context, log *logger.Logger) error {
 	// -------------------------------------------------------------------------
 	// Create Business Packages
 
-	publicFileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
-	messageFileStore := filestore.New(cfg.Storage.MessageRootDir, cfg.Storage.MessagePathPrefix)
-	landingFileStore := filestore.New(cfg.Storage.LandingRootDir, cfg.Storage.LandingPathPrefix)
 	attachmentFileStore := filestore.New(cfg.Storage.AttachmentRootDir, cfg.Storage.AttachmentPathPrefix)
 
 	eventStore := eventdb.NewStore(db)
 	eventBus := eventbus.NewBusinnes(eventStore)
-
-	organizationStore := organizationdb.NewStore(db)
-	organizationBus := organizationbus.NewBusiness(organizationStore, publicFileStore)
 
 	departmentStore := departmentdb.NewStore(db)
 	departmentBus := departmentbus.NewBusiness(departmentStore)
@@ -171,22 +160,27 @@ func run(ctx context.Context, log *logger.Logger) error {
 	campaignStore := campaigndb.NewStore(db)
 	targetBus := campaignbus.NewTargetBusiness(campaignStore, targetStore)
 
-	resolverBus := resolverbus.NewBusiness(targetBus, targetBus, employeeBus, departmentBus, organizationBus)
+	attachmentStore := attachmentdb.NewStore(db)
+	attachmentBus := attachmentbus.NewBusiness(attachmentFileStore, attachmentStore)
+
+	organizationStore := organizationdb.NewStore(db)
+	organizationBus := organizationbus.NewBusiness(organizationStore, attachmentBus)
+
+	resolverBus := resolverbus.NewBusiness(targetBus, employeeBus, departmentBus, organizationBus)
 
 	messageStore := messagedb.NewStore(db)
-	messageBus := messagebus.NewBusiness(messageStore, messageFileStore, resolverBus)
+	messageBus := messagebus.NewBusiness(messageStore, attachmentBus)
 
 	landingStore := landingdb.NewStore(db)
-	landingBus := landingbus.NewBusiness(landingStore, landingFileStore, resolverBus)
+	landingBus := landingbus.NewBusiness(landingStore, attachmentBus)
 
-	attachmentStore := attachmentdb.NewStore(db)
-	attachmentBus := attachmentbus.NewBusiness(attachmentFileStore, attachmentStore, resolverBus)
+	renderBus := renderbus.NewBusiness(attachmentFileStore, resolverBus)
 
-	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, resolverBus)
+	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, resolverBus, attachmentBus)
 
-	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, smtpClient, eventBus)
+	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, attachmentBus, smtpClient, eventBus, renderBus)
 
-	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus)
+	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus, attachmentBus, renderBus)
 
 	// -------------------------------------------------------------------------
 	// Start Workers
@@ -216,6 +210,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		VTargetBus:      vtargetBus,
 		VisitBus:        visitBus,
 		AttachmentBus:   attachmentBus,
+		RenderBus:       renderBus,
 	})
 
 	s := http.Server{

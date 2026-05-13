@@ -6,12 +6,11 @@ package sqlc
 
 import (
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Organization struct {
-	ID         uuid.UUID
-	Label      string
-	LogoPath   pgtype.Text
-	Attributes []byte
+	ID           uuid.UUID
+	Label        string
+	AttachmentID *uuid.UUID
+	Attributes   []byte
 }

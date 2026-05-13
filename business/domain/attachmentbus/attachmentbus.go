@@ -24,10 +24,6 @@ type Storer interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
-type Resolver interface {
-	Resolve(ctx context.Context, targetID uuid.UUID, paths []string) (data map[string]any, missing []string, err error)
-}
-
 type FileStorage interface {
 	Save(ctx context.Context, r io.Reader, ext string) (file.Path, error)
 	Read(ctx context.Context, p file.Path) ([]byte, error)
@@ -38,11 +34,10 @@ type FileStorage interface {
 type Business struct {
 	fileStore FileStorage
 	storer    Storer
-	resolver  Resolver
 }
 
-func NewBusiness(fileStore FileStorage, storer Storer, resolver Resolver) *Business {
-	return &Business{fileStore: fileStore, storer: storer, resolver: resolver}
+func NewBusiness(fileStore FileStorage, storer Storer) *Business {
+	return &Business{fileStore: fileStore, storer: storer}
 }
 
 func (b *Business) Save(ctx context.Context, atch NewAttachment) (Attachment, error) {
@@ -102,10 +97,10 @@ func (b *Business) Update(ctx context.Context, atch Attachment, up UpdateAttachm
 }
 
 func (b *Business) Delete(ctx context.Context, atch Attachment) error {
-	if err := b.fileStore.Delete(ctx, atch.ContentPath); err != nil {
+	if err := b.storer.Delete(ctx, atch); err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
-	if err := b.storer.Delete(ctx, atch); err != nil {
+	if err := b.fileStore.Delete(ctx, atch.ContentPath); err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
 	return nil
@@ -144,30 +139,4 @@ func (b *Business) OpenContent(ctx context.Context, atch Attachment) (io.ReadClo
 		return nil, fmt.Errorf("opencontent: %w", err)
 	}
 	return r, nil
-}
-
-func (b *Business) Render(ctx context.Context, atch Attachment, targetID uuid.UUID) ([]byte, error) {
-	content, err := b.fileStore.Read(ctx, atch.ContentPath)
-	if err != nil {
-		if errors.Is(err, filestore.ErrNotFound) {
-			return nil, fmt.Errorf("render: %w", ErrContentNotFound)
-		}
-		return nil, fmt.Errorf("render: %w", err)
-	}
-
-	data, missing, err := b.resolver.Resolve(ctx, targetID, atch.RequiredVars)
-	if err != nil {
-		return nil, fmt.Errorf("render: resolve: %w", err)
-	}
-
-	if len(missing) > 0 {
-		return nil, &MissingRequiredVarsError{Vars: append([]string(nil), missing...)}
-	}
-
-	res, err := render(content, atch.Type, data)
-	if err != nil {
-		return nil, fmt.Errorf("render: %w", err)
-	}
-
-	return res, nil
 }

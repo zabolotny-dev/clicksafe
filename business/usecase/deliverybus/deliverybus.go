@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
@@ -30,7 +31,6 @@ type employeeQuerier interface {
 }
 type messageRenderer interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (messagebus.Message, error)
-	Render(ctx context.Context, msg messagebus.Message, targetID uuid.UUID) (string, error)
 }
 
 type Deliverer interface {
@@ -41,17 +41,27 @@ type EventPublisher interface {
 	Publish(ctx context.Context, e eventbus.NewEvent) error
 }
 
-type Business struct {
-	targetQuerier   targetQuerier
-	campaignQuerier campaignQuerier
-	employeeQuerier employeeQuerier
-	messageRenderer messageRenderer
-	deliverer       Deliverer
-	eventPub        EventPublisher
+type AttachmentProvider interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (attachmentbus.Attachment, error)
 }
 
-func NewBusiness(t targetQuerier, c campaignQuerier, e employeeQuerier, r messageRenderer, d Deliverer, ep EventPublisher) *Business {
-	return &Business{targetQuerier: t, campaignQuerier: c, employeeQuerier: e, messageRenderer: r, deliverer: d, eventPub: ep}
+type RenderProvider interface {
+	Render(ctx context.Context, atch attachmentbus.Attachment, targetID uuid.UUID) ([]byte, error)
+}
+
+type Business struct {
+	targetQuerier      targetQuerier
+	campaignQuerier    campaignQuerier
+	employeeQuerier    employeeQuerier
+	messageRenderer    messageRenderer
+	attachmentProvider AttachmentProvider
+	deliverer          Deliverer
+	eventPub           EventPublisher
+	renderProvider     RenderProvider
+}
+
+func NewBusiness(t targetQuerier, c campaignQuerier, e employeeQuerier, r messageRenderer, ap AttachmentProvider, d Deliverer, ep EventPublisher, rp RenderProvider) *Business {
+	return &Business{targetQuerier: t, campaignQuerier: c, employeeQuerier: e, messageRenderer: r, attachmentProvider: ap, deliverer: d, eventPub: ep, renderProvider: rp}
 }
 
 func (b *Business) SendMail(ctx context.Context) []error {
@@ -103,12 +113,25 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
-	html, err := b.messageRenderer.Render(ctx, msg, t.ID)
+	if !msg.AttachmentID.Valid {
+		return fmt.Errorf("processtarget: message[%s] has no attachment", msg.ID)
+	}
+
+	atch, err := b.attachmentProvider.QueryByID(ctx, msg.AttachmentID.UUID)
 	if err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
-	html, err = addOpenTrackingPixel(html, cmp, t)
+	if atch.Type != attachmentbus.Html {
+		return fmt.Errorf("processtarget: attachment[%s] is not html", atch.ID)
+	}
+
+	rendered, err := b.renderProvider.Render(ctx, atch, t.ID)
+	if err != nil {
+		return fmt.Errorf("processtarget: %w", err)
+	}
+
+	html, err := addOpenTrackingPixel(string(rendered), cmp, t)
 	if err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}
