@@ -75,6 +75,17 @@ CREATE TABLE IF NOT EXISTS targets (
     UNIQUE (employee_id, campaign_id)
 );
 
+CREATE TABLE IF NOT EXISTS attachments (
+    id UUID PRIMARY KEY,
+    label VARCHAR(255) NOT NULL UNIQUE,
+    type VARCHAR(64) NOT NULL,
+    content_path VARCHAR(255) NOT NULL,
+    required_vars TEXT[],
+    uploaded_at TIMESTAMPTZ NOT NULL,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+
 
 -- +goose StatementEnd
 
@@ -88,4 +99,5 @@ DROP TABLE IF EXISTS messages;
 DROP TABLE IF EXISTS landings;
 DROP TABLE IF EXISTS campaigns;
 DROP TABLE IF EXISTS targets;
+DROP TABLE IF EXISTS attachments;
 -- +goose StatementEnd

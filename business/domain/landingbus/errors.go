@@ -11,7 +11,6 @@ var (
 	ErrContentNotFound           = errors.New("landing content not found")
 	ErrEmptyContent              = errors.New("landing content is empty")
 	ErrUnsupportedTemplateSyntax = errors.New("unsupported template syntax")
-	ErrResolverNotConfigured     = errors.New("template data resolver is not configured")
 )
 
 type MissingRequiredVarsError struct {

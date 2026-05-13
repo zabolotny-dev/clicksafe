@@ -1,9 +1,7 @@
-// Package htmlval validates HTML templates and extracts required template
-// variables. It is shared between domain services that manage templated
-// HTML content (messages, landings, etc.).
-package htmlval
+package tmpl
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"sort"
@@ -11,25 +9,21 @@ import (
 	"text/template/parse"
 )
 
-// ValidateAndExtract parses the HTML template, validates that only allowed
-// constructs are used (simple field substitutions from allowed root
-// namespaces), and returns a sorted list of required template variables
-// in dot-notation (e.g. "Employee.FirstName", "Organization.Label").
-func ValidateAndExtract(content []byte, allowedRoots map[string]struct{}) ([]string, error) {
+func extractHTMLVars(content []byte, allowedRoots map[string]struct{}) ([]string, error) {
 	tmpl, err := template.New("content").Parse(string(content))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse template: %w: %v", ErrUnsupportedTemplateSyntax, err)
 	}
 
 	for _, namedTemplate := range tmpl.Templates() {
 		if namedTemplate.Name() != tmpl.Name() {
-			return nil, fmt.Errorf("named templates are not allowed")
+			return nil, fmt.Errorf("validate template: %w: named templates are not allowed", ErrUnsupportedTemplateSyntax)
 		}
 	}
 
 	requiredVars := make(map[string]struct{})
 	if err := validateNode(tmpl.Tree.Root, allowedRoots, requiredVars); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validate template: %w: %v", ErrUnsupportedTemplateSyntax, err)
 	}
 
 	vars := make([]string, 0, len(requiredVars))
@@ -40,6 +34,20 @@ func ValidateAndExtract(content []byte, allowedRoots map[string]struct{}) ([]str
 	sort.Strings(vars)
 
 	return vars, nil
+}
+
+func renderHTML(content []byte, data map[string]any) ([]byte, error) {
+	tmpl, err := template.New("message").Option("missingkey=error").Parse(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("parse template: %w: %v", ErrUnsupportedTemplateSyntax, err)
+	}
+
+	var out bytes.Buffer
+	if err := tmpl.Execute(&out, data); err != nil {
+		return nil, fmt.Errorf("execute template: %w: %v", ErrUnsupportedTemplateSyntax, err)
+	}
+
+	return out.Bytes(), nil
 }
 
 func validateNode(node parse.Node, allowedRoots map[string]struct{}, requiredVars map[string]struct{}) error {

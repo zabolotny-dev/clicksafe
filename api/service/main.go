@@ -14,6 +14,8 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
 	"github.com/zabolotny-dev/clicksafe/api/service/workers"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus/stores/attachmentdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/campaigndb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/targetdb"
@@ -74,12 +76,14 @@ func run(ctx context.Context, log *logger.Logger) error {
 			MaxOpenConns int    `conf:"default:25"`
 		}
 		Storage struct {
-			RootDir           string `conf:"default:./public"`
-			PathPrefix        string `conf:"default:/uploads"`
-			MessageRootDir    string `conf:"default:./private/messages"`
-			MessagePathPrefix string `conf:"default:/messages"`
-			LandingRootDir    string `conf:"default:./private/landings"`
-			LandingPathPrefix string `conf:"default:/landings"`
+			RootDir              string `conf:"default:./public"`
+			PathPrefix           string `conf:"default:/uploads"`
+			MessageRootDir       string `conf:"default:./private/messages"`
+			MessagePathPrefix    string `conf:"default:/messages"`
+			LandingRootDir       string `conf:"default:./private/landings"`
+			LandingPathPrefix    string `conf:"default:/landings"`
+			AttachmentRootDir    string `conf:"default:./private/attachment"`
+			AttachmentPathPrefix string `conf:"default:/attachment"`
 		}
 		Worker struct {
 			Interval time.Duration `conf:"default:1m"`
@@ -146,6 +150,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 	publicFileStore := filestore.New(cfg.Storage.RootDir, cfg.Storage.PathPrefix)
 	messageFileStore := filestore.New(cfg.Storage.MessageRootDir, cfg.Storage.MessagePathPrefix)
 	landingFileStore := filestore.New(cfg.Storage.LandingRootDir, cfg.Storage.LandingPathPrefix)
+	attachmentFileStore := filestore.New(cfg.Storage.AttachmentRootDir, cfg.Storage.AttachmentPathPrefix)
 
 	eventStore := eventdb.NewStore(db)
 	eventBus := eventbus.NewBusinnes(eventStore)
@@ -173,6 +178,9 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	landingStore := landingdb.NewStore(db)
 	landingBus := landingbus.NewBusiness(landingStore, landingFileStore, resolverBus)
+
+	attachmentStore := attachmentdb.NewStore(db)
+	attachmentBus := attachmentbus.NewBusiness(attachmentFileStore, attachmentStore, resolverBus)
 
 	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, resolverBus)
 
@@ -207,6 +215,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		TargetBus:       targetBus,
 		VTargetBus:      vtargetBus,
 		VisitBus:        visitBus,
+		AttachmentBus:   attachmentBus,
 	})
 
 	s := http.Server{

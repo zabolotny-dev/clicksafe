@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -213,6 +214,41 @@ func LoadTarget(targetBus *campaignbus.TargetBusiness) echo.MiddlewareFunc {
 
 				c.SetRequest(c.Request().WithContext(
 					setTarget(c.Request().Context(), target),
+				))
+			}
+
+			return next(c)
+		}
+
+		return h
+	}
+
+	return m
+}
+
+func LoadAttachment(attachmentBus *attachmentbus.Business) echo.MiddlewareFunc {
+	m := func(next echo.HandlerFunc) echo.HandlerFunc {
+		h := func(c *echo.Context) error {
+			id := c.Param("id")
+
+			if id != "" {
+				attachmentID, err := uuid.Parse(id)
+				if err != nil {
+					return errs.New(errs.InvalidArgument, errs.ErrInvalidID)
+				}
+
+				attachment, err := attachmentBus.QueryByID(c.Request().Context(), attachmentID)
+				if err != nil {
+					switch {
+					case errors.Is(err, attachmentbus.ErrNotFound):
+						return errs.New(errs.NotFound, err)
+					default:
+						return errs.Errorf(errs.InternalOnlyLog, "querybyid: attachmentID[%s]: %s", attachmentID, err)
+					}
+				}
+
+				c.SetRequest(c.Request().WithContext(
+					setAttachment(c.Request().Context(), attachment),
 				))
 			}
 

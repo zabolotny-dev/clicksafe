@@ -3,11 +3,23 @@ module github.com/zabolotny-dev/clicksafe
 go 1.25.9
 
 require (
+	github.com/JJJJJJack/go-template-docx v1.4.7
 	github.com/ardanlabs/conf/v3 v3.11.0
 	github.com/wneessen/go-mail v0.7.2
+	github.com/xuri/excelize/v2 v2.10.1
 )
 
-require google.golang.org/protobuf v1.36.11 // indirect
+require (
+	github.com/JJJJJJack/go-zip-utils v1.0.1 // indirect
+	github.com/richardlehane/mscfb v1.0.6 // indirect
+	github.com/richardlehane/msoleps v1.0.6 // indirect
+	github.com/tiendc/go-deepcopy v1.7.2 // indirect
+	github.com/xuri/efp v0.0.1 // indirect
+	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
 
 require (
 	github.com/google/uuid v1.6.0

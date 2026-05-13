@@ -2,6 +2,7 @@ package filestore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
 )
+
+var ErrNotFound = errors.New("file not found")
 
 // Store provides functionality for saving files to the local disk.
 type Store struct {
@@ -33,7 +36,7 @@ func New(rootDir string, pathPrefix string) *Store {
 // If ctx is cancelled during the write, the partially written file is deleted.
 func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (file.Path, error) {
 	if err := ctx.Err(); err != nil {
-		return file.Path{}, fmt.Errorf("save: context already cancelled: %w", err)
+		return file.Path{}, fmt.Errorf("context already cancelled: %w", err)
 	}
 
 	if err := os.MkdirAll(s.rootDir, os.ModePerm); err != nil {
@@ -67,36 +70,61 @@ func (s *Store) Save(ctx context.Context, r io.Reader, ext string) (file.Path, e
 // Read returns file contents for the provided stored path.
 func (s *Store) Read(ctx context.Context, p file.Path) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("read: context already cancelled: %w", err)
+		return nil, fmt.Errorf("context already cancelled: %w", err)
 	}
 
 	filePath, err := s.resolveDiskPath(p)
 	if err != nil {
-		return nil, fmt.Errorf("read: resolve path: %w", err)
+		return nil, fmt.Errorf("resolve path: %w", err)
 	}
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("read file: %w", err)
 	}
 
 	return content, nil
 }
 
-// Delete removes a file from the local disk given its stored path.
-func (s *Store) Delete(ctx context.Context, p file.Path) error {
+// Open opens the stored file for streaming.
+func (s *Store) Open(ctx context.Context, p file.Path) (io.ReadCloser, error) {
 	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("delete: context already cancelled: %w", err)
+		return nil, fmt.Errorf("context already cancelled: %w", err)
 	}
 
 	filePath, err := s.resolveDiskPath(p)
 	if err != nil {
-		return fmt.Errorf("delete: resolve path: %w", err)
+		return nil, fmt.Errorf("resolve path: %w", err)
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+
+	return &contextReadCloser{ctx: ctx, r: f}, nil
+}
+
+// Delete removes a file from the local disk given its stored path.
+func (s *Store) Delete(ctx context.Context, p file.Path) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("context already cancelled: %w", err)
+	}
+
+	filePath, err := s.resolveDiskPath(p)
+	if err != nil {
+		return fmt.Errorf("resolve path: %w", err)
 	}
 
 	if err := os.Remove(filePath); err != nil {
-		if os.IsNotExist(err) {
-			return nil
+		if errors.Is(err, os.ErrNotExist) {
+			return ErrNotFound
 		}
 		return fmt.Errorf("delete file: %w", err)
 	}
@@ -146,4 +174,20 @@ func (cr *contextReader) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	return cr.r.Read(p)
+}
+
+type contextReadCloser struct {
+	ctx context.Context
+	r   io.ReadCloser
+}
+
+func (cr *contextReadCloser) Read(p []byte) (int, error) {
+	if err := cr.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return cr.r.Read(p)
+}
+
+func (cr *contextReadCloser) Close() error {
+	return cr.r.Close()
 }

@@ -2,6 +2,8 @@ package filestore
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +42,56 @@ func TestSaveReadDelete(t *testing.T) {
 
 	if _, err := store.Read(ctx, p); err == nil {
 		t.Fatal("expected Read to fail after Delete")
+	}
+}
+
+func TestOpenReadsSavedFile(t *testing.T) {
+	t.Parallel()
+
+	store := New(t.TempDir(), "/uploads")
+	ctx := context.Background()
+
+	p, err := store.Save(ctx, strings.NewReader("hello"), ".txt")
+	if err != nil {
+		t.Fatalf("Save returned error: %v", err)
+	}
+
+	r, err := store.Open(ctx, p)
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer r.Close()
+
+	content, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll returned error: %v", err)
+	}
+
+	if got := string(content); got != "hello" {
+		t.Fatalf("Open returned content %q, want %q", got, "hello")
+	}
+}
+
+func TestOpenReturnsErrNotFound(t *testing.T) {
+	t.Parallel()
+
+	store := New(t.TempDir(), "/uploads")
+	ctx := context.Background()
+
+	_, err := store.Open(ctx, file.MustParse("/uploads/missing.txt"))
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Open error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestOpenRejectsPathOutsidePathPrefix(t *testing.T) {
+	t.Parallel()
+
+	store := New(t.TempDir(), "/uploads")
+	ctx := context.Background()
+
+	if _, err := store.Open(ctx, file.MustParse("/messages/template.html")); err == nil {
+		t.Fatal("expected Open to reject path outside base path")
 	}
 }
 

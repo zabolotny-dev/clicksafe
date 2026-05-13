@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -20,6 +21,7 @@ const (
 	campaignKey
 	targetKey
 	landingKey
+	attachmentKey
 )
 
 func setDepartment(ctx context.Context, d departmentbus.Department) context.Context {
@@ -92,4 +94,16 @@ func GetTarget(ctx context.Context) (campaignbus.Target, error) {
 		return campaignbus.Target{}, errors.New("target not found in context")
 	}
 	return t, nil
+}
+
+func setAttachment(ctx context.Context, atch attachmentbus.Attachment) context.Context {
+	return context.WithValue(ctx, attachmentKey, atch)
+}
+
+func GetAttachment(ctx context.Context) (attachmentbus.Attachment, error) {
+	atch, ok := ctx.Value(attachmentKey).(attachmentbus.Attachment)
+	if !ok {
+		return attachmentbus.Attachment{}, errors.New("attachment not found in context")
+	}
+	return atch, nil
 }

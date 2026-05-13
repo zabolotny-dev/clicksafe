@@ -5,14 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/types/event"
 )
 
 type Event struct {
 	ID         uuid.UUID
 	CampaignID uuid.UUID
 	EmployeeID uuid.UUID
-	Type       event.EventType
+	Type       EventType
 	IPAddress  netip.Addr
 	UserAgent  string
 	Referer    string
@@ -22,7 +21,7 @@ type Event struct {
 type NewEvent struct {
 	CampaignID uuid.UUID
 	EmployeeID uuid.UUID
-	Type       event.EventType
+	Type       EventType
 	IPAddress  netip.Addr
 	UserAgent  string
 	Referer    string

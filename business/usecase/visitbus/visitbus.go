@@ -9,7 +9,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
-	"github.com/zabolotny-dev/clicksafe/business/types/event"
 )
 
 type targetQuerier interface {
@@ -85,7 +84,7 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
 		CampaignID: target.CampaignID,
 		EmployeeID: target.EmployeeID,
-		Type:       event.LinkOpened,
+		Type:       eventbus.LinkOpened,
 		IPAddress:  td.IpAddress,
 		UserAgent:  td.UserAgent,
 		Referer:    td.Referer,
@@ -120,7 +119,7 @@ func (b *Business) TrackOpen(ctx context.Context, td TargetData) error {
 	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
 		CampaignID: target.CampaignID,
 		EmployeeID: target.EmployeeID,
-		Type:       event.EmailOpened,
+		Type:       eventbus.EmailOpened,
 		IPAddress:  td.IpAddress,
 		UserAgent:  td.UserAgent,
 		Referer:    td.Referer,

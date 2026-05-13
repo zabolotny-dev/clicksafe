@@ -35,6 +35,10 @@ http:// {
 		reverse_proxy api:8080
 	}
 
+	handle /attachment* {
+		reverse_proxy api:8080
+	}
+
 	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
 	handle @visit {
 		reverse_proxy api:8080

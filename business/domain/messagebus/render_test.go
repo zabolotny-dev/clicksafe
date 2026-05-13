@@ -89,25 +89,6 @@ func TestRenderReturnsMissingRequiredVars(t *testing.T) {
 	}
 }
 
-func TestRenderReturnsResolverNotConfigured(t *testing.T) {
-	t.Parallel()
-
-	contentPath := file.MustParse("/uploads/message.html")
-	business := NewBusiness(nil, &fileStoreStub{
-		contents: map[string][]byte{
-			contentPath.String(): []byte("<p>{{ .Employee.FirstName }}</p>"),
-		},
-	}, nil)
-
-	msg := testMessage(contentPath)
-	msg.RequiredVars = []string{"Employee.FirstName"}
-
-	_, err := business.Render(context.Background(), msg, uuid.New())
-	if !errors.Is(err, ErrResolverNotConfigured) {
-		t.Fatalf("Render error = %v, want %v", err, ErrResolverNotConfigured)
-	}
-}
-
 func TestRenderWrapsResolverError(t *testing.T) {
 	t.Parallel()
 
@@ -190,12 +171,12 @@ func testMessage(contentPath file.Path) Message {
 }
 
 type resolverStub struct {
-	data    map[string]any
-	missing []string
-	err     error
-	paths   []string
+	data     map[string]any
+	missing  []string
+	err      error
+	paths    []string
 	targetID uuid.UUID
-	calls   int
+	calls    int
 }
 
 func (s *resolverStub) Resolve(ctx context.Context, targetID uuid.UUID, paths []string) (map[string]any, []string, error) {

@@ -12,7 +12,6 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
-	"github.com/zabolotny-dev/clicksafe/business/types/event"
 )
 
 var closeBodyTag = regexp.MustCompile(`(?i)</body>`)
@@ -72,7 +71,7 @@ func (b *Business) SendMail(ctx context.Context) []error {
 			b.eventPub.Publish(ctx, eventbus.NewEvent{
 				CampaignID: t.CampaignID,
 				EmployeeID: t.EmployeeID,
-				Type:       event.DeliveryFailed,
+				Type:       eventbus.DeliveryFailed,
 			})
 		}
 	}
@@ -125,7 +124,7 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
 		CampaignID: t.CampaignID,
 		EmployeeID: t.EmployeeID,
-		Type:       event.MessageSent,
+		Type:       eventbus.MessageSent,
 	}); err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}

@@ -5,11 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
-	"os"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
@@ -155,13 +154,13 @@ func (b *Business) SaveContent(ctx context.Context, msg Message, r io.Reader) (M
 
 func (b *Business) ReadContent(ctx context.Context, msg Message) ([]byte, error) {
 	if !msg.ContentPath.Valid() {
-		return nil, ErrContentNotFound
+		return nil, fmt.Errorf("readcontent: %w", ErrContentNotFound)
 	}
 
 	content, err := b.fileStore.Read(ctx, msg.ContentPath.Path())
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrContentNotFound
+		if errors.Is(err, filestore.ErrNotFound) {
+			return nil, fmt.Errorf("readcontent: %w", ErrContentNotFound)
 		}
 		return nil, fmt.Errorf("readcontent: read file: %w", err)
 	}
@@ -170,10 +169,6 @@ func (b *Business) ReadContent(ctx context.Context, msg Message) ([]byte, error)
 }
 
 func (b *Business) Render(ctx context.Context, msg Message, targetID uuid.UUID) (string, error) {
-	if b.resolver == nil {
-		return "", fmt.Errorf("render: %w", ErrResolverNotConfigured)
-	}
-
 	content, err := b.ReadContent(ctx, msg)
 	if err != nil {
 		return "", fmt.Errorf("render: read content: %w", err)
@@ -188,15 +183,10 @@ func (b *Business) Render(ctx context.Context, msg Message, targetID uuid.UUID) 
 		return "", &MissingRequiredVarsError{Vars: append([]string(nil), missing...)}
 	}
 
-	tmpl, err := template.New("message").Option("missingkey=error").Parse(string(content))
+	res, err := renderMessage(content, data)
 	if err != nil {
-		return "", fmt.Errorf("render: parse template: %w: %v", ErrUnsupportedTemplateSyntax, err)
+		return "", fmt.Errorf("render: %w", err)
 	}
 
-	var out bytes.Buffer
-	if err := tmpl.Execute(&out, data); err != nil {
-		return "", fmt.Errorf("render: execute template: %w", err)
-	}
-
-	return out.String(), nil
+	return string(res), nil
 }

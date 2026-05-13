@@ -2,6 +2,7 @@ package build
 
 import (
 	"github.com/labstack/echo/v5"
+	"github.com/zabolotny-dev/clicksafe/app/domain/attachmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/campaignapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/departmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/employeeapp"
@@ -12,6 +13,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/domain/visitapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/vtargetapp"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -34,6 +36,7 @@ type Config struct {
 	TargetBus       *campaignbus.TargetBusiness
 	VTargetBus      *vtargetbus.Business
 	VisitBus        *visitbus.Business
+	AttachmentBus   *attachmentbus.Business
 }
 
 func Add(e *echo.Echo, cfg Config) {
@@ -70,6 +73,10 @@ func Add(e *echo.Echo, cfg Config) {
 
 	vtargetapp.Routes(e, vtargetapp.Config{
 		VTargetBus: cfg.VTargetBus,
+	})
+
+	attachmentapp.Routes(e, attachmentapp.Config{
+		AttachmentBus: cfg.AttachmentBus,
 	})
 
 	visitapp.Routes(e, visitapp.Config{
