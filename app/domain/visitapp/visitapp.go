@@ -100,3 +100,32 @@ func (a *app) trackOpen(c *echo.Context, token string) error {
 
 	return c.Blob(http.StatusOK, "image/gif", trackingPixelGIF)
 }
+
+func (a *app) handleSubmit(c *echo.Context) error {
+	token := c.Param("token")
+
+	ipAddr, err := netip.ParseAddr(c.RealIP())
+	if err != nil {
+		a.log.Warn(c.Request().Context(), "invalid real ip",
+			"ip", c.RealIP(),
+			"remote_addr", c.Request().RemoteAddr,
+			"x_forwarded_for", c.Request().Header.Get("X-Forwarded-For"),
+			"err", err,
+		)
+	}
+	data := visitbus.TargetData{
+		Token:     token,
+		IpAddress: ipAddr,
+		UserAgent: c.Request().UserAgent(),
+		Referer:   c.Request().Referer(),
+	}
+
+	html, err := a.visitBus.Submit(c.Request().Context(), data)
+	if err != nil {
+		a.log.Error(c.Request().Context(), "failed to submit target", "err", err, "ip",
+			data.IpAddress, "user_agent", data.UserAgent, "referer", data.Referer)
+		return c.HTML(http.StatusNotFound, "404 Not Found")
+	}
+
+	return c.HTML(http.StatusOK, html)
+}

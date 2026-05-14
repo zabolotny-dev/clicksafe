@@ -153,7 +153,7 @@ defineProps({
           @row-click="editLanding"
         >
           <el-table-column prop="label" label="Label" min-width="220" />
-          <el-table-column label="Attachment" min-width="190">
+          <el-table-column label="HTML body" min-width="190">
             <template #default="{ row }">
               <el-link
                 v-if="attachmentIDOf(row)"
@@ -201,9 +201,9 @@ defineProps({
           <el-form-item label="Label">
             <el-input v-model="landingForm.label" />
           </el-form-item>
-          <el-form-item label="Attachment">
+          <el-form-item label="HTML body">
             <el-select
-              v-model="landingForm.attachment_id"
+              v-model="landingForm.html_body_id"
               filterable
               clearable
               placeholder="HTML attachment"

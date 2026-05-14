@@ -155,7 +155,7 @@ defineProps({
         >
           <el-table-column prop="label" label="Label" min-width="180" />
           <el-table-column prop="subject" label="Subject" min-width="180" />
-          <el-table-column label="Attachment" min-width="190">
+          <el-table-column label="HTML body" min-width="190">
             <template #default="{ row }">
               <el-link
                 v-if="attachmentIDOf(row)"
@@ -214,9 +214,9 @@ defineProps({
           <el-form-item label="Subject">
             <el-input v-model="messageForm.subject" />
           </el-form-item>
-          <el-form-item label="Attachment">
+          <el-form-item label="HTML body">
             <el-select
-              v-model="messageForm.attachment_id"
+              v-model="messageForm.html_body_id"
               filterable
               clearable
               placeholder="HTML attachment"

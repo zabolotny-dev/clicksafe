@@ -9,7 +9,7 @@ import (
 )
 
 type Landing struct {
-	ID           uuid.UUID
-	Label        string
-	AttachmentID *uuid.UUID
+	ID         uuid.UUID
+	Label      string
+	HtmlBodyID *uuid.UUID
 }

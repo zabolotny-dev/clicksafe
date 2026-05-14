@@ -61,6 +61,15 @@ func mapBusErr(err error, op string) error {
 	case errors.Is(err, campaignbus.ErrLandingHTMLRequired):
 		return errs.New(errs.FailedPrecondition, err)
 
+	case errors.Is(err, campaignbus.ErrEducationNotFound):
+		return errs.New(errs.NotFound, err)
+
+	case errors.Is(err, campaignbus.ErrEducationRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrEducationHTMLRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
 	case errors.As(err, &unscheduledTargets):
 		var fe errs.FieldErrors
 		for _, t := range unscheduledTargets.TargetIDs {

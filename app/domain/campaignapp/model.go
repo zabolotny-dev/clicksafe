@@ -13,35 +13,38 @@ import (
 )
 
 type Campaign struct {
-	ID         uuid.UUID         `json:"id"`
-	MessageID  *uuid.UUID        `json:"message_id"`
-	LandingID  *uuid.UUID        `json:"landing_id"`
-	Label      string            `json:"label"`
-	Domain     string            `json:"domain"`
-	Status     string            `json:"status"`
-	DateFrom   *time.Time        `json:"date_from"`
-	DateTo     *time.Time        `json:"date_to"`
-	Attributes map[string]string `json:"attributes"`
+	ID          uuid.UUID         `json:"id"`
+	MessageID   *uuid.UUID        `json:"message_id"`
+	LandingID   *uuid.UUID        `json:"landing_id"`
+	EducationID *uuid.UUID        `json:"education_id"`
+	Label       string            `json:"label"`
+	Domain      string            `json:"domain"`
+	Status      string            `json:"status"`
+	DateFrom    *time.Time        `json:"date_from"`
+	DateTo      *time.Time        `json:"date_to"`
+	Attributes  map[string]string `json:"attributes"`
 }
 
 type NewCampaign struct {
-	MessageID  string            `json:"message_id"`
-	LandingID  string            `json:"landing_id"`
-	Label      string            `json:"label"`
-	Domain     string            `json:"domain"`
-	DateFrom   time.Time         `json:"date_from"`
-	DateTo     time.Time         `json:"date_to"`
-	Attributes map[string]string `json:"attributes"`
+	MessageID   string            `json:"message_id"`
+	LandingID   string            `json:"landing_id"`
+	EducationID string            `json:"education_id"`
+	Label       string            `json:"label"`
+	Domain      string            `json:"domain"`
+	DateFrom    time.Time         `json:"date_from"`
+	DateTo      time.Time         `json:"date_to"`
+	Attributes  map[string]string `json:"attributes"`
 }
 
 type UpdateCampaign struct {
-	MessageID  *string            `json:"message_id"`
-	LandingID  *string            `json:"landing_id"`
-	Label      *string            `json:"label"`
-	Domain     *string            `json:"domain"`
-	DateFrom   *time.Time         `json:"date_from"`
-	DateTo     *time.Time         `json:"date_to"`
-	Attributes *map[string]string `json:"attributes"`
+	MessageID   *string            `json:"message_id"`
+	LandingID   *string            `json:"landing_id"`
+	EducationID *string            `json:"education_id"`
+	Label       *string            `json:"label"`
+	Domain      *string            `json:"domain"`
+	DateFrom    *time.Time         `json:"date_from"`
+	DateTo      *time.Time         `json:"date_to"`
+	Attributes  *map[string]string `json:"attributes"`
 }
 
 func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
@@ -67,6 +70,16 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 		}
 	}
 
+	var eID *uuid.UUID
+	if req.EducationID != "" {
+		id, err := uuid.Parse(req.EducationID)
+		if err != nil {
+			errors.Add("education_id", err)
+		} else {
+			eID = &id
+		}
+	}
+
 	label, err := label.Parse(req.Label)
 	if err != nil {
 		errors.Add("label", err)
@@ -88,12 +101,13 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 	}
 
 	return campaignbus.NewCampaign{
-		MessageID:  mID,
-		LandingID:  lID,
-		Label:      label,
-		Domain:     domain,
-		DateRange:  dater,
-		Attributes: req.Attributes,
+		MessageID:   mID,
+		LandingID:   lID,
+		EducationID: eID,
+		Label:       label,
+		Domain:      domain,
+		DateRange:   dater,
+		Attributes:  req.Attributes,
 	}, nil
 }
 
@@ -108,15 +122,16 @@ func toAppCampaign(cmp campaignbus.Campaign) Campaign {
 	}
 
 	return Campaign{
-		ID:         cmp.ID,
-		MessageID:  cmp.MessageID,
-		LandingID:  cmp.LandingID,
-		Label:      cmp.Label.String(),
-		Domain:     cmp.Domain.String(),
-		Status:     cmp.Status.String(),
-		DateFrom:   dateFrom,
-		DateTo:     dateTo,
-		Attributes: cmp.Attributes,
+		ID:          cmp.ID,
+		MessageID:   cmp.MessageID,
+		LandingID:   cmp.LandingID,
+		EducationID: cmp.EducationID,
+		Label:       cmp.Label.String(),
+		Domain:      cmp.Domain.String(),
+		Status:      cmp.Status.String(),
+		DateFrom:    dateFrom,
+		DateTo:      dateTo,
+		Attributes:  cmp.Attributes,
 	}
 }
 
@@ -148,6 +163,16 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 			fieldErrors.Add("landing_id", err)
 		} else {
 			lID = &id
+		}
+	}
+
+	var eID *uuid.UUID
+	if req.EducationID != nil {
+		id, err := uuid.Parse(*req.EducationID)
+		if err != nil {
+			fieldErrors.Add("education_id", err)
+		} else {
+			eID = &id
 		}
 	}
 
@@ -191,11 +216,12 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 	}
 
 	return campaignbus.UpdateCampaign{
-		MessageID:  mID,
-		LandingID:  lID,
-		Label:      lbl,
-		Domain:     dmn,
-		DateRange:  dater,
-		Attributes: req.Attributes,
+		MessageID:   mID,
+		LandingID:   lID,
+		EducationID: eID,
+		Label:       lbl,
+		Domain:      dmn,
+		DateRange:   dater,
+		Attributes:  req.Attributes,
 	}, nil
 }

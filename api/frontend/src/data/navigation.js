@@ -57,9 +57,9 @@ export const endpointGroups = [
     icon: MessageIcon,
     routes: [
       ['GET', '/message', 'список писем'],
-      ['POST', '/message', 'создать письмо с attachment_id'],
+      ['POST', '/message', 'создать письмо с html_body_id'],
       ['GET', '/message/:id', 'получить письмо'],
-      ['PUT', '/message/:id', 'обновить письмо и attachment_id'],
+      ['PUT', '/message/:id', 'обновить письмо и html_body_id'],
       ['DELETE', '/message/:id', 'удалить письмо'],
     ],
   },
@@ -68,9 +68,9 @@ export const endpointGroups = [
     icon: Monitor,
     routes: [
       ['GET', '/landing', 'список лендингов'],
-      ['POST', '/landing', 'создать лендинг с attachment_id'],
+      ['POST', '/landing', 'создать лендинг с html_body_id'],
       ['GET', '/landing/:id', 'получить лендинг'],
-      ['PUT', '/landing/:id', 'обновить лендинг и attachment_id'],
+      ['PUT', '/landing/:id', 'обновить лендинг и html_body_id'],
       ['DELETE', '/landing/:id', 'удалить лендинг'],
     ],
   },

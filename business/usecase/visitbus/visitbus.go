@@ -88,11 +88,11 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 		return "", fmt.Errorf("serve: query landing: %w", err)
 	}
 
-	if !landing.AttachmentID.Valid {
-		return "", fmt.Errorf("serve: landing[%s] has no attachment", landing.ID)
+	if !landing.HtmlBodyID.Valid {
+		return "", fmt.Errorf("serve: landing[%s] has no HTML body", landing.ID)
 	}
 
-	atch, err := b.attachmentBus.QueryByID(ctx, landing.AttachmentID.UUID)
+	atch, err := b.attachmentBus.QueryByID(ctx, landing.HtmlBodyID.UUID)
 	if err != nil {
 		return "", fmt.Errorf("serve: query attachment: %w", err)
 	}
@@ -155,4 +155,62 @@ func (b *Business) TrackOpen(ctx context.Context, td TargetData) error {
 	}
 
 	return nil
+}
+
+func (b *Business) Submit(ctx context.Context, data TargetData) (string, error) {
+	target, err := b.targetQuerier.QueryByToken(ctx, data.Token)
+	if err != nil {
+		return "", fmt.Errorf("submit: %w", err)
+	}
+
+	cmp, err := b.campaignQuerier.QueryByID(ctx, target.CampaignID)
+	if err != nil {
+		return "", fmt.Errorf("submit: query campaign: %w", err)
+	}
+
+	if cmp.Status != campaignbus.Active {
+		return "", fmt.Errorf("submit: campaign is not active")
+	}
+
+	if cmp.EducationID == nil {
+		return "", fmt.Errorf("submit: campaign has no education")
+	}
+
+	education, err := b.landingRenderer.QueryByID(ctx, *cmp.EducationID)
+	if err != nil {
+		return "", fmt.Errorf("submit: query education: %w", err)
+	}
+
+	if !education.HtmlBodyID.Valid {
+		return "", fmt.Errorf("submit: education[%s] has no HTML body", education.ID)
+	}
+
+	atch, err := b.attachmentBus.QueryByID(ctx, education.HtmlBodyID.UUID)
+	if err != nil {
+		return "", fmt.Errorf("submit: query attachment: %w", err)
+	}
+
+	html, err := b.renderBus.Render(ctx, atch, target.ID)
+	if err != nil {
+		return "", fmt.Errorf("submit: render landing: %w", err)
+	}
+
+	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
+		CampaignID: target.CampaignID,
+		EmployeeID: target.EmployeeID,
+		Type:       eventbus.DataSent,
+		IPAddress:  data.IpAddress,
+		UserAgent:  data.UserAgent,
+		Referer:    data.Referer,
+	}); err != nil {
+		return "", fmt.Errorf("submit: publish event: %w", err)
+	}
+
+	if target.Status == campaignbus.Clicked {
+		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Submitted); err != nil {
+			return "", fmt.Errorf("submit: change target status: %w", err)
+		}
+	}
+
+	return string(html), nil
 }

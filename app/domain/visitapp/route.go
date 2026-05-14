@@ -15,4 +15,5 @@ func Routes(router *echo.Echo, cfg Config) {
 	api := newApp(cfg.Log, cfg.VisitBus)
 
 	router.GET("/:token", api.handleVisit)
+	router.POST("/:token", api.handleSubmit)
 }

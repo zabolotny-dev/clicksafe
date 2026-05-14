@@ -9,9 +9,9 @@ import (
 
 func toDBLanding(landing landingbus.Landing) sqlc.Landing {
 	return sqlc.Landing{
-		ID:           landing.ID,
-		Label:        landing.Label.String(),
-		AttachmentID: toDBAttachmentID(landing.AttachmentID),
+		ID:         landing.ID,
+		Label:      landing.Label.String(),
+		HtmlBodyID: toDBHtmlBodyID(landing.HtmlBodyID),
 	}
 }
 
@@ -22,9 +22,9 @@ func toBusLanding(landing sqlc.Landing) (landingbus.Landing, error) {
 	}
 
 	return landingbus.Landing{
-		ID:           landing.ID,
-		Label:        lbl,
-		AttachmentID: toBusAttachmentID(landing.AttachmentID),
+		ID:         landing.ID,
+		Label:      lbl,
+		HtmlBodyID: toBusHtmlBodyID(landing.HtmlBodyID),
 	}, nil
 }
 
@@ -42,16 +42,16 @@ func toBusLandings(landings []sqlc.Landing) ([]landingbus.Landing, error) {
 	return busLandings, nil
 }
 
-func toDBAttachmentID(id uuid.NullUUID) *uuid.UUID {
+func toDBHtmlBodyID(id uuid.NullUUID) *uuid.UUID {
 	if !id.Valid {
 		return nil
 	}
 
-	attachmentID := id.UUID
-	return &attachmentID
+	htmlBodyID := id.UUID
+	return &htmlBodyID
 }
 
-func toBusAttachmentID(id *uuid.UUID) uuid.NullUUID {
+func toBusHtmlBodyID(id *uuid.UUID) uuid.NullUUID {
 	if id == nil {
 		return uuid.NullUUID{}
 	}

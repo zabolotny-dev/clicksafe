@@ -20,6 +20,7 @@ const (
 	uniqueLabelConstraint = "campaigns_label_key"
 	messageFKConstraint   = "campaigns_message_id_fkey"
 	landingFKConstraint   = "campaigns_landing_id_fkey"
+	educationFKConstraint = "campaigns_education_id_fkey"
 )
 
 type Store struct {
@@ -36,15 +37,16 @@ func (s *Store) Save(ctx context.Context, campaign campaignbus.Campaign) error {
 		return fmt.Errorf("db: %w", err)
 	}
 	err = s.q.Save(ctx, sqlc.SaveParams{
-		ID:         cmp.ID,
-		MessageID:  cmp.MessageID,
-		LandingID:  cmp.LandingID,
-		Label:      cmp.Label,
-		Domain:     cmp.Domain,
-		Status:     cmp.Status,
-		DateFrom:   cmp.DateFrom,
-		DateTo:     cmp.DateTo,
-		Attributes: cmp.Attributes,
+		ID:          cmp.ID,
+		MessageID:   cmp.MessageID,
+		LandingID:   cmp.LandingID,
+		EducationID: cmp.EducationID,
+		Label:       cmp.Label,
+		Domain:      cmp.Domain,
+		Status:      cmp.Status,
+		DateFrom:    cmp.DateFrom,
+		DateTo:      cmp.DateTo,
+		Attributes:  cmp.Attributes,
 	})
 
 	if err != nil {
@@ -61,6 +63,9 @@ func (s *Store) Save(ctx context.Context, campaign campaignbus.Campaign) error {
 				}
 				if pgErr.ConstraintName == landingFKConstraint {
 					return campaignbus.ErrLandingNotFound
+				}
+				if pgErr.ConstraintName == educationFKConstraint {
+					return campaignbus.ErrEducationNotFound
 				}
 			}
 		}
@@ -78,15 +83,16 @@ func (s *Store) Update(ctx context.Context, campaign campaignbus.Campaign) error
 	}
 
 	err = s.q.Update(ctx, sqlc.UpdateParams{
-		MessageID:  cmp.MessageID,
-		LandingID:  cmp.LandingID,
-		Label:      cmp.Label,
-		Domain:     cmp.Domain,
-		Status:     cmp.Status,
-		DateFrom:   cmp.DateFrom,
-		DateTo:     cmp.DateTo,
-		Attributes: cmp.Attributes,
-		ID:         cmp.ID,
+		MessageID:   cmp.MessageID,
+		LandingID:   cmp.LandingID,
+		EducationID: cmp.EducationID,
+		Label:       cmp.Label,
+		Domain:      cmp.Domain,
+		Status:      cmp.Status,
+		DateFrom:    cmp.DateFrom,
+		DateTo:      cmp.DateTo,
+		Attributes:  cmp.Attributes,
+		ID:          cmp.ID,
 	})
 
 	if err != nil {
@@ -103,6 +109,9 @@ func (s *Store) Update(ctx context.Context, campaign campaignbus.Campaign) error
 				}
 				if pgErr.ConstraintName == landingFKConstraint {
 					return campaignbus.ErrLandingNotFound
+				}
+				if pgErr.ConstraintName == educationFKConstraint {
+					return campaignbus.ErrEducationNotFound
 				}
 			}
 		}

@@ -43,7 +43,7 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 const query = `-- name: Query :many
-SELECT id, label, attachment_id FROM landings
+SELECT id, label, html_body_id FROM landings
 WHERE
     ($1::uuid IS NULL OR id = $1)
     AND
@@ -80,7 +80,7 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Landing, error)
 	var items []Landing
 	for rows.Next() {
 		var i Landing
-		if err := rows.Scan(&i.ID, &i.Label, &i.AttachmentID); err != nil {
+		if err := rows.Scan(&i.ID, &i.Label, &i.HtmlBodyID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -92,14 +92,14 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Landing, error)
 }
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, label, attachment_id FROM landings
+SELECT id, label, html_body_id FROM landings
 WHERE id = $1
 `
 
 func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Landing, error) {
 	row := q.db.QueryRow(ctx, queryByID, id)
 	var i Landing
-	err := row.Scan(&i.ID, &i.Label, &i.AttachmentID)
+	err := row.Scan(&i.ID, &i.Label, &i.HtmlBodyID)
 	return i, err
 }
 
@@ -107,20 +107,20 @@ const save = `-- name: Save :exec
 INSERT INTO landings (
     id,
     label,
-    attachment_id
+    html_body_id
 ) VALUES (
     $1, $2, $3
 )
 `
 
 type SaveParams struct {
-	ID           uuid.UUID
-	Label        string
-	AttachmentID *uuid.UUID
+	ID         uuid.UUID
+	Label      string
+	HtmlBodyID *uuid.UUID
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
-	_, err := q.db.Exec(ctx, save, arg.ID, arg.Label, arg.AttachmentID)
+	_, err := q.db.Exec(ctx, save, arg.ID, arg.Label, arg.HtmlBodyID)
 	return err
 }
 
@@ -128,17 +128,17 @@ const update = `-- name: Update :exec
 UPDATE landings
 SET
     label = $1,
-    attachment_id = $2
+    html_body_id = $2
 WHERE id = $3
 `
 
 type UpdateParams struct {
-	Label        string
-	AttachmentID *uuid.UUID
-	ID           uuid.UUID
+	Label      string
+	HtmlBodyID *uuid.UUID
+	ID         uuid.UUID
 }
 
 func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
-	_, err := q.db.Exec(ctx, update, arg.Label, arg.AttachmentID, arg.ID)
+	_, err := q.db.Exec(ctx, update, arg.Label, arg.HtmlBodyID, arg.ID)
 	return err
 }

@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	uniqueLabelConstraint  = "landings_label_key"
-	attachmentFKConstraint = "landings_attachment_id_fkey"
+	uniqueLabelConstraint = "landings_label_key"
+	htmlBodyFKConstraint  = "landings_html_body_id_fkey"
 )
 
 type Store struct {
@@ -33,9 +33,9 @@ func (s *Store) Save(ctx context.Context, landing landingbus.Landing) error {
 	dbLanding := toDBLanding(landing)
 
 	err := s.q.Save(ctx, sqlc.SaveParams{
-		ID:           dbLanding.ID,
-		Label:        dbLanding.Label,
-		AttachmentID: dbLanding.AttachmentID,
+		ID:         dbLanding.ID,
+		Label:      dbLanding.Label,
+		HtmlBodyID: dbLanding.HtmlBodyID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -46,7 +46,7 @@ func (s *Store) Save(ctx context.Context, landing landingbus.Landing) error {
 					return landingbus.ErrUniqueLabel
 				}
 			case database.FKViolation:
-				if pgErr.ConstraintName == attachmentFKConstraint {
+				if pgErr.ConstraintName == htmlBodyFKConstraint {
 					return landingbus.ErrInvalidAttachment
 				}
 			}
@@ -61,9 +61,9 @@ func (s *Store) Update(ctx context.Context, landing landingbus.Landing) error {
 	dbLanding := toDBLanding(landing)
 
 	err := s.q.Update(ctx, sqlc.UpdateParams{
-		ID:           dbLanding.ID,
-		Label:        dbLanding.Label,
-		AttachmentID: dbLanding.AttachmentID,
+		ID:         dbLanding.ID,
+		Label:      dbLanding.Label,
+		HtmlBodyID: dbLanding.HtmlBodyID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -74,7 +74,7 @@ func (s *Store) Update(ctx context.Context, landing landingbus.Landing) error {
 					return landingbus.ErrUniqueLabel
 				}
 			case database.FKViolation:
-				if pgErr.ConstraintName == attachmentFKConstraint {
+				if pgErr.ConstraintName == htmlBodyFKConstraint {
 					return landingbus.ErrInvalidAttachment
 				}
 			}

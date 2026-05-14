@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 CREATE TABLE IF NOT EXISTS landings (
     id UUID PRIMARY KEY,
     label VARCHAR(255) NOT NULL UNIQUE,
-    attachment_id UUID REFERENCES attachments(id) ON DELETE RESTRICT
+    html_body_id UUID REFERENCES attachments(id) ON DELETE RESTRICT
 );
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY,
@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     id UUID PRIMARY KEY,
     message_id UUID REFERENCES messages(id) ON DELETE RESTRICT,
     landing_id UUID REFERENCES landings(id) ON DELETE RESTRICT,
+    education_id UUID REFERENCES landings(id) ON DELETE RESTRICT,
     domain VARCHAR(255) NOT NULL,
     label VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(64) NOT NULL,
@@ -78,7 +79,7 @@ CREATE TABLE IF NOT EXISTS targets (
     created_at TIMESTAMPTZ NOT NULL,
     UNIQUE (employee_id, campaign_id)
 );
-CREATE INDEX IF NOT EXISTS idx_landings_attachment_id ON landings(attachment_id);
+CREATE INDEX IF NOT EXISTS idx_landings_html_body_id ON landings(html_body_id);
 CREATE INDEX IF NOT EXISTS idx_messages_html_body_id ON messages(html_body_id);
 CREATE INDEX IF NOT EXISTS idx_message_attachments_attachment_id ON message_attachments(attachment_id);
 CREATE INDEX IF NOT EXISTS idx_organizations_attachment_id ON organizations(attachment_id);
@@ -86,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_organizations_attachment_id ON organizations(atta
 
 -- +goose Down
 -- +goose StatementBegin
-DROP INDEX IF EXISTS idx_landings_attachment_id;
+DROP INDEX IF EXISTS idx_landings_html_body_id;
 DROP INDEX IF EXISTS idx_messages_html_body_id;
 DROP INDEX IF EXISTS idx_message_attachments_attachment_id;
 DROP INDEX IF EXISTS idx_organizations_attachment_id;

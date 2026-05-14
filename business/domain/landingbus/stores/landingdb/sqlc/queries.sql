@@ -2,7 +2,7 @@
 INSERT INTO landings (
     id,
     label,
-    attachment_id
+    html_body_id
 ) VALUES (
     $1, $2, $3
 );
@@ -11,7 +11,7 @@ INSERT INTO landings (
 UPDATE landings
 SET
     label = $1,
-    attachment_id = $2
+    html_body_id = $2
 WHERE id = $3;
 
 -- name: Delete :exec

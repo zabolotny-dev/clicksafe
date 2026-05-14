@@ -20,32 +20,35 @@ import (
 )
 
 type Campaign struct {
-	ID         uuid.UUID
-	MessageID  *uuid.UUID
-	LandingID  *uuid.UUID
-	Label      label.Label
-	Domain     domain.Domain
-	Status     CampaignStatus
-	DateRange  date.Null
-	Attributes map[string]string
+	ID          uuid.UUID
+	MessageID   *uuid.UUID
+	LandingID   *uuid.UUID
+	EducationID *uuid.UUID
+	Label       label.Label
+	Domain      domain.Domain
+	Status      CampaignStatus
+	DateRange   date.Null
+	Attributes  map[string]string
 }
 
 type NewCampaign struct {
-	MessageID  *uuid.UUID
-	LandingID  *uuid.UUID
-	Label      label.Label
-	Domain     domain.Domain
-	DateRange  date.Null
-	Attributes map[string]string
+	MessageID   *uuid.UUID
+	LandingID   *uuid.UUID
+	EducationID *uuid.UUID
+	Label       label.Label
+	Domain      domain.Domain
+	DateRange   date.Null
+	Attributes  map[string]string
 }
 
 type UpdateCampaign struct {
-	MessageID  *uuid.UUID
-	LandingID  *uuid.UUID
-	Label      *label.Label
-	Domain     *domain.Domain
-	DateRange  *date.Null
-	Attributes *map[string]string
+	MessageID   *uuid.UUID
+	LandingID   *uuid.UUID
+	EducationID *uuid.UUID
+	Label       *label.Label
+	Domain      *domain.Domain
+	DateRange   *date.Null
+	Attributes  *map[string]string
 }
 
 type TargetMissingVars struct {
@@ -82,14 +85,15 @@ type CampaignStorer interface {
 
 func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Campaign, error) {
 	cmp := Campaign{
-		ID:         uuid.New(),
-		MessageID:  campaign.MessageID,
-		LandingID:  campaign.LandingID,
-		Label:      campaign.Label,
-		Domain:     campaign.Domain,
-		Status:     Draft,
-		DateRange:  campaign.DateRange,
-		Attributes: campaign.Attributes,
+		ID:          uuid.New(),
+		MessageID:   campaign.MessageID,
+		LandingID:   campaign.LandingID,
+		EducationID: campaign.EducationID,
+		Label:       campaign.Label,
+		Domain:      campaign.Domain,
+		Status:      Draft,
+		DateRange:   campaign.DateRange,
+		Attributes:  campaign.Attributes,
 	}
 
 	if err := b.campaignStorer.Save(ctx, cmp); err != nil {
@@ -98,6 +102,9 @@ func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Camp
 		}
 		if errors.Is(err, ErrLandingNotFound) && campaign.LandingID != nil {
 			return Campaign{}, fmt.Errorf("save: landingID[%s]: %w", *campaign.LandingID, err)
+		}
+		if errors.Is(err, ErrEducationNotFound) && campaign.EducationID != nil {
+			return Campaign{}, fmt.Errorf("save: educationID[%s]: %w", *campaign.EducationID, err)
 		}
 		return Campaign{}, fmt.Errorf("save: %w", err)
 	}
@@ -132,6 +139,13 @@ func (b *CampaignBusiness) Update(ctx context.Context, cmp Campaign, upd UpdateC
 		cmp.DateRange = *upd.DateRange
 	}
 
+	if upd.EducationID != nil {
+		if cmp.Status != Draft && cmp.Status != Paused {
+			return Campaign{}, fmt.Errorf("update: %w: cannot change education in %s status", ErrCampaignLocked, cmp.Status)
+		}
+		cmp.EducationID = upd.EducationID
+	}
+
 	if upd.Attributes != nil {
 		if cmp.Status != Draft && cmp.Status != Paused {
 			return Campaign{}, fmt.Errorf("update: %w: cannot change attributes in %s status", ErrCampaignLocked, cmp.Status)
@@ -145,6 +159,9 @@ func (b *CampaignBusiness) Update(ctx context.Context, cmp Campaign, upd UpdateC
 		}
 		if errors.Is(err, ErrLandingNotFound) && upd.LandingID != nil {
 			return Campaign{}, fmt.Errorf("update: landingID[%s]: %w", *upd.LandingID, err)
+		}
+		if errors.Is(err, ErrEducationNotFound) && upd.EducationID != nil {
+			return Campaign{}, fmt.Errorf("update: educationID[%s]: %w", *upd.EducationID, err)
 		}
 		return Campaign{}, fmt.Errorf("update: %w", err)
 	}
@@ -189,6 +206,10 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 
 	if campaign.LandingID == nil {
 		return Campaign{}, fmt.Errorf("start: %w", ErrLandingRequired)
+	}
+
+	if campaign.EducationID == nil {
+		return Campaign{}, fmt.Errorf("start: %w", ErrEducationRequired)
 	}
 
 	if campaign.Domain.IsEmpty() {
@@ -242,12 +263,21 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: query landing: %w", err)
 	}
 
-	if !landing.AttachmentID.Valid {
+	if !landing.HtmlBodyID.Valid {
 		return Campaign{}, fmt.Errorf("start: %w", ErrLandingHTMLRequired)
 	}
 
+	education, err := b.landingProvider.QueryByID(ctx, *campaign.EducationID)
+	if err != nil {
+		return Campaign{}, fmt.Errorf("start: query education: %w", err)
+	}
+
+	if !education.HtmlBodyID.Valid {
+		return Campaign{}, fmt.Errorf("start: %w", ErrEducationHTMLRequired)
+	}
+
 	ids := slices.Concat(
-		[]uuid.UUID{message.HtmlBodyID.UUID, landing.AttachmentID.UUID},
+		[]uuid.UUID{message.HtmlBodyID.UUID, landing.HtmlBodyID.UUID, education.HtmlBodyID.UUID},
 		message.AttachmentIDs,
 	)
 

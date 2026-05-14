@@ -8,19 +8,19 @@ import (
 )
 
 type Landing struct {
-	ID           uuid.UUID     `json:"id"`
-	Label        string        `json:"label"`
-	AttachmentID uuid.NullUUID `json:"attachment_id"`
+	ID         uuid.UUID     `json:"id"`
+	Label      string        `json:"label"`
+	HtmlBodyID uuid.NullUUID `json:"html_body_id"`
 }
 
 type NewLanding struct {
-	Label        string `json:"label"`
-	AttachmentID string `json:"attachment_id"`
+	Label      string `json:"label"`
+	HtmlBodyID string `json:"html_body_id"`
 }
 
 type UpdateLanding struct {
-	Label        *string `json:"label"`
-	AttachmentID *string `json:"attachment_id"`
+	Label      *string `json:"label"`
+	HtmlBodyID *string `json:"html_body_id"`
 }
 
 func toBusNewLanding(req NewLanding) (landingbus.NewLanding, error) {
@@ -31,13 +31,13 @@ func toBusNewLanding(req NewLanding) (landingbus.NewLanding, error) {
 		fieldErrors.Add("label", err)
 	}
 
-	var attachmentID uuid.NullUUID
-	if req.AttachmentID != "" {
-		parsed, err := uuid.Parse(req.AttachmentID)
+	var htmlBodyID uuid.NullUUID
+	if req.HtmlBodyID != "" {
+		parsed, err := uuid.Parse(req.HtmlBodyID)
 		if err != nil {
-			fieldErrors.Add("attachment_id", err)
+			fieldErrors.Add("html_body_id", err)
 		}
-		attachmentID = uuid.NullUUID{UUID: parsed, Valid: true}
+		htmlBodyID = uuid.NullUUID{UUID: parsed, Valid: true}
 	}
 
 	if len(fieldErrors) > 0 {
@@ -45,8 +45,8 @@ func toBusNewLanding(req NewLanding) (landingbus.NewLanding, error) {
 	}
 
 	return landingbus.NewLanding{
-		Label:        lbl,
-		AttachmentID: attachmentID,
+		Label:      lbl,
+		HtmlBodyID: htmlBodyID,
 	}, nil
 }
 
@@ -62,16 +62,16 @@ func toBusUpdateLanding(req UpdateLanding) (landingbus.UpdateLanding, error) {
 		lbl = &parsed
 	}
 
-	var attachmentID *uuid.NullUUID
-	if req.AttachmentID != nil {
-		attachmentID = &uuid.NullUUID{}
-		if id := *req.AttachmentID; id != "" {
+	var htmlBodyID *uuid.NullUUID
+	if req.HtmlBodyID != nil {
+		htmlBodyID = &uuid.NullUUID{}
+		if id := *req.HtmlBodyID; id != "" {
 			parsed, err := uuid.Parse(id)
 			if err != nil {
-				fieldErrors.Add("attachment_id", err)
+				fieldErrors.Add("html_body_id", err)
 			}
-			attachmentID.UUID = parsed
-			attachmentID.Valid = err == nil
+			htmlBodyID.UUID = parsed
+			htmlBodyID.Valid = err == nil
 		}
 	}
 
@@ -80,16 +80,16 @@ func toBusUpdateLanding(req UpdateLanding) (landingbus.UpdateLanding, error) {
 	}
 
 	return landingbus.UpdateLanding{
-		Label:        lbl,
-		AttachmentID: attachmentID,
+		Label:      lbl,
+		HtmlBodyID: htmlBodyID,
 	}, nil
 }
 
 func toAppLanding(landing landingbus.Landing) Landing {
 	return Landing{
-		ID:           landing.ID,
-		Label:        landing.Label.String(),
-		AttachmentID: landing.AttachmentID,
+		ID:         landing.ID,
+		Label:      landing.Label.String(),
+		HtmlBodyID: landing.HtmlBodyID,
 	}
 }
 

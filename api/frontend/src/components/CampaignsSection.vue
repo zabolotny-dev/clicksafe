@@ -235,6 +235,9 @@ function targetTag(status) {
           <el-table-column label="Landing" min-width="150">
             <template #default="{ row }">{{ landingById(row.landing_id)?.label || 'не выбрано' }}</template>
           </el-table-column>
+          <el-table-column label="Education" min-width="150">
+            <template #default="{ row }">{{ landingById(row.education_id)?.label || 'не выбрано' }}</template>
+          </el-table-column>
           <el-table-column prop="domain" label="Domain" min-width="170" />
           <el-table-column label="Actions" width="238" fixed="right">
             <template #default="{ row }">
@@ -291,6 +294,16 @@ function targetTag(status) {
             </el-form-item>
             <el-form-item label="Лендинг">
               <el-select v-model="campaignForm.landing_id" filterable clearable class="full-width">
+                <el-option
+                  v-for="landing in landingResult.items"
+                  :key="landing.id"
+                  :label="landing.label"
+                  :value="landing.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Обучение">
+              <el-select v-model="campaignForm.education_id" filterable clearable class="full-width">
                 <el-option
                   v-for="landing in landingResult.items"
                   :key="landing.id"
@@ -495,6 +508,14 @@ function targetTag(status) {
           @click="renderLanding(selectedCampaign?.landing_id)"
         >
           Показать сайт
+        </el-button>
+        <el-button
+          :icon="MagicStick"
+          :loading="loading.render"
+          :disabled="!selectedCampaign?.education_id"
+          @click="renderLanding(selectedCampaign?.education_id)"
+        >
+          Показать обучение
         </el-button>
       </div>
 

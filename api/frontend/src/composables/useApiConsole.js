@@ -82,7 +82,7 @@ export function useApiConsole() {
     from_email: 'training@clicksafe.test',
     from_name: 'ClickSafe Training',
     subject: 'Security awareness training',
-    attachment_id: '',
+    html_body_id: '',
   })
   const selectedMessageId = ref('')
   const selectedTemplateFile = ref(null)
@@ -95,7 +95,7 @@ export function useApiConsole() {
   const landingForm = reactive({
     id: '',
     label: 'Training Portal Landing',
-    attachment_id: '',
+    html_body_id: '',
   })
   const selectedLandingId = ref('')
   const selectedLandingFile = ref(null)
@@ -109,6 +109,7 @@ export function useApiConsole() {
     id: '',
     message_id: '',
     landing_id: '',
+    education_id: '',
     label: 'ClickSafe Demo Campaign',
     domain: defaultDomain(),
     date_from: addHours(-1),
@@ -200,7 +201,7 @@ export function useApiConsole() {
   }
 
   function attachmentIDOf(entity) {
-    const value = entity?.attachment_id
+    const value = entity?.attachment_id ?? entity?.html_body_id
 
     if (!value) {
       return ''
@@ -230,21 +231,21 @@ export function useApiConsole() {
     return attachmentByID(attachmentIDOf(entity))?.required_vars ?? []
   }
 
-  function messageAttachmentID(messageID) {
+  function messageHtmlBodyID(messageID) {
     const message = messageResult.items.find((item) => item.id === messageID)
 
     if (messageForm.id === messageID) {
-      return messageForm.attachment_id
+      return messageForm.html_body_id
     }
 
     return attachmentIDOf(message)
   }
 
-  function landingAttachmentID(landingID) {
+  function landingHtmlBodyID(landingID) {
     const landing = landingResult.items.find((item) => item.id === landingID)
 
     if (landingForm.id === landingID) {
-      return landingForm.attachment_id
+      return landingForm.html_body_id
     }
 
     return attachmentIDOf(landing)
@@ -678,7 +679,7 @@ export function useApiConsole() {
     messageForm.from_email = row.from_email
     messageForm.from_name = row.from_name
     messageForm.subject = row.subject
-    messageForm.attachment_id = attachmentIDOf(row)
+    messageForm.html_body_id = attachmentIDOf(row)
     selectedMessageId.value = row.id
   }
 
@@ -688,7 +689,7 @@ export function useApiConsole() {
     messageForm.from_email = 'training@clicksafe.test'
     messageForm.from_name = 'ClickSafe Training'
     messageForm.subject = 'Security awareness training'
-    messageForm.attachment_id = ''
+    messageForm.html_body_id = ''
   }
 
   async function saveMessage() {
@@ -698,7 +699,7 @@ export function useApiConsole() {
         from_email: messageForm.from_email,
         from_name: messageForm.from_name,
         subject: messageForm.subject,
-        attachment_id: messageForm.attachment_id,
+        html_body_id: messageForm.html_body_id,
       }
 
       const saved = messageForm.id
@@ -776,7 +777,7 @@ export function useApiConsole() {
   async function uploadMessageHtml(messageID, file, source = '', filename = file.name) {
     return withLoading('content', async () => {
       const attachment = await uploadAttachment(file, { filename })
-      const updated = await api.put(`/message/${messageID}`, { attachment_id: attachment.id })
+      const updated = await api.put(`/message/${messageID}`, { html_body_id: attachment.id })
       const index = messageResult.items.findIndex((message) => message.id === updated.id)
 
       if (index >= 0) {
@@ -784,7 +785,7 @@ export function useApiConsole() {
       }
 
       if (messageForm.id === messageID) {
-        messageForm.attachment_id = attachment.id
+        messageForm.html_body_id = attachment.id
       }
 
       if (source) {
@@ -802,7 +803,7 @@ export function useApiConsole() {
     }
 
     return withLoading('content', async () => {
-      const attachmentID = messageAttachmentID(selectedMessageId.value)
+      const attachmentID = messageHtmlBodyID(selectedMessageId.value)
 
       if (!attachmentID) {
         throw new Error('У письма не выбран HTML attachment')
@@ -827,27 +828,30 @@ export function useApiConsole() {
       if (!campaignForm.landing_id) {
         campaignForm.landing_id = selectedLandingId.value
       }
+      if (!campaignForm.education_id) {
+        campaignForm.education_id = selectedLandingId.value
+      }
     })
   }
 
   function editLanding(row) {
     landingForm.id = row.id
     landingForm.label = row.label
-    landingForm.attachment_id = attachmentIDOf(row)
+    landingForm.html_body_id = attachmentIDOf(row)
     selectedLandingId.value = row.id
   }
 
   function resetLandingForm() {
     landingForm.id = ''
     landingForm.label = 'Training Portal Landing'
-    landingForm.attachment_id = ''
+    landingForm.html_body_id = ''
   }
 
   async function saveLanding() {
     return withLoading('landings', async () => {
       const payload = {
         label: landingForm.label,
-        attachment_id: landingForm.attachment_id,
+        html_body_id: landingForm.html_body_id,
       }
       const saved = landingForm.id
         ? await api.put(`/landing/${landingForm.id}`, payload)
@@ -924,7 +928,7 @@ export function useApiConsole() {
   async function uploadLandingHtml(landingID, file, source = '', filename = file.name) {
     return withLoading('landingContent', async () => {
       const attachment = await uploadAttachment(file, { filename })
-      const updated = await api.put(`/landing/${landingID}`, { attachment_id: attachment.id })
+      const updated = await api.put(`/landing/${landingID}`, { html_body_id: attachment.id })
       const index = landingResult.items.findIndex((landing) => landing.id === updated.id)
 
       if (index >= 0) {
@@ -932,7 +936,7 @@ export function useApiConsole() {
       }
 
       if (landingForm.id === landingID) {
-        landingForm.attachment_id = attachment.id
+        landingForm.html_body_id = attachment.id
       }
 
       if (source) {
@@ -950,7 +954,7 @@ export function useApiConsole() {
     }
 
     return withLoading('landingContent', async () => {
-      const attachmentID = landingAttachmentID(selectedLandingId.value)
+      const attachmentID = landingHtmlBodyID(selectedLandingId.value)
 
       if (!attachmentID) {
         throw new Error('У лендинга не выбран HTML attachment')
@@ -975,7 +979,7 @@ export function useApiConsole() {
     }
 
     return withLoading('render', async () => {
-      const attachmentID = messageAttachmentID(id)
+      const attachmentID = messageHtmlBodyID(id)
 
       if (!attachmentID) {
         throw new Error('У письма не выбран HTML attachment')
@@ -999,7 +1003,7 @@ export function useApiConsole() {
     }
 
     return withLoading('render', async () => {
-      const attachmentID = landingAttachmentID(id)
+      const attachmentID = landingHtmlBodyID(id)
 
       if (!attachmentID) {
         throw new Error('У лендинга не выбран HTML attachment')
@@ -1026,6 +1030,7 @@ export function useApiConsole() {
     campaignForm.id = row.id
     campaignForm.message_id = row.message_id ?? ''
     campaignForm.landing_id = row.landing_id ?? ''
+    campaignForm.education_id = row.education_id ?? ''
     campaignForm.label = row.label
     campaignForm.domain = row.domain
     campaignForm.date_from = row.date_from ?? addHours(-1)
@@ -1045,6 +1050,7 @@ export function useApiConsole() {
     campaignForm.id = ''
     campaignForm.message_id = selectedMessageId.value
     campaignForm.landing_id = selectedLandingId.value
+    campaignForm.education_id = selectedLandingId.value
     campaignForm.label = 'ClickSafe Demo Campaign'
     campaignForm.domain = defaultDomain()
     campaignForm.date_from = addHours(-1)
@@ -1066,6 +1072,9 @@ export function useApiConsole() {
     }
     if (campaignForm.landing_id) {
       payload.landing_id = campaignForm.landing_id
+    }
+    if (campaignForm.education_id) {
+      payload.education_id = campaignForm.education_id
     }
 
     return payload
@@ -1342,7 +1351,7 @@ export function useApiConsole() {
       from_email: messageForm.from_email,
       from_name: messageForm.from_name,
       subject: messageForm.subject,
-      attachment_id: attachment.id,
+      html_body_id: attachment.id,
     }
     return existing ? api.put(`/message/${existing.id}`, payload) : api.post('/message', payload)
   }
@@ -1355,13 +1364,13 @@ export function useApiConsole() {
     })
     const payload = {
       label,
-      attachment_id: attachment.id,
+      html_body_id: attachment.id,
     }
 
     return existing ? api.put(`/landing/${existing.id}`, payload) : api.post('/landing', payload)
   }
 
-  async function ensureCampaign(messageID, landingID) {
+  async function ensureCampaign(messageID, landingID, educationID) {
     const baseLabel = campaignForm.label || 'ClickSafe Demo Campaign'
     const result = await api.get(`/campaign${buildQuery({ label: baseLabel, rows: 100 })}`)
     const exact = result.items.find((campaign) => campaign.label === baseLabel)
@@ -1373,6 +1382,7 @@ export function useApiConsole() {
     const payload = {
       message_id: messageID,
       landing_id: landingID,
+      education_id: educationID,
       label: existing ? existing.label : label,
       domain: campaignForm.domain || defaultDomain(),
       date_from: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
@@ -1451,7 +1461,7 @@ export function useApiConsole() {
 
       const message = await ensureMessage()
       const landing = await ensureLanding()
-      const campaign = await ensureCampaign(message.id, landing.id)
+      const campaign = await ensureCampaign(message.id, landing.id, landing.id)
       await ensureTargets(campaign.id, employees)
 
       if (['DRAFT', 'PAUSED'].includes(campaign.status)) {

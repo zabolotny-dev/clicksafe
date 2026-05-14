@@ -38,8 +38,8 @@ func (b *Business) Save(ctx context.Context, landing NewLanding) (Landing, error
 		Label: landing.Label,
 	}
 
-	if landing.AttachmentID.Valid {
-		atch, err := b.attachmentQuerier.QueryByID(ctx, landing.AttachmentID.UUID)
+	if landing.HtmlBodyID.Valid {
+		atch, err := b.attachmentQuerier.QueryByID(ctx, landing.HtmlBodyID.UUID)
 		if err != nil {
 			return Landing{}, fmt.Errorf("save: %w", err)
 		}
@@ -48,7 +48,7 @@ func (b *Business) Save(ctx context.Context, landing NewLanding) (Landing, error
 			return Landing{}, fmt.Errorf("save: %w", ErrInvalidAttachment)
 		}
 
-		l.AttachmentID = landing.AttachmentID
+		l.HtmlBodyID = landing.HtmlBodyID
 	}
 
 	if err := b.storer.Save(ctx, l); err != nil {
@@ -63,9 +63,9 @@ func (b *Business) Update(ctx context.Context, landing Landing, up UpdateLanding
 		landing.Label = *up.Label
 	}
 
-	if up.AttachmentID != nil {
-		if up.AttachmentID.Valid {
-			atch, err := b.attachmentQuerier.QueryByID(ctx, up.AttachmentID.UUID)
+	if up.HtmlBodyID != nil {
+		if up.HtmlBodyID.Valid {
+			atch, err := b.attachmentQuerier.QueryByID(ctx, up.HtmlBodyID.UUID)
 			if err != nil {
 				return Landing{}, fmt.Errorf("update: %w", err)
 			}
@@ -75,7 +75,7 @@ func (b *Business) Update(ctx context.Context, landing Landing, up UpdateLanding
 			}
 		}
 
-		landing.AttachmentID = *up.AttachmentID
+		landing.HtmlBodyID = *up.HtmlBodyID
 	}
 
 	if err := b.storer.Update(ctx, landing); err != nil {

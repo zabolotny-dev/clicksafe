@@ -19,15 +19,16 @@ func toDBCampaign(c campaignbus.Campaign) (sqlc.Campaign, error) {
 	dateFrom, dateTo := c.DateRange.ToSQLNullTimestamptz()
 
 	return sqlc.Campaign{
-		ID:         c.ID,
-		MessageID:  c.MessageID,
-		LandingID:  c.LandingID,
-		Label:      c.Label.String(),
-		Domain:     c.Domain.String(),
-		Status:     c.Status.String(),
-		DateFrom:   dateFrom,
-		DateTo:     dateTo,
-		Attributes: attributes,
+		ID:          c.ID,
+		MessageID:   c.MessageID,
+		LandingID:   c.LandingID,
+		EducationID: c.EducationID,
+		Label:       c.Label.String(),
+		Domain:      c.Domain.String(),
+		Status:      c.Status.String(),
+		DateFrom:    dateFrom,
+		DateTo:      dateTo,
+		Attributes:  attributes,
 	}, nil
 }
 
@@ -60,14 +61,15 @@ func toBusCampaign(c sqlc.Campaign) (campaignbus.Campaign, error) {
 	}
 
 	return campaignbus.Campaign{
-		ID:         c.ID,
-		MessageID:  c.MessageID,
-		LandingID:  c.LandingID,
-		Label:      campaignLabel,
-		Domain:     domain,
-		Status:     status,
-		DateRange:  dateRange,
-		Attributes: attributes,
+		ID:          c.ID,
+		MessageID:   c.MessageID,
+		LandingID:   c.LandingID,
+		EducationID: c.EducationID,
+		Label:       campaignLabel,
+		Domain:      domain,
+		Status:      status,
+		DateRange:   dateRange,
+		Attributes:  attributes,
 	}, nil
 }
 
