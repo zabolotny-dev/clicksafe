@@ -11,28 +11,31 @@ import (
 )
 
 type Message struct {
-	ID           uuid.UUID     `json:"id"`
-	Label        string        `json:"label"`
-	FromEmail    string        `json:"from_email"`
-	FromName     string        `json:"from_name"`
-	Subject      string        `json:"subject"`
-	AttachmentID uuid.NullUUID `json:"attachment_id"`
+	ID            uuid.UUID     `json:"id"`
+	Label         string        `json:"label"`
+	FromEmail     string        `json:"from_email"`
+	FromName      string        `json:"from_name"`
+	Subject       string        `json:"subject"`
+	HtmlBodyID    uuid.NullUUID `json:"html_body_id"`
+	AttachmentIDs []uuid.UUID   `json:"attachment_ids"`
 }
 
 type NewMessage struct {
-	Label        string `json:"label"`
-	FromEmail    string `json:"from_email"`
-	FromName     string `json:"from_name"`
-	Subject      string `json:"subject"`
-	AttachmentID string `json:"attachment_id"`
+	Label         string   `json:"label"`
+	FromEmail     string   `json:"from_email"`
+	FromName      string   `json:"from_name"`
+	Subject       string   `json:"subject"`
+	HtmlBodyID    string   `json:"html_body_id"`
+	AttachmentIDs []string `json:"attachment_ids"`
 }
 
 type UpdateMessage struct {
-	Label        *string `json:"label"`
-	FromEmail    *string `json:"from_email"`
-	FromName     *string `json:"from_name"`
-	Subject      *string `json:"subject"`
-	AttachmentID *string `json:"attachment_id"`
+	Label         *string  `json:"label"`
+	FromEmail     *string  `json:"from_email"`
+	FromName      *string  `json:"from_name"`
+	Subject       *string  `json:"subject"`
+	HtmlBodyID    *string  `json:"html_body_id"`
+	AttachmentIDs []string `json:"attachment_ids"`
 }
 
 func toBusNewMessage(req NewMessage) (messagebus.NewMessage, error) {
@@ -58,13 +61,24 @@ func toBusNewMessage(req NewMessage) (messagebus.NewMessage, error) {
 		errors.Add("subject", err)
 	}
 
-	var attachmentID uuid.NullUUID
-	if req.AttachmentID != "" {
-		parsed, err := uuid.Parse(req.AttachmentID)
+	var htmlBodyID uuid.NullUUID
+	if req.HtmlBodyID != "" {
+		parsed, err := uuid.Parse(req.HtmlBodyID)
 		if err != nil {
-			errors.Add("attachment_id", err)
+			errors.Add("html_body_id", err)
 		}
-		attachmentID = uuid.NullUUID{UUID: parsed, Valid: true}
+		htmlBodyID = uuid.NullUUID{UUID: parsed, Valid: true}
+	}
+
+	var attachemntIDs []uuid.UUID
+	if req.AttachmentIDs != nil {
+		for _, id := range req.AttachmentIDs {
+			parsed, err := uuid.Parse(id)
+			if err != nil {
+				errors.Add("attachment_ids", err)
+			}
+			attachemntIDs = append(attachemntIDs, parsed)
+		}
 	}
 
 	if len(errors) > 0 {
@@ -72,11 +86,12 @@ func toBusNewMessage(req NewMessage) (messagebus.NewMessage, error) {
 	}
 
 	return messagebus.NewMessage{
-		Label:        lbl,
-		FromEmail:    *fromEmail,
-		FromName:     fromName,
-		Subject:      sub,
-		AttachmentID: attachmentID,
+		Label:         lbl,
+		FromEmail:     *fromEmail,
+		FromName:      fromName,
+		Subject:       sub,
+		HtmlBodyID:    htmlBodyID,
+		AttachmentIDs: attachemntIDs,
 	}, nil
 }
 
@@ -119,16 +134,27 @@ func toBusUpdateMessage(req UpdateMessage) (messagebus.UpdateMessage, error) {
 		sub = &parsed
 	}
 
-	var attachmentID *uuid.NullUUID
-	if req.AttachmentID != nil {
-		attachmentID = &uuid.NullUUID{}
-		if id := *req.AttachmentID; id != "" {
+	var htmlBodyID *uuid.NullUUID
+	if req.HtmlBodyID != nil {
+		htmlBodyID = &uuid.NullUUID{}
+		if id := *req.HtmlBodyID; id != "" {
 			parsed, err := uuid.Parse(id)
 			if err != nil {
-				errors.Add("attachment_id", err)
+				errors.Add("html_body_id", err)
 			}
-			attachmentID.UUID = parsed
-			attachmentID.Valid = err == nil
+			htmlBodyID.UUID = parsed
+			htmlBodyID.Valid = err == nil
+		}
+	}
+
+	var attachemntIDs []uuid.UUID
+	if req.AttachmentIDs != nil {
+		for _, id := range req.AttachmentIDs {
+			parsed, err := uuid.Parse(id)
+			if err != nil {
+				errors.Add("attachment_ids", err)
+			}
+			attachemntIDs = append(attachemntIDs, parsed)
 		}
 	}
 
@@ -137,22 +163,24 @@ func toBusUpdateMessage(req UpdateMessage) (messagebus.UpdateMessage, error) {
 	}
 
 	return messagebus.UpdateMessage{
-		Label:        lbl,
-		FromEmail:    fromEmail,
-		FromName:     fromName,
-		Subject:      sub,
-		AttachmentID: attachmentID,
+		Label:         lbl,
+		FromEmail:     fromEmail,
+		FromName:      fromName,
+		Subject:       sub,
+		HtmlBodyID:    htmlBodyID,
+		AttachmentIDs: attachemntIDs,
 	}, nil
 }
 
 func toAppMessage(msg messagebus.Message) Message {
 	return Message{
-		ID:           msg.ID,
-		Label:        msg.Label.String(),
-		FromEmail:    msg.FromEmail.Address,
-		FromName:     msg.FromName.String(),
-		Subject:      msg.Subject.String(),
-		AttachmentID: msg.AttachmentID,
+		ID:            msg.ID,
+		Label:         msg.Label.String(),
+		FromEmail:     msg.FromEmail.Address,
+		FromName:      msg.FromName.String(),
+		Subject:       msg.Subject.String(),
+		HtmlBodyID:    msg.HtmlBodyID,
+		AttachmentIDs: msg.AttachmentIDs,
 	}
 }
 

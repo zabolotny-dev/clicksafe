@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -232,7 +233,7 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: query message: %w", err)
 	}
 
-	if !message.AttachmentID.Valid {
+	if !message.HtmlBodyID.Valid {
 		return Campaign{}, fmt.Errorf("start: %w", ErrMessageHTMLRequired)
 	}
 
@@ -245,8 +246,13 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: %w", ErrLandingHTMLRequired)
 	}
 
-	for _, id := range []uuid.NullUUID{message.AttachmentID, landing.AttachmentID} {
-		att, err := b.attachmentProvider.QueryByID(ctx, id.UUID)
+	ids := slices.Concat(
+		[]uuid.UUID{message.HtmlBodyID.UUID, landing.AttachmentID.UUID},
+		message.AttachmentIDs,
+	)
+
+	for _, id := range ids {
+		att, err := b.attachmentProvider.QueryByID(ctx, id)
 		if err != nil {
 			return Campaign{}, fmt.Errorf("start: query attachment: %w", err)
 		}

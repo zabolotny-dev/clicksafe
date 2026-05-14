@@ -50,7 +50,12 @@ CREATE TABLE IF NOT EXISTS messages (
     from_email VARCHAR(255) NOT NULL,
     from_name VARCHAR(255),
     subject VARCHAR(255),
-    attachment_id UUID REFERENCES attachments(id) ON DELETE RESTRICT
+    html_body_id UUID REFERENCES attachments(id) ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS message_attachments (
+    message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    attachment_id UUID NOT NULL REFERENCES attachments(id) ON DELETE RESTRICT,
+    PRIMARY KEY (message_id, attachment_id)
 );
 CREATE TABLE IF NOT EXISTS campaigns (
     id UUID PRIMARY KEY,
@@ -74,22 +79,25 @@ CREATE TABLE IF NOT EXISTS targets (
     UNIQUE (employee_id, campaign_id)
 );
 CREATE INDEX IF NOT EXISTS idx_landings_attachment_id ON landings(attachment_id);
-CREATE INDEX IF NOT EXISTS idx_messages_attachment_id ON messages(attachment_id);
+CREATE INDEX IF NOT EXISTS idx_messages_html_body_id ON messages(html_body_id);
+CREATE INDEX IF NOT EXISTS idx_message_attachments_attachment_id ON message_attachments(attachment_id);
 CREATE INDEX IF NOT EXISTS idx_organizations_attachment_id ON organizations(attachment_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
 DROP INDEX IF EXISTS idx_landings_attachment_id;
-DROP INDEX IF EXISTS idx_messages_attachment_id;
+DROP INDEX IF EXISTS idx_messages_html_body_id;
+DROP INDEX IF EXISTS idx_message_attachments_attachment_id;
 DROP INDEX IF EXISTS idx_organizations_attachment_id;
 DROP TABLE IF EXISTS targets;
 DROP TABLE IF EXISTS campaigns;
+DROP TABLE IF EXISTS message_attachments;
 DROP TABLE IF EXISTS landings;
-DROP TABLE IF EXISTS attachments;
 DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS organizations;
+DROP TABLE IF EXISTS attachments;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS departments;
-DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS events;
 -- +goose StatementEnd

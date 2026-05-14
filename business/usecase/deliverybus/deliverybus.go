@@ -34,7 +34,7 @@ type messageRenderer interface {
 }
 
 type Deliverer interface {
-	Send(ctx context.Context, to, from, subject, body string) error
+	Send(ctx context.Context, to, from, subject, body string, attachments map[string][]byte) error
 }
 
 type EventPublisher interface {
@@ -113,11 +113,11 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
-	if !msg.AttachmentID.Valid {
-		return fmt.Errorf("processtarget: message[%s] has no attachment", msg.ID)
+	if !msg.HtmlBodyID.Valid {
+		return fmt.Errorf("processtarget: message[%s] has no html body", msg.ID)
 	}
 
-	atch, err := b.attachmentProvider.QueryByID(ctx, msg.AttachmentID.UUID)
+	atch, err := b.attachmentProvider.QueryByID(ctx, msg.HtmlBodyID.UUID)
 	if err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}
@@ -136,7 +136,20 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
-	if err := b.deliverer.Send(ctx, emp.Email.Address, msg.FromEmail.Address, msg.Subject.String(), html); err != nil {
+	attachments := make(map[string][]byte)
+	for _, a := range msg.AttachmentIDs {
+		atch, err := b.attachmentProvider.QueryByID(ctx, a)
+		if err != nil {
+			return fmt.Errorf("processtarget: %w", err)
+		}
+		atchr, err := b.renderProvider.Render(ctx, atch, t.ID)
+		if err != nil {
+			return fmt.Errorf("processtarget: %w", err)
+		}
+		attachments[atch.Label.String()+atch.Type.String()] = atchr
+	}
+
+	if err := b.deliverer.Send(ctx, emp.Email.Address, msg.FromEmail.Address, msg.Subject.String(), html, attachments); err != nil {
 		return fmt.Errorf("processtarget: %w", err)
 	}
 

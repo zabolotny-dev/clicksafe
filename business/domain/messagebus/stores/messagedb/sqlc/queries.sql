@@ -5,7 +5,7 @@ INSERT INTO messages (
     from_email,
     from_name,
     subject,
-    attachment_id
+    html_body_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 );
@@ -17,7 +17,7 @@ SET
     from_email = $2,
     from_name = $3,
     subject = $4,
-    attachment_id = $5
+    html_body_id = $5
 WHERE id = $6;
 
 -- name: Delete :exec
@@ -67,3 +67,26 @@ WHERE
     (sqlc.narg('from_email')::text IS NULL OR LOWER(from_email) ILIKE '%' || LOWER(sqlc.narg('from_email')) || '%') AND
     (sqlc.narg('from_name')::text IS NULL OR LOWER(from_name) ILIKE '%' || LOWER(sqlc.narg('from_name')) || '%') AND
     (sqlc.narg('subject')::text IS NULL OR LOWER(subject) ILIKE '%' || LOWER(sqlc.narg('subject')) || '%');
+
+-- name: SyncAttachments :exec
+WITH new_attachments AS (
+    SELECT sqlc.arg('message_id')::uuid AS message_id, 
+           unnest(sqlc.arg('attachment_ids')::uuid[]) AS attachment_id
+),
+inserted AS (
+    INSERT INTO message_attachments (message_id, attachment_id)
+    SELECT message_id, attachment_id FROM new_attachments
+    ON CONFLICT ON CONSTRAINT message_attachments_pkey DO NOTHING
+)
+DELETE FROM message_attachments ma
+WHERE ma.message_id = sqlc.arg('message_id')
+  AND ma.attachment_id NOT IN (
+      SELECT attachment_id FROM new_attachments
+);
+
+-- name: QueryAttachments :many
+SELECT attachment_id FROM message_attachments WHERE message_id = $1;
+
+-- name: QueryAttachmentsByMessageIDs :many
+SELECT message_id, attachment_id FROM message_attachments
+WHERE message_id = ANY(sqlc.arg('message_ids')::uuid[]);

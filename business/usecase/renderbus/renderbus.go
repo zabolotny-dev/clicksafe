@@ -56,8 +56,8 @@ func (b *Business) Render(ctx context.Context, atch attachmentbus.Attachment, ta
 }
 
 func render(content []byte, t attachmentbus.AttachmentType, data map[string]any) (res []byte, err error) {
-	if !t.IsTemplate() {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidType, t)
+	if t.IsMedia() {
+		return content, nil
 	}
 
 	switch t {

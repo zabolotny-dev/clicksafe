@@ -12,21 +12,21 @@ import (
 
 func toDBMessage(msg messagebus.Message) sqlc.Message {
 	var id *uuid.UUID
-	if msg.AttachmentID.Valid {
-		id = &msg.AttachmentID.UUID
+	if msg.HtmlBodyID.Valid {
+		id = &msg.HtmlBodyID.UUID
 	}
 
 	return sqlc.Message{
-		ID:           msg.ID,
-		Label:        msg.Label.String(),
-		FromEmail:    msg.FromEmail.String(),
-		FromName:     msg.FromName.ToSQLNullString(),
-		Subject:      msg.Subject.ToSQLNullString(),
-		AttachmentID: id,
+		ID:         msg.ID,
+		Label:      msg.Label.String(),
+		FromEmail:  msg.FromEmail.String(),
+		FromName:   msg.FromName.ToSQLNullString(),
+		Subject:    msg.Subject.ToSQLNullString(),
+		HtmlBodyID: id,
 	}
 }
 
-func toBusMessage(msg sqlc.Message) (messagebus.Message, error) {
+func toBusMessage(msg sqlc.Message, attachmentIDs []uuid.UUID) (messagebus.Message, error) {
 	lbl, err := label.Parse(msg.Label)
 	if err != nil {
 		return messagebus.Message{}, err
@@ -48,26 +48,27 @@ func toBusMessage(msg sqlc.Message) (messagebus.Message, error) {
 	}
 
 	var id uuid.NullUUID
-	if msg.AttachmentID != nil {
-		id = uuid.NullUUID{UUID: *msg.AttachmentID, Valid: true}
+	if msg.HtmlBodyID != nil {
+		id = uuid.NullUUID{UUID: *msg.HtmlBodyID, Valid: true}
 	}
 
 	return messagebus.Message{
-		ID:           msg.ID,
-		Label:        lbl,
-		FromEmail:    *fromEmail,
-		FromName:     fromName,
-		Subject:      sub,
-		AttachmentID: id,
+		ID:            msg.ID,
+		Label:         lbl,
+		FromEmail:     *fromEmail,
+		FromName:      fromName,
+		Subject:       sub,
+		HtmlBodyID:    id,
+		AttachmentIDs: attachmentIDs,
 	}, nil
 }
 
-func toBusMessages(messages []sqlc.Message) ([]messagebus.Message, error) {
+func toBusMessages(messages []sqlc.Message, attachmentsByMsg map[uuid.UUID][]uuid.UUID) ([]messagebus.Message, error) {
 	busMessages := make([]messagebus.Message, len(messages))
 
 	for i, msg := range messages {
 		var err error
-		busMessages[i], err = toBusMessage(msg)
+		busMessages[i], err = toBusMessage(msg, attachmentsByMsg[msg.ID])
 		if err != nil {
 			return nil, err
 		}

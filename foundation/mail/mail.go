@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -91,7 +92,9 @@ func New(cfg Config) (*Client, error) {
 	return &Client{client: client}, nil
 }
 
-func (c *Client) Send(ctx context.Context, to, from, subject, body string) error {
+func (c *Client) Send(ctx context.Context, to, from, subject, body string,
+	attachments map[string][]byte) error {
+
 	if c == nil || c.client == nil {
 		return ErrClientRequired
 	}
@@ -105,6 +108,19 @@ func (c *Client) Send(ctx context.Context, to, from, subject, body string) error
 	}
 	msg.Subject(subject)
 	msg.SetBodyString(gomail.TypeTextHTML, body)
+
+	for filename, content := range attachments {
+		contentType := detectContentType(filename, content)
+
+		if err := msg.AttachReader(
+			filename,
+			bytes.NewReader(content),
+			gomail.WithFileName(filename),
+			gomail.WithFileContentType(gomail.ContentType(contentType)),
+		); err != nil {
+			return fmt.Errorf("attach: %w", err)
+		}
+	}
 
 	if err := c.client.DialAndSendWithContext(ctx, msg); err != nil {
 		return fmt.Errorf("send: %w", err)

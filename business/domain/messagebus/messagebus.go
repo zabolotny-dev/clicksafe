@@ -2,6 +2,7 @@ package messagebus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -41,8 +42,8 @@ func (b *Business) Save(ctx context.Context, msg NewMessage) (Message, error) {
 		Subject:   msg.Subject,
 	}
 
-	if msg.AttachmentID.Valid {
-		atch, err := b.attachmentQuerier.QueryByID(ctx, msg.AttachmentID.UUID)
+	if msg.HtmlBodyID.Valid {
+		atch, err := b.attachmentQuerier.QueryByID(ctx, msg.HtmlBodyID.UUID)
 		if err != nil {
 			return Message{}, fmt.Errorf("save: %w", err)
 		}
@@ -51,7 +52,42 @@ func (b *Business) Save(ctx context.Context, msg NewMessage) (Message, error) {
 			return Message{}, fmt.Errorf("save: %w", ErrInvalidAttachment)
 		}
 
-		message.AttachmentID = msg.AttachmentID
+		message.HtmlBodyID = msg.HtmlBodyID
+	}
+
+	counts := make(map[uuid.UUID]int)
+	for _, id := range msg.AttachmentIDs {
+		counts[id]++
+	}
+
+	var duplicates []uuid.UUID
+	for id, count := range counts {
+		if count > 1 {
+			duplicates = append(duplicates, id)
+		}
+	}
+
+	if len(duplicates) > 0 {
+		return Message{}, &ErrDuplicateAttachments{IDs: duplicates}
+	}
+
+	var missing []uuid.UUID
+	for _, id := range msg.AttachmentIDs {
+		_, err := b.attachmentQuerier.QueryByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, attachmentbus.ErrNotFound) {
+				missing = append(missing, id)
+				continue
+			}
+
+			return Message{}, fmt.Errorf("save: %w", err)
+		}
+	}
+
+	message.AttachmentIDs = msg.AttachmentIDs
+
+	if len(missing) > 0 {
+		return Message{}, &ErrMissingAttachments{IDs: missing}
 	}
 
 	if err := b.storer.Save(ctx, message); err != nil {
@@ -75,9 +111,9 @@ func (b *Business) Update(ctx context.Context, msg Message, up UpdateMessage) (M
 		msg.Subject = *up.Subject
 	}
 
-	if up.AttachmentID != nil {
-		if up.AttachmentID.Valid {
-			atch, err := b.attachmentQuerier.QueryByID(ctx, up.AttachmentID.UUID)
+	if up.HtmlBodyID != nil {
+		if up.HtmlBodyID.Valid {
+			atch, err := b.attachmentQuerier.QueryByID(ctx, up.HtmlBodyID.UUID)
 			if err != nil {
 				return Message{}, fmt.Errorf("update: %w", err)
 			}
@@ -87,7 +123,44 @@ func (b *Business) Update(ctx context.Context, msg Message, up UpdateMessage) (M
 			}
 		}
 
-		msg.AttachmentID = *up.AttachmentID
+		msg.HtmlBodyID = *up.HtmlBodyID
+	}
+
+	if up.AttachmentIDs != nil {
+		counts := make(map[uuid.UUID]int)
+		for _, id := range up.AttachmentIDs {
+			counts[id]++
+		}
+
+		var duplicates []uuid.UUID
+		for id, count := range counts {
+			if count > 1 {
+				duplicates = append(duplicates, id)
+			}
+		}
+
+		if len(duplicates) > 0 {
+			return Message{}, &ErrDuplicateAttachments{IDs: duplicates}
+		}
+
+		var missing []uuid.UUID
+		for _, id := range up.AttachmentIDs {
+			_, err := b.attachmentQuerier.QueryByID(ctx, id)
+			if err != nil {
+				if errors.Is(err, attachmentbus.ErrNotFound) {
+					missing = append(missing, id)
+					continue
+				}
+
+				return Message{}, fmt.Errorf("update: %w", err)
+			}
+		}
+
+		if len(missing) > 0 {
+			return Message{}, &ErrMissingAttachments{IDs: missing}
+		}
+
+		msg.AttachmentIDs = up.AttachmentIDs
 	}
 
 	if err := b.storer.Update(ctx, msg); err != nil {

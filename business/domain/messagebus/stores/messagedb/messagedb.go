@@ -18,7 +18,7 @@ import (
 
 const (
 	uniqueLabelConstraint  = "messages_label_key"
-	attachmentFKConstraint = "messages_attachment_id_fkey"
+	attachmentFKConstraint = "messages_html_body_id_fkey"
 )
 
 type Store struct {
@@ -33,12 +33,12 @@ func (s *Store) Save(ctx context.Context, msg messagebus.Message) error {
 	dbMsg := toDBMessage(msg)
 
 	err := s.q.Save(ctx, sqlc.SaveParams{
-		ID:           dbMsg.ID,
-		Label:        dbMsg.Label,
-		FromEmail:    dbMsg.FromEmail,
-		FromName:     dbMsg.FromName,
-		Subject:      dbMsg.Subject,
-		AttachmentID: dbMsg.AttachmentID,
+		ID:         dbMsg.ID,
+		Label:      dbMsg.Label,
+		FromEmail:  dbMsg.FromEmail,
+		FromName:   dbMsg.FromName,
+		Subject:    dbMsg.Subject,
+		HtmlBodyID: dbMsg.HtmlBodyID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -56,6 +56,14 @@ func (s *Store) Save(ctx context.Context, msg messagebus.Message) error {
 		return fmt.Errorf("db: %w", err)
 	}
 
+	err = s.q.SyncAttachments(ctx, sqlc.SyncAttachmentsParams{
+		MessageID:     msg.ID,
+		AttachmentIds: msg.AttachmentIDs,
+	})
+	if err != nil {
+		return fmt.Errorf("db: %w", err)
+	}
+
 	return nil
 }
 
@@ -63,12 +71,12 @@ func (s *Store) Update(ctx context.Context, msg messagebus.Message) error {
 	dbMsg := toDBMessage(msg)
 
 	err := s.q.Update(ctx, sqlc.UpdateParams{
-		ID:           dbMsg.ID,
-		Label:        dbMsg.Label,
-		FromEmail:    dbMsg.FromEmail,
-		FromName:     dbMsg.FromName,
-		Subject:      dbMsg.Subject,
-		AttachmentID: dbMsg.AttachmentID,
+		ID:         dbMsg.ID,
+		Label:      dbMsg.Label,
+		FromEmail:  dbMsg.FromEmail,
+		FromName:   dbMsg.FromName,
+		Subject:    dbMsg.Subject,
+		HtmlBodyID: dbMsg.HtmlBodyID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -83,6 +91,14 @@ func (s *Store) Update(ctx context.Context, msg messagebus.Message) error {
 			}
 		}
 
+		return fmt.Errorf("db: %w", err)
+	}
+
+	err = s.q.SyncAttachments(ctx, sqlc.SyncAttachmentsParams{
+		MessageID:     msg.ID,
+		AttachmentIds: msg.AttachmentIDs,
+	})
+	if err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
 
@@ -107,7 +123,12 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (messagebus.Message
 		return messagebus.Message{}, fmt.Errorf("db: %w", err)
 	}
 
-	msg, err := toBusMessage(dbMsg)
+	attachmentIDs, err := s.q.QueryAttachments(ctx, id)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return messagebus.Message{}, fmt.Errorf("db: %w", err)
+	}
+
+	msg, err := toBusMessage(dbMsg, attachmentIDs)
 	if err != nil {
 		return messagebus.Message{}, fmt.Errorf("db: %w", err)
 	}
@@ -132,7 +153,22 @@ func (s *Store) Query(ctx context.Context, filter messagebus.QueryFilter, orderB
 		return nil, fmt.Errorf("db: %w", err)
 	}
 
-	messages, err := toBusMessages(dbMessages)
+	messageIDs := make([]uuid.UUID, len(dbMessages))
+	for i, m := range dbMessages {
+		messageIDs[i] = m.ID
+	}
+
+	rows, err := s.q.QueryAttachmentsByMessageIDs(ctx, messageIDs)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("db: %w", err)
+	}
+
+	attachmentsByMsg := make(map[uuid.UUID][]uuid.UUID)
+	for _, row := range rows {
+		attachmentsByMsg[row.MessageID] = append(attachmentsByMsg[row.MessageID], row.AttachmentID)
+	}
+
+	messages, err := toBusMessages(dbMessages, attachmentsByMsg)
 	if err != nil {
 		return nil, fmt.Errorf("db: %w", err)
 	}

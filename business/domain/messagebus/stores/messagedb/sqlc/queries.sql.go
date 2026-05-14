@@ -54,7 +54,7 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 const query = `-- name: Query :many
-SELECT id, label, from_email, from_name, subject, attachment_id FROM messages
+SELECT id, label, from_email, from_name, subject, html_body_id FROM messages
 WHERE
     -- Точный поиск по ID (если передан)
     ($1::uuid IS NULL OR id = $1)
@@ -120,7 +120,7 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error)
 			&i.FromEmail,
 			&i.FromName,
 			&i.Subject,
-			&i.AttachmentID,
+			&i.HtmlBodyID,
 		); err != nil {
 			return nil, err
 		}
@@ -132,8 +132,57 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error)
 	return items, nil
 }
 
+const queryAttachments = `-- name: QueryAttachments :many
+SELECT attachment_id FROM message_attachments WHERE message_id = $1
+`
+
+func (q *Queries) QueryAttachments(ctx context.Context, messageID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, queryAttachments, messageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var attachment_id uuid.UUID
+		if err := rows.Scan(&attachment_id); err != nil {
+			return nil, err
+		}
+		items = append(items, attachment_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const queryAttachmentsByMessageIDs = `-- name: QueryAttachmentsByMessageIDs :many
+SELECT message_id, attachment_id FROM message_attachments
+WHERE message_id = ANY($1::uuid[])
+`
+
+func (q *Queries) QueryAttachmentsByMessageIDs(ctx context.Context, messageIds []uuid.UUID) ([]MessageAttachment, error) {
+	rows, err := q.db.Query(ctx, queryAttachmentsByMessageIDs, messageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MessageAttachment
+	for rows.Next() {
+		var i MessageAttachment
+		if err := rows.Scan(&i.MessageID, &i.AttachmentID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const queryByID = `-- name: QueryByID :one
-SELECT id, label, from_email, from_name, subject, attachment_id FROM messages
+SELECT id, label, from_email, from_name, subject, html_body_id FROM messages
 WHERE id = $1
 `
 
@@ -146,7 +195,7 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Message, error) 
 		&i.FromEmail,
 		&i.FromName,
 		&i.Subject,
-		&i.AttachmentID,
+		&i.HtmlBodyID,
 	)
 	return i, err
 }
@@ -158,19 +207,19 @@ INSERT INTO messages (
     from_email,
     from_name,
     subject,
-    attachment_id
+    html_body_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
 `
 
 type SaveParams struct {
-	ID           uuid.UUID
-	Label        string
-	FromEmail    string
-	FromName     pgtype.Text
-	Subject      pgtype.Text
-	AttachmentID *uuid.UUID
+	ID         uuid.UUID
+	Label      string
+	FromEmail  string
+	FromName   pgtype.Text
+	Subject    pgtype.Text
+	HtmlBodyID *uuid.UUID
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
@@ -180,8 +229,35 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 		arg.FromEmail,
 		arg.FromName,
 		arg.Subject,
-		arg.AttachmentID,
+		arg.HtmlBodyID,
 	)
+	return err
+}
+
+const syncAttachments = `-- name: SyncAttachments :exec
+WITH new_attachments AS (
+    SELECT $1::uuid AS message_id, 
+           unnest($2::uuid[]) AS attachment_id
+),
+inserted AS (
+    INSERT INTO message_attachments (message_id, attachment_id)
+    SELECT message_id, attachment_id FROM new_attachments
+    ON CONFLICT ON CONSTRAINT message_attachments_pkey DO NOTHING
+)
+DELETE FROM message_attachments ma
+WHERE ma.message_id = $1
+  AND ma.attachment_id NOT IN (
+      SELECT attachment_id FROM new_attachments
+)
+`
+
+type SyncAttachmentsParams struct {
+	MessageID     uuid.UUID
+	AttachmentIds []uuid.UUID
+}
+
+func (q *Queries) SyncAttachments(ctx context.Context, arg SyncAttachmentsParams) error {
+	_, err := q.db.Exec(ctx, syncAttachments, arg.MessageID, arg.AttachmentIds)
 	return err
 }
 
@@ -192,17 +268,17 @@ SET
     from_email = $2,
     from_name = $3,
     subject = $4,
-    attachment_id = $5
+    html_body_id = $5
 WHERE id = $6
 `
 
 type UpdateParams struct {
-	Label        string
-	FromEmail    string
-	FromName     pgtype.Text
-	Subject      pgtype.Text
-	AttachmentID *uuid.UUID
-	ID           uuid.UUID
+	Label      string
+	FromEmail  string
+	FromName   pgtype.Text
+	Subject    pgtype.Text
+	HtmlBodyID *uuid.UUID
+	ID         uuid.UUID
 }
 
 func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
@@ -211,7 +287,7 @@ func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
 		arg.FromEmail,
 		arg.FromName,
 		arg.Subject,
-		arg.AttachmentID,
+		arg.HtmlBodyID,
 		arg.ID,
 	)
 	return err
