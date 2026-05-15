@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/migrate"
 )
+
+var ErrHelp = errors.New("provided help")
 
 func Migrate(cfg database.Config, timeOut time.Duration) error {
 	db, err := sql.Open("pgx", cfg.DSN())

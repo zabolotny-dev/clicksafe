@@ -13,6 +13,9 @@ const apiRoutes = [
   '/campaign',
   '/target',
   '/vtarget',
+  '/login',
+  '/logout',
+  '/me',
   '/public',
 ]
 

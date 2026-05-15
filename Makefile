@@ -37,4 +37,8 @@ rebuild:
 
 ## Только миграции
 migrate:
-	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-migrator
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-tool
+
+## Запуск CLI-утилиты (пример: make cli CMD="admins" или make cli CMD="revoke <id>")
+cli:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-tool /clicksafe_tool $(CMD)

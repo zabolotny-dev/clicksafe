@@ -10,6 +10,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus"
 )
 
 type ctxKey int
@@ -22,6 +23,7 @@ const (
 	targetKey
 	landingKey
 	attachmentKey
+	sessionKey
 )
 
 func setDepartment(ctx context.Context, d departmentbus.Department) context.Context {
@@ -106,4 +108,16 @@ func GetAttachment(ctx context.Context) (attachmentbus.Attachment, error) {
 		return attachmentbus.Attachment{}, errors.New("attachment not found in context")
 	}
 	return atch, nil
+}
+
+func setSession(ctx context.Context, s sessionbus.Session) context.Context {
+	return context.WithValue(ctx, sessionKey, s)
+}
+
+func GetSession(ctx context.Context) (sessionbus.Session, error) {
+	s, ok := ctx.Value(sessionKey).(sessionbus.Session)
+	if !ok {
+		return sessionbus.Session{}, errors.New("session not found in context")
+	}
+	return s, nil
 }

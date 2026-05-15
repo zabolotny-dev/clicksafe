@@ -24,10 +24,20 @@ export function useApiConsole() {
   const activeSection = ref('campaigns')
   const traces = ref([])
   const lastError = ref(null)
+  const authChecked = ref(false)
+  const session = ref(null)
+  const loginForm = reactive({
+    login: '',
+    password: '',
+  })
 
   watch(apiBaseUrl, (value) => storeApiBase(value))
 
-  const api = createApiClient(() => apiBaseUrl.value, addTrace)
+  const api = createApiClient(
+    () => apiBaseUrl.value,
+    addTrace,
+    () => session.value?.csrf_token ?? '',
+  )
 
   const loading = reactive({
     bootstrap: false,
@@ -43,6 +53,15 @@ export function useApiConsole() {
     content: false,
     landingContent: false,
     render: false,
+    auth: false,
+  })
+
+  const isAuthenticated = computed(() => Boolean(session.value))
+  const sessionLabel = computed(() => {
+    const firstName = session.value?.first_name ?? ''
+    const lastName = session.value?.last_name ?? ''
+    const fullName = `${firstName} ${lastName}`.trim()
+    return fullName || 'Администратор'
   })
 
   const organization = ref(null)
@@ -385,6 +404,18 @@ export function useApiConsole() {
     })
   }
 
+  function isAuthError(error) {
+    return error?.status === 401 || error?.status === 403
+  }
+
+  function assertSessionPayload(payload) {
+    if (!payload || typeof payload !== 'object' || !payload.csrf_token) {
+      throw new Error('Сервер вернул некорректную сессию')
+    }
+
+    return payload
+  }
+
   async function confirmAction(message, confirmButtonText = 'Удалить') {
     try {
       await ElMessageBox.confirm(message, 'Подтверждение', {
@@ -411,11 +442,97 @@ export function useApiConsole() {
 
       return result
     } catch (error) {
+      if (isAuthError(error)) {
+        const hadSession = Boolean(session.value)
+        session.value = null
+        if (hadSession) {
+          showError(error, 'Сессия истекла')
+        }
+        return null
+      }
+
       showError(error)
       return null
     } finally {
       loading[key] = false
     }
+  }
+
+  async function restoreSession() {
+    loading.auth = true
+    lastError.value = null
+
+    try {
+      session.value = assertSessionPayload(await api.get('/me'))
+      await refreshAll()
+    } catch (error) {
+      session.value = null
+
+      if (!isAuthError(error)) {
+        showError(error, 'Не удалось проверить сессию')
+      }
+    } finally {
+      authChecked.value = true
+      loading.auth = false
+    }
+  }
+
+  async function login() {
+    if (loading.auth) {
+      return null
+    }
+
+    if (!loginForm.login || !loginForm.password) {
+      ElMessage.warning('Введи логин и пароль')
+      return null
+    }
+
+    loading.auth = true
+    lastError.value = null
+
+    try {
+      session.value = assertSessionPayload(await api.post('/login', {
+        login: loginForm.login,
+        password: loginForm.password,
+      }, { skipCsrf: true }))
+      loginForm.password = ''
+      await refreshAll()
+      ElMessage.success(`Добро пожаловать, ${sessionLabel.value}`)
+      return session.value
+    } catch (error) {
+      session.value = null
+      showError(error, 'Не удалось войти')
+      return null
+    } finally {
+      authChecked.value = true
+      loading.auth = false
+    }
+  }
+
+  async function logout() {
+    if (loading.auth) {
+      return null
+    }
+
+    loading.auth = true
+    lastError.value = null
+
+    try {
+      if (session.value) {
+        await api.post('/logout', {}, { skipCsrf: true })
+      }
+    } catch (error) {
+      if (!isAuthError(error)) {
+        showError(error, 'Не удалось выйти')
+      }
+    } finally {
+      session.value = null
+      loginForm.password = ''
+      authChecked.value = true
+      loading.auth = false
+    }
+
+    return null
   }
 
   async function loadOrganization() {
@@ -1505,10 +1622,11 @@ export function useApiConsole() {
     traces.value = []
   }
 
-  onMounted(refreshAll)
+  onMounted(restoreSession)
 
   return {
     activeSection,
+    authChecked,
     attachmentByID,
     attachmentIDOf,
     attachmentLabel,
@@ -1551,12 +1669,15 @@ export function useApiConsole() {
     employeeResult,
     formatDate,
     htmlAttachments,
+    isAuthenticated,
     landingByID,
     landingForm,
     landingQuery,
     landingResult,
     landingTemplateText,
     lastError,
+    login,
+    loginForm,
     loadCampaigns,
     loadAttachments,
     loadDepartments,
@@ -1566,6 +1687,7 @@ export function useApiConsole() {
     loadOrganization,
     loadTargets,
     loading,
+    logout,
     messageByID,
     messageForm,
     messageQuery,
@@ -1619,6 +1741,8 @@ export function useApiConsole() {
     targetStatuses,
     templateText,
     traces,
+    session,
+    sessionLabel,
     updateTargetSchedule,
     uploadLandingFile,
     uploadLandingText,

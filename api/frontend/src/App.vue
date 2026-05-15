@@ -4,6 +4,7 @@ import AppSidebar from './components/AppSidebar.vue'
 import CampaignsSection from './components/CampaignsSection.vue'
 import DirectorySection from './components/DirectorySection.vue'
 import LandingsSection from './components/LandingsSection.vue'
+import LoginPanel from './components/LoginPanel.vue'
 import MessagesSection from './components/MessagesSection.vue'
 import OrganizationSection from './components/OrganizationSection.vue'
 import RoutesSection from './components/RoutesSection.vue'
@@ -21,6 +22,7 @@ const {
   attachmentUrl,
   apiBaseLabel,
   apiBaseUrl,
+  authChecked,
   autoDistributeTargets,
   bootstrapDemo,
   campaignByID,
@@ -56,12 +58,15 @@ const {
   employeeResult,
   formatDate,
   htmlAttachments,
+  isAuthenticated,
   landingByID,
   landingForm,
   landingQuery,
   landingResult,
   landingTemplateText,
   lastError,
+  login,
+  loginForm,
   loadCampaigns,
   loadDepartments,
   loadEmployees,
@@ -70,6 +75,7 @@ const {
   loadOrganization,
   loadTargets,
   loading,
+  logout,
   messageByID,
   messageForm,
   messageQuery,
@@ -115,6 +121,7 @@ const {
   selectedMessageId,
   selectedTarget,
   selectedTargetId,
+  sessionLabel,
   shortId,
   targetForm,
   targetName,
@@ -140,7 +147,40 @@ const activeTitle = computed(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <main
+    v-if="!authChecked"
+    class="login-page"
+  >
+    <section class="login-panel login-panel-check">
+      <div class="brand login-brand">
+        <div class="brand-mark">CS</div>
+        <div>
+          <strong>ClickSafe</strong>
+          <span>Admin Panel</span>
+        </div>
+      </div>
+      <el-skeleton
+        animated
+        :rows="3"
+      />
+    </section>
+  </main>
+
+  <LoginPanel
+    v-else-if="!isAuthenticated"
+    v-model:api-base-url="apiBaseUrl"
+    :api-base-label="apiBaseLabel"
+    :form="loginForm"
+    :last-error="lastError"
+    :loading="loading"
+    @clear-error="clearLastError"
+    @login="login"
+  />
+
+  <div
+    v-else
+    class="app-shell"
+  >
     <AppSidebar
       v-model:active-section="activeSection"
       v-model:api-base-url="apiBaseUrl"
@@ -152,7 +192,9 @@ const activeTitle = computed(() => {
       <TopBar
         :active-title="activeTitle"
         :loading="loading"
+        :session-label="sessionLabel"
         @bootstrap="bootstrapDemo"
+        @logout="logout"
         @refresh="refreshAll"
       />
 

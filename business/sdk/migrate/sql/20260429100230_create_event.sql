@@ -10,6 +10,25 @@ CREATE TABLE IF NOT EXISTS events(
     referer TEXT,
     occurred_at TIMESTAMP NOT NULL
 );
+CREATE TABLE IF NOT EXISTS admins (
+    id UUID PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    login VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY,
+    admin_id UUID NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    csrf_token VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    ip_address INET,
+    user_agent TEXT
+);
 CREATE TABLE IF NOT EXISTS departments (
     id UUID PRIMARY KEY,
     label VARCHAR(255) NOT NULL UNIQUE,
@@ -83,10 +102,14 @@ CREATE INDEX IF NOT EXISTS idx_landings_html_body_id ON landings(html_body_id);
 CREATE INDEX IF NOT EXISTS idx_messages_html_body_id ON messages(html_body_id);
 CREATE INDEX IF NOT EXISTS idx_message_attachments_attachment_id ON message_attachments(attachment_id);
 CREATE INDEX IF NOT EXISTS idx_organizations_attachment_id ON organizations(attachment_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_admin_id ON sessions(admin_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
+DROP INDEX IF EXISTS idx_sessions_expires_at;
+DROP INDEX IF EXISTS idx_sessions_admin_id;
 DROP INDEX IF EXISTS idx_landings_html_body_id;
 DROP INDEX IF EXISTS idx_messages_html_body_id;
 DROP INDEX IF EXISTS idx_message_attachments_attachment_id;
@@ -100,5 +123,7 @@ DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS attachments;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS departments;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS admins;
 DROP TABLE IF EXISTS events;
 -- +goose StatementEnd

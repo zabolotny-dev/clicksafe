@@ -2,6 +2,7 @@ import {
   Connection,
   Files,
   Flag,
+  Lock,
   Message as MessageIcon,
   Monitor,
   OfficeBuilding,
@@ -9,6 +10,15 @@ import {
 } from '@element-plus/icons-vue'
 
 export const endpointGroups = [
+  {
+    name: 'Auth',
+    icon: Lock,
+    routes: [
+      ['POST', '/login', 'создать session cookie и получить csrf_token'],
+      ['GET', '/me', 'проверить сессию и обновить csrf_token'],
+      ['POST', '/logout', 'закрыть текущую сессию'],
+    ],
+  },
   {
     name: 'Organization',
     icon: OfficeBuilding,

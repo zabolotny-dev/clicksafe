@@ -1,4 +1,14 @@
-http:// {
+api.bebra.com {
+	tls internal
+
+	header {
+		>Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' data: blob:; upgrade-insecure-requests"
+		>X-Frame-Options "DENY"
+		>X-Content-Type-Options "nosniff"
+		>Referrer-Policy "strict-origin-when-cross-origin"
+		# >Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
 	handle /organization* {
 		reverse_proxy api:8080
 	}
@@ -39,8 +49,15 @@ http:// {
 		reverse_proxy api:8080
 	}
 
-	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
-	handle @visit {
+	handle /login* {
+		reverse_proxy api:8080
+	}
+
+	handle /logout* {
+		reverse_proxy api:8080
+	}
+
+	handle /me* {
 		reverse_proxy api:8080
 	}
 
@@ -48,5 +65,31 @@ http:// {
 		root * /var/www/my-app/frontend
 		try_files {path} {path}/ /index.html
 		file_server
+	}
+}
+
+:80 {
+	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
+	handle @visit {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		respond "Not Found" 404
+	}
+}
+
+:443 {
+	tls internal {
+		on_demand
+	}
+
+	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
+	handle @visit {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		respond "Not Found" 404
 	}
 }

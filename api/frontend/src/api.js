@@ -49,19 +49,30 @@ function formatApiError(status, payload) {
   return [payload.message, details].filter(Boolean).join(' | ') || `HTTP ${status}`
 }
 
-export function createApiClient(getBaseUrl, onTrace) {
-  async function request(path, options = {}) {
-    const method = options.method ?? 'GET'
-    const startedAt = performance.now()
-    const headers = { ...(options.headers ?? {}) }
+function needsCsrf(method) {
+  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())
+}
 
-    if (options.body && !(options.body instanceof FormData)) {
+export function createApiClient(getBaseUrl, onTrace, getCSRFToken) {
+  async function request(path, options = {}) {
+    const { skipCsrf = false, ...fetchOptions } = options
+    const method = fetchOptions.method ?? 'GET'
+    const startedAt = performance.now()
+    const headers = { ...(fetchOptions.headers ?? {}) }
+
+    if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json'
     }
 
+    const csrfToken = getCSRFToken?.()
+    if (csrfToken && needsCsrf(method) && !skipCsrf) {
+      headers['X-CSRF-Token'] = csrfToken
+    }
+
     const response = await fetch(joinUrl(getBaseUrl(), path), {
-      ...options,
+      ...fetchOptions,
       headers,
+      credentials: 'include',
     })
     const payload = await readResponse(response)
     const elapsedMs = Math.round(performance.now() - startedAt)

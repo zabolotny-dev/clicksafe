@@ -23,12 +23,12 @@ services:
     networks:
       - clicksafe
 
-  api-migrator:
+  api-tool:
     build:
       context: ../..
       dockerfile: zarf/docker/Dockerfile.api
     image: clicksafe-api:latest
-    container_name: clicksafe-api-migrator
+    container_name: clicksafe-api-tool
     command: [ "/clicksafe_tool", "migrate" ]
     environment:
       - TOOLING_DB_USER=${POSTGRES_USER}
@@ -60,6 +60,10 @@ services:
       - API_SMTP_PASSWORD=${SMTP_PASSWORD}
       - API_SMTP_TLS=${SMTP_TLS}
       - API_SMTP_SSL=${SMTP_SSL}
+      - API_AUTH_TOKEN_HASH_KEY=${AUTH_TOKEN_HASH_KEY}
+      - API_AUTH_LOGIN_REQUESTS_PER_MINUTE=${AUTH_LOGIN_REQUESTS_PER_MINUTE}
+      - API_AUTH_LOGIN_BURST=${AUTH_LOGIN_BURST}
+      - API_AUTH_LOGIN_EXPIRES_IN=${AUTH_LOGIN_EXPIRES_IN}
       - API_STORAGE_ATTACHMENT_ROOT_DIR=/var/www/my-app/private/attachment
       - API_STORAGE_ATTACHMENT_PATH_PREFIX=/attachment
     env_file:
@@ -69,7 +73,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      api-migrator:
+      api-tool:
         condition: service_completed_successfully
     networks:
       - clicksafe

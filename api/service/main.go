@@ -14,6 +14,8 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/zabolotny-dev/clicksafe/api/service/build"
 	"github.com/zabolotny-dev/clicksafe/api/service/workers"
+	"github.com/zabolotny-dev/clicksafe/business/domain/adminbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/adminbus/stores/admindb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus/stores/attachmentdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
@@ -32,15 +34,20 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus/stores/organizationdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus/stores/sessiondb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus/stores/vtargetdb"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/authbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/deliverybus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/visitbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 	"github.com/zabolotny-dev/clicksafe/foundation/mail"
+	"github.com/zabolotny-dev/clicksafe/foundation/password"
+	"github.com/zabolotny-dev/clicksafe/foundation/token"
 )
 
 func main() {
@@ -92,6 +99,19 @@ func run(ctx context.Context, log *logger.Logger) error {
 			TLS      string        `conf:"default:none"`
 			SSL      bool          `conf:"default:false"`
 		}
+		Auth struct {
+			ArgonMemory            uint32        `conf:"default:65536"`
+			ArgonIterations        uint32        `conf:"default:3"`
+			ArgonParallelism       uint8         `conf:"default:2"`
+			ArgonSaltLength        uint32        `conf:"default:16"`
+			ArgonKeyLength         uint32        `conf:"default:32"`
+			TokenHashKey           string        `conf:"noprint"`
+			TokenBytes             int           `conf:"default:32"`
+			SessionTTL             time.Duration `conf:"default:8h"`
+			LoginRequestsPerMinute int           `conf:"default:10"`
+			LoginBurst             int           `conf:"default:10"`
+			LoginExpiresIn         time.Duration `conf:"default:3m"`
+		}
 	}{}
 
 	const prefix = "API"
@@ -140,9 +160,37 @@ func run(ctx context.Context, log *logger.Logger) error {
 	}
 
 	// -------------------------------------------------------------------------
+	// Crypto and Token Support
+
+	hasher, err := password.New(password.Argon2idConfig{
+		Memory:      cfg.Auth.ArgonMemory,
+		Iterations:  cfg.Auth.ArgonIterations,
+		Parallelism: cfg.Auth.ArgonParallelism,
+		SaltLength:  cfg.Auth.ArgonSaltLength,
+		KeyLength:   cfg.Auth.ArgonKeyLength,
+	})
+	if err != nil {
+		return fmt.Errorf("creating password hasher: %w", err)
+	}
+
+	tokenManager, err := token.New(token.Config{
+		TokenBytes: cfg.Auth.TokenBytes,
+		HashKey:    cfg.Auth.TokenHashKey,
+	})
+	if err != nil {
+		return fmt.Errorf("creating tokeninzier: %w", err)
+	}
+
+	// -------------------------------------------------------------------------
 	// Create Business Packages
 
 	attachmentFileStore := filestore.New(cfg.Storage.AttachmentRootDir, cfg.Storage.AttachmentPathPrefix)
+
+	adminStore := admindb.NewStore(db)
+	adminBus := adminbus.NewBusiness(hasher, adminStore)
+
+	sessionStore := sessiondb.NewStore(db)
+	sessionBus := sessionbus.NewBusiness(sessionStore, tokenManager, cfg.Auth.SessionTTL)
 
 	eventStore := eventdb.NewStore(db)
 	eventBus := eventbus.NewBusinnes(eventStore)
@@ -176,6 +224,8 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	renderBus := renderbus.NewBusiness(attachmentFileStore, resolverBus)
 
+	authBus := authbus.NewBusiness(adminBus, sessionBus)
+
 	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, resolverBus, attachmentBus)
 
 	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, attachmentBus, smtpClient, eventBus, renderBus)
@@ -185,7 +235,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 	// -------------------------------------------------------------------------
 	// Start Workers
 
-	workers := workers.NewWorker(log, campaignBus, deliverybus, cfg.Worker.Interval)
+	workers := workers.NewWorker(log, campaignBus, deliverybus, sessionBus, cfg.Worker.Interval)
 	workers.Run(ctx)
 
 	// -------------------------------------------------------------------------
@@ -211,6 +261,13 @@ func run(ctx context.Context, log *logger.Logger) error {
 		VisitBus:        visitBus,
 		AttachmentBus:   attachmentBus,
 		RenderBus:       renderBus,
+		AuthBus:         authBus,
+		SessionBus:      sessionBus,
+		LoginRateLimit: build.LoginRateLimitConfig{
+			RequestsPerMinute: cfg.Auth.LoginRequestsPerMinute,
+			Burst:             cfg.Auth.LoginBurst,
+			ExpiresIn:         cfg.Auth.LoginExpiresIn,
+		},
 	})
 
 	s := http.Server{
