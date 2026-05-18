@@ -226,7 +226,7 @@ func TestResolveRejectsUnsupportedRoot(t *testing.T) {
 		&organizationGetterStub{},
 	)
 
-	_, _, err := business.Resolve(context.Background(), targetID, []string{"Campaign.Label"})
+	_, _, err := business.Resolve(context.Background(), targetID, []string{"Banana.Label"})
 	if !errors.Is(err, ErrUnsupportedPath) {
 		t.Fatalf("Resolve error = %v, want %v", err, ErrUnsupportedPath)
 	}
@@ -561,9 +561,11 @@ func testOrganization() organizationbus.Organization {
 type targetQuerierStub struct {
 	target    campaignbus.Target
 	url       string
-	err       error
-	calls     int
-	linkCalls int
+	err           error
+	calls         int
+	linkCalls     int
+	campaignCalls int
+	campaign      campaignbus.Campaign
 }
 
 func (s *targetQuerierStub) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target, error) {
@@ -584,6 +586,16 @@ func (s *targetQuerierStub) PhishingURL(ctx context.Context, id uuid.UUID) (stri
 	}
 
 	return s.url, nil
+}
+
+func (s *targetQuerierStub) QueryCampaignByID(ctx context.Context, id uuid.UUID) (campaignbus.Campaign, error) {
+	s.campaignCalls++
+
+	if s.err != nil {
+		return campaignbus.Campaign{}, s.err
+	}
+
+	return s.campaign, nil
 }
 
 type employeeQuerierStub struct {

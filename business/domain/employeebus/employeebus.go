@@ -19,6 +19,7 @@ var (
 
 type Storer interface {
 	Save(ctx context.Context, employee Employee) error
+	SaveMany(ctx context.Context, employees []Employee) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Employee, error)
 	Query(ctx context.Context, filter QueryFilter, orderBy order.By, page page.Page) ([]Employee, error)
 	Update(ctx context.Context, employee Employee) error
@@ -53,6 +54,31 @@ func (b *Business) Save(ctx context.Context, employee NewEmployee) (Employee, er
 	}
 
 	return emp, nil
+}
+
+func (b *Business) SaveMany(ctx context.Context, employees []NewEmployee) error {
+	emps := make([]Employee, len(employees))
+	for i, employee := range employees {
+		emps[i] = Employee{
+			ID:           uuid.New(),
+			DepartmentID: employee.DepartmentID,
+			FirstName:    employee.FirstName,
+			LastName:     employee.LastName,
+			Email:        employee.Email,
+			Phone:        employee.Phone,
+			Attributes:   employee.Attributes,
+		}
+	}
+
+	if len(emps) == 0 {
+		return nil
+	}
+
+	if err := b.storer.SaveMany(ctx, emps); err != nil {
+		return fmt.Errorf("savemany: %w", err)
+	}
+
+	return nil
 }
 
 func (b *Business) QueryByID(ctx context.Context, id uuid.UUID) (Employee, error) {

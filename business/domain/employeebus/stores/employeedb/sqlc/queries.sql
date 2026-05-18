@@ -11,6 +11,19 @@ INSERT INTO employees (
     $1, $2, $3, $4, $5, $6, $7
 );
 
+-- name: SaveMany :copyfrom
+INSERT INTO employees (
+    id,
+    department_id,
+    first_name,
+    last_name,
+    email,
+    phone_number,
+    attributes
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7
+);
+
 -- name: Update :exec
 UPDATE employees
 SET 

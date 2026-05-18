@@ -190,6 +190,16 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 	return err
 }
 
+type SaveManyParams struct {
+	ID           uuid.UUID
+	DepartmentID *uuid.UUID
+	FirstName    string
+	LastName     string
+	Email        string
+	PhoneNumber  pgtype.Text
+	Attributes   []byte
+}
+
 const update = `-- name: Update :exec
 UPDATE employees
 SET 

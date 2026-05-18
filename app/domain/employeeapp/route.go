@@ -20,6 +20,7 @@ func Routes(router *echo.Echo, cfg Config) {
 	loadEmployee := mid.LoadEmployee(cfg.EmployeeBus)
 
 	router.POST("/employee", api.create, authen, csrf)
+	router.POST("/employee/import", api.importCSV, authen, csrf)
 	router.GET("/employee/:id", api.queryByID, authen, loadEmployee)
 	router.GET("/employee", api.query, authen)
 	router.PUT("/employee/:id", api.update, authen, csrf, loadEmployee)

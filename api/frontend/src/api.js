@@ -108,7 +108,11 @@ export function createApiClient(getBaseUrl, onTrace, getCSRFToken) {
       request(path, {
         ...options,
         method: 'PUT',
-        body: body instanceof FormData ? body : JSON.stringify(body ?? {}),
+        body: body === undefined
+          ? undefined
+          : body instanceof FormData
+            ? body
+            : JSON.stringify(body ?? {}),
       }),
   }
 }

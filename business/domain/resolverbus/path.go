@@ -12,6 +12,7 @@ const (
 	rootDepartment   = "Department"
 	rootOrganization = "Organization"
 	rootTarget       = "Target"
+	rootCampaign     = "Campaign"
 )
 
 func splitPath(path string) ([]string, error) {

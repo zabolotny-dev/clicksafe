@@ -2,6 +2,10 @@
 INSERT INTO departments (id, label, attributes)
 VALUES ($1, $2, $3);
 
+-- name: SaveMany :copyfrom
+INSERT INTO departments (id, label, attributes)
+VALUES ($1, $2, $3);
+
 -- name: Update :exec
 UPDATE departments
 SET label = $1, attributes = $2

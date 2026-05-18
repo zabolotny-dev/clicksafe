@@ -27,6 +27,20 @@ func toDBEmployee(e employeebus.Employee) (sqlc.Employee, error) {
 	}, nil
 }
 
+func toDBEmployees(employees []employeebus.Employee) ([]sqlc.Employee, error) {
+	dbEmployees := make([]sqlc.Employee, len(employees))
+
+	for i, e := range employees {
+		var err error
+		dbEmployees[i], err = toDBEmployee(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return dbEmployees, nil
+}
+
 func toBusEmployee(e sqlc.Employee) (employeebus.Employee, error) {
 	var attributes map[string]string
 	if len(e.Attributes) > 0 {

@@ -12,6 +12,7 @@ var allowedTemplateRoots = map[string]struct{}{
 	"Department":   {},
 	"Employee":     {},
 	"Target":       {},
+	"Campaign":     {},
 }
 
 func validateAndExtractRequiredVars(content []byte, t AttachmentType) (vars []string, err error) {

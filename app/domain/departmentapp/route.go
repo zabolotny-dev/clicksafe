@@ -22,6 +22,7 @@ func Routes(router *echo.Echo, cfg Config) {
 	router.GET("/department", api.query, authen)
 	router.GET("/department/:id", api.queryByID, authen, loadDepartment)
 	router.POST("/department", api.create, authen, csrf)
+	router.POST("/department/import", api.importCSV, authen, csrf)
 	router.PUT("/department/:id", api.update, authen, csrf, loadDepartment)
 	router.DELETE("/department/:id", api.deleteByID, authen, csrf, loadDepartment)
 }

@@ -1,0 +1,1308 @@
+{
+  "app": {
+    "name": "ClickSafe",
+    "adminPanel": "Панель ClickSafe",
+    "securitySimulationConsole": "Консоль симуляций безопасности"
+  },
+  "sections": {
+    "operations": "Операции",
+    "campaigns": "Кампании",
+    "templates": "Шаблоны",
+    "people": "Люди",
+    "analytics": "Аналитика",
+    "settings": "Настройки",
+    "auth": "Вход"
+  },
+  "nav": {
+    "dashboard": "Дашборд",
+    "campaigns": "Кампании",
+    "templates": "Шаблоны",
+    "emailTemplates": "Шаблоны писем",
+    "landingPages": "Лендинги",
+    "attachments": "Файлы",
+    "people": "Люди",
+    "employees": "Сотрудники",
+    "departments": "Отделы",
+    "reports": "Отчеты",
+    "organizationSettings": "Организация"
+  },
+  "routes": {
+    "dashboard": {
+      "title": "Дашборд",
+      "description": "Оперативный обзор кампаний, событий и риск-сигналов."
+    },
+    "campaigns": {
+      "title": "Кампании",
+      "description": "Управление кампаниями, их жизненным циклом и настройкой."
+    },
+    "campaignCreate": {
+      "title": "Создать кампанию",
+      "description": "Настройка кампании, ресурсов, целей и расписания."
+    },
+    "campaignEdit": {
+      "title": "Редактировать кампанию",
+      "description": "Обновление полей кампании, целей и расписания."
+    },
+    "campaignDetail": {
+      "title": "Мониторинг кампании",
+      "description": "Статус кампании, цели, события и производная аналитика."
+    },
+    "targetsEvents": {
+      "title": "Цели и события",
+      "description": "Поиск целей кампаний и просмотр истории событий."
+    },
+    "emailTemplates": {
+      "title": "Шаблоны писем",
+      "description": "Управление отправителем, темой, HTML-контентом и файлами."
+    },
+    "emailTemplateCreate": {
+      "title": "Создать шаблон письма",
+      "description": "Создание шаблона письма с HTML-контентом и файлами."
+    },
+    "emailTemplateEdit": {
+      "title": "Редактировать шаблон письма",
+      "description": "Обновление отправителя, HTML-контента и файлов шаблона."
+    },
+    "landingPages": {
+      "title": "Лендинги",
+      "description": "Управление шаблонами лендингов для кампаний."
+    },
+    "landingPageCreate": {
+      "title": "Создать лендинг",
+      "description": "Создание лендинга на основе сохраненного HTML-файла."
+    },
+    "landingPageEdit": {
+      "title": "Редактировать лендинг",
+      "description": "Обновление метки лендинга и HTML-контента."
+    },
+    "attachments": {
+      "title": "Файлы",
+      "description": "Управление загруженными файлами, HTML-ресурсами и их свойствами."
+    },
+    "employees": {
+      "title": "Сотрудники",
+      "description": "Управление сотрудниками для выбора целей кампаний."
+    },
+    "employeeCreate": {
+      "title": "Создать сотрудника",
+      "description": "Создание записи сотрудника для выбора в целях кампаний."
+    },
+    "departments": {
+      "title": "Отделы",
+      "description": "Управление отделами и связанными атрибутами."
+    },
+    "departmentCreate": {
+      "title": "Создать отдел",
+      "description": "Создание отдела для группировки сотрудников."
+    },
+    "reports": {
+      "title": "Отчеты",
+      "description": "Производная аналитика по кампаниям, целям и событиям."
+    },
+    "organizationSettings": {
+      "title": "Организация",
+      "description": "Профиль организации, брендинг и атрибуты."
+    }
+  },
+  "common": {
+    "placeholder": "—",
+    "loadedCount": "Загружено из бэкенда: {count}",
+    "availableCount": "{filtered} из {total} доступно",
+    "actions": {
+      "save": "Сохранить",
+      "confirm": "Подтвердить",
+      "saveChanges": "Сохранить изменения",
+      "saveDraft": "Сохранить черновик",
+      "create": "Создать",
+      "createCampaign": "Создать кампанию",
+      "createAndDistribute": "Создать и распределить цели",
+      "createMessage": "Создать шаблон письма",
+      "createLanding": "Создать лендинг",
+      "createDepartment": "Создать отдел",
+      "createEmployee": "Создать сотрудника",
+      "cancel": "Отмена",
+      "back": "Назад",
+      "next": "Далее",
+      "continue": "Продолжить",
+      "continueEditing": "Продолжить редактирование",
+      "discard": "Не сохранять",
+      "discardChanges": "Не сохранять изменения",
+      "reset": "Сбросить",
+      "retry": "Повторить",
+      "refresh": "Обновить",
+      "edit": "Редактировать",
+      "delete": "Удалить",
+      "duplicate": "Дублировать",
+      "download": "Скачать",
+      "downloadFile": "Скачать файл",
+      "upload": "Загрузить",
+      "preview": "Предпросмотр",
+      "view": "Открыть",
+      "viewReports": "Смотреть отчеты",
+      "viewCampaigns": "Смотреть кампании",
+      "select": "Выбрать",
+      "selected": "Выбрано",
+      "clear": "Очистить",
+      "clearSelection": "Снять выбор",
+      "selectVisible": "Выбрать видимые",
+      "addSelected": "Добавить выбранных",
+      "addAttribute": "Добавить атрибут",
+      "signIn": "Войти",
+      "signOut": "Выйти",
+      "openCreatedCampaign": "Открыть созданную кампанию",
+      "autoDistribute": "Автораспределение",
+      "keepCampaign": "Оставить кампанию",
+      "keepTarget": "Оставить цель",
+      "keepEditing": "Продолжить редактирование",
+      "copy": "Копировать",
+      "copyPublicPath": "Копировать публичный путь",
+      "dismiss": "Закрыть"
+    },
+    "states": {
+      "loading": "Загрузка",
+      "loadingEllipsis": "Загрузка...",
+      "saving": "Сохранение...",
+      "creating": "Создание...",
+      "deleting": "Удаление...",
+      "uploading": "Загрузка файла...",
+      "working": "Выполнение...",
+      "submitting": "Отправка...",
+      "distributing": "Распределение...",
+      "starting": "Запуск...",
+      "pausing": "Пауза...",
+      "canceling": "Отмена..."
+    },
+    "labels": {
+      "name": "Название",
+      "fullName": "ФИО",
+      "email": "Email",
+      "phone": "Телефон",
+      "domain": "Домен",
+      "status": "Статус",
+      "subject": "Тема",
+      "from": "Отправитель",
+      "fromEmail": "Email отправителя",
+      "fromName": "Имя отправителя",
+      "htmlBody": "HTML",
+      "attachments": "Файлы",
+      "attributes": "Атрибуты",
+      "department": "Отдел",
+      "message": "Шаблон письма",
+      "landing": "Лендинг",
+      "educationAsset": "Обучающий ресурс",
+      "dateFrom": "Дата с",
+      "dateTo": "Дата по",
+      "dateRange": "Диапазон дат",
+      "currentSchedule": "Текущее время отправки",
+      "scheduledAt": "Время отправки",
+      "createdAt": "Создано",
+      "uploadedAt": "Загружено",
+      "type": "Тип",
+      "rows": "Строк",
+      "resourceType": "Тип ресурса",
+      "key": "Ключ",
+      "value": "Значение",
+      "id": "ID",
+      "token": "Токен",
+      "campaign": "Кампания",
+      "target": "Цель",
+      "targets": "Цели",
+      "employee": "Сотрудник",
+      "employees": "Сотрудники",
+      "events": "События",
+      "activity": "Активность",
+      "schedule": "Расписание",
+      "public": "Публичный",
+      "private": "Приватный",
+      "publicPath": "Публичный путь",
+      "requiredVars": "Обязательные переменные",
+      "fileName": "Имя файла",
+      "size": "Размер",
+      "generatedAt": "Сформировано",
+      "timeRange": "Диапазон времени",
+      "organization": "Организация",
+      "organizationId": "ID организации",
+      "branding": "Брендинг",
+      "brandingAttachment": "Файл брендинга",
+      "uploadBranding": "Загрузить брендинг",
+      "messageTemplate": "Шаблон письма",
+      "landingPage": "Лендинг",
+      "education": "Обучение",
+      "review": "Проверка",
+      "currentCount": "Текущее количество",
+      "selectedCount": "Выбрано",
+      "scheduled": "Назначено",
+      "unscheduled": "Без времени",
+      "visible": "Видимо",
+      "riskIndex": "Индекс риска",
+      "search": "Поиск",
+      "unknown": "Неизвестно"
+    },
+    "filters": {
+      "apply": "Применить фильтры",
+      "clear": "Очистить фильтры",
+      "allCampaigns": "Все кампании",
+      "allStatuses": "Все статусы",
+      "allEmployees": "Все сотрудники",
+      "allDepartments": "Все отделы",
+      "anyStatus": "Любой статус"
+    },
+    "date": {
+      "placeholder": "дд.мм.гггг",
+      "open": "Открыть календарь",
+      "clear": "Очистить дату",
+      "today": "Сегодня",
+      "previousMonth": "Предыдущий месяц",
+      "nextMonth": "Следующий месяц",
+      "months": [
+        "Январь",
+        "Февраль",
+        "Март",
+        "Апрель",
+        "Май",
+        "Июнь",
+        "Июль",
+        "Август",
+        "Сентябрь",
+        "Октябрь",
+        "Ноябрь",
+        "Декабрь"
+      ],
+      "weekdaysShort": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    },
+    "time": {
+      "placeholder": "чч:мм",
+      "clear": "Очистить",
+      "hours": "Часы",
+      "minutes": "Минуты"
+    },
+    "selection": {
+      "none": "Ничего не выбрано",
+      "noDepartment": "Без отдела"
+    },
+    "pagination": {
+      "pageOf": "Страница {page} из {total}",
+      "previousPage": "Предыдущая страница",
+      "nextPage": "Следующая страница",
+      "page": "Страница",
+      "of": "из",
+      "rows": "СТРОК",
+      "previous": "Назад",
+      "next": "Вперед",
+      "showing": "Показано {from}-{to} из {total}",
+      "empty": "Нет записей"
+    },
+    "notifications": {
+      "host": "Уведомления",
+      "dismissLabel": "Закрыть уведомление: {title}",
+      "defaultTitle": "Уведомление"
+    },
+    "empty": {
+      "noData": "Нет данных",
+      "noMatchingRecords": "Нет записей по текущим фильтрам"
+    },
+    "drawers": {
+      "close": "Закрыть панель",
+      "closePreview": "Закрыть предпросмотр",
+      "resize": "Изменить размер панели"
+    },
+    "preview": {
+      "rawTemplate": "Сырой предпросмотр шаблона. Переменные не подставлены.",
+      "campaignResource": "Предпросмотр ресурса кампании",
+      "resource": "Предпросмотр ресурса",
+      "attachment": "Предпросмотр файла",
+      "template": "Предпросмотр шаблона",
+      "selectResource": "Выберите ресурс для предпросмотра.",
+      "selectHtmlAsset": "Выберите HTML-ресурс для предпросмотра исходника.",
+      "selectHtmlOrText": "Выберите HTML- или текстовый файл для предпросмотра.",
+      "unavailable": "Предпросмотр недоступен",
+      "failed": "Предпросмотр не загрузился",
+      "noneSelected": "Предпросмотр не выбран",
+      "unsupported": "Этот тип файла не отображается внутри интерфейса. Скачайте файл для просмотра.",
+      "image": "Предпросмотр изображения",
+      "text": "Предпросмотр текста"
+    },
+    "resource": {
+      "ready": "Готово",
+      "missing": "Нет",
+      "noResourcesFound": "Ресурсы не найдены",
+      "createBeforeAssigning": "Создайте ресурс, прежде чем привязывать его к кампании.",
+      "noMatchingResources": "Нет подходящих ресурсов",
+      "adjustSearchQuery": "Измените поисковый запрос, чтобы увидеть больше записей.",
+      "searchByLabel": "Поиск по названию",
+      "selectedResource": "Выбранный ресурс",
+      "refreshResources": "Обновить ресурсы",
+      "resourcesUnavailable": "Ресурсы недоступны",
+      "noHtmlBody": "Нет HTML для предпросмотра",
+      "selectedAttachment": "Выбранный файл",
+      "selectedAttachments": "Выбранные файлы",
+      "searchAttachments": "Поиск, просмотр и выбор сохраненных файлов бэкенда.",
+      "attachmentsUnavailable": "Файлы недоступны",
+      "adjustAttachmentFilters": "Измените поиск или фильтр по типу и обновите список.",
+      "refreshAttachments": "Обновить файлы",
+      "allTypes": "Все типы",
+      "allSupportedTypes": "Все поддерживаемые типы",
+      "allImageTypes": "Все изображения",
+      "dropOneFile": "Перетащите сюда один файл",
+      "singleFileUpload": "Загружайте по одному файлу. Бэкенд определяет тип файла по расширению.",
+      "optionalUploadLabel": "Необязательная метка после загрузки",
+      "unsupportedType": "Неподдерживаемый тип файла. Допустимые типы: {types}.",
+      "publicAttachment": "Публичный файл",
+      "publicAttachmentHint": "Показывать через публичный путь бэкенда, если он доступен.",
+      "detectedType": "Определенный тип",
+      "discardMessage": "Несохраненные изменения будут потеряны."
+    },
+    "attributes": {
+      "title": "Атрибуты",
+      "noneAdded": "Атрибуты не добавлены.",
+      "keyPlaceholder": "region",
+      "valuePlaceholder": "internal"
+    }
+  },
+  "components": {
+    "htmlEditor": {
+      "addImage": "Добавить фото"
+    },
+    "imageAssetDrawer": {
+      "title": "Изображения",
+      "subtitle": "Выберите загруженное изображение и скопируйте ссылку для HTML.",
+      "searchPlaceholder": "Поиск изображений по названию",
+      "typeAllImages": "Все типы изображений",
+      "empty": "Нет изображений по текущим фильтрам",
+      "loadingMore": "Загружаем еще изображения...",
+      "copyUrl": "Копировать HTML-ссылку",
+      "preview": "Предпросмотр изображения",
+      "copySuccess": "Ссылка на изображение скопирована",
+      "copyPrivateWarning": "Файл приватный. Сделайте его публичным, чтобы использовать в HTML.",
+      "copyError": "Не удалось скопировать ссылку"
+    }
+  },
+  "auth": {
+    "eyebrow": "Только для авторизованных сотрудников",
+    "title": "Вход в ClickSafe",
+    "description": "Используйте учетные данные администратора организации для управления симуляциями.",
+    "login": "Логин",
+    "password": "Пароль",
+    "submit": "Войти",
+    "hint": "Доступ открыт только для уполномоченных сотрудников организации. Сессия защищена cookie и CSRF-токеном.",
+    "enterCredentials": "Введите логин и пароль."
+  },
+  "errors": {
+    "unknown": "Не удалось выполнить запрос.",
+    "requestFailed": "Не удалось выполнить запрос.",
+    "dashboardLoad": "Не удалось загрузить дашборд.",
+    "reportsLoad": "Не удалось загрузить отчеты.",
+    "campaignsLoad": "Не удалось загрузить список кампаний.",
+    "campaignLoad": "Не удалось загрузить кампанию.",
+    "campaignEditLoad": "Не удалось загрузить кампанию для редактирования.",
+    "monitoringLoad": "Не удалось загрузить данные мониторинга.",
+    "organizationLoad": "Не удалось загрузить данные организации.",
+    "organizationSave": "Не удалось сохранить данные организации.",
+    "brandingAttachmentsLoad": "Не удалось загрузить файлы брендинга.",
+    "brandingUpload": "Не удалось загрузить файл брендинга.",
+    "messagesLoad": "Не удалось загрузить шаблоны писем.",
+    "landingsLoad": "Не удалось загрузить лендинги.",
+    "attachmentsLoad": "Не удалось загрузить файлы.",
+    "employeesLoad": "Не удалось загрузить сотрудников.",
+    "departmentsLoad": "Не удалось загрузить отделы.",
+    "targetsEventsLoad": "Не удалось загрузить цели и события.",
+    "referenceLoad": "Не удалось загрузить справочные данные.",
+    "targetsLoad": "Не удалось загрузить цели кампании.",
+    "targetMutation": "Не удалось выполнить действие с целью.",
+    "scheduleSave": "Не удалось сохранить расписание.",
+    "sessionCheck": "Не удалось проверить сессию для этого действия. Попробуйте еще раз.",
+    "resolveValidation": "Исправьте отмеченные поля перед отправкой.",
+    "auth": {
+      "invalidCredentials": "Неверный логин или пароль.",
+      "tooManyAttempts": "Слишком много попыток входа. Подождите немного и попробуйте снова.",
+      "sessionExpired": "Сессия истекла. Войдите снова, чтобы продолжить.",
+      "validationFailed": "Проверьте логин и пароль.",
+      "loginInvalid": "Логин должен начинаться с латинской буквы и содержать только латинские буквы, цифры, точки, дефисы или подчеркивания.",
+      "loginTooShort": "Логин должен быть не короче {count} символов.",
+      "loginTooLong": "Логин должен быть не длиннее {count} символов.",
+      "loginTooCommon": "Этот логин слишком распространенный.",
+      "passwordInvalid": "Пароль не проходит проверку.",
+      "passwordEdgeSpaces": "Пароль не должен начинаться или заканчиваться пробелами.",
+      "passwordTooShort": "Пароль должен быть не короче {count} символов.",
+      "passwordTooLong": "Пароль должен быть не длиннее {count} символов.",
+      "passwordControlCharacter": "Пароль не должен содержать управляющие символы.",
+      "passwordDifferentCharacters": "Пароль должен содержать разные символы.",
+      "passwordCharacterClasses": "Пароль должен содержать минимум три типа символов: строчные или заглавные буквы, цифры или спецсимволы.",
+      "passwordTooCommon": "Этот пароль слишком распространенный."
+    }
+  },
+  "campaign": {
+    "status": {
+      "draft": "Черновик",
+      "active": "Активна",
+      "paused": "На паузе",
+      "completed": "Завершена",
+      "canceled": "Отменена"
+    },
+    "actions": {
+      "start": "Запустить",
+      "pause": "Пауза",
+      "cancel": "Отменить",
+      "delete": "Удалить",
+      "startSuccess": "Кампания запущена.",
+      "pauseSuccess": "Кампания поставлена на паузу.",
+      "cancelSuccess": "Кампания отменена.",
+      "updateSuccess": "Кампания обновлена.",
+      "deleteSuccess": "Кампания удалена.",
+      "deleteDescription": "Кампания удалена.",
+      "unknownStatus": "Статус кампании неизвестен.",
+      "editUnavailableCanceled": "Отмененную кампанию нельзя редактировать, потому что бэкенд блокирует изменение обязательных полей.",
+      "editUnavailableStatus": "Редактирование доступно только для кампаний в статусах «Черновик» и «На паузе».",
+      "targetMutationUnavailable": "Изменение времени отправки целей доступно только для кампаний в статусах «Черновик» и «На паузе».",
+      "otherActionPending": "Другое действие над кампанией еще выполняется.",
+      "notAvailableForStatus": "Действие недоступно для текущего статуса кампании.",
+      "cancelDialogTitle": "Отменить кампанию",
+      "cancelDialogMessage": "Кампания будет отменена и больше не сможет продолжить отправку целей.",
+      "deleteDialogTitle": "Удалить кампанию",
+      "deleteDialogMessage": "Кампания будет удалена.",
+      "deleteDialogConfirm": "Удалить кампанию"
+    },
+    "labels": {
+      "label": "Название кампании"
+    }
+  },
+  "target": {
+    "status": {
+      "pending": "Ожидает",
+      "sent": "Отправлено",
+      "failed": "Ошибка",
+      "opened": "Открыто",
+      "clicked": "Переход",
+      "submitted": "Данные отправлены"
+    }
+  },
+  "events": {
+    "messageSent": "Письмо отправлено",
+    "deliveryFailed": "Ошибка доставки",
+    "emailOpened": "Письмо открыто",
+    "linkOpened": "Ссылка открыта",
+    "dataSent": "Данные отправлены"
+  },
+  "attachments": {
+    "visibility": {
+      "public": "Публичный",
+      "private": "Приватный"
+    }
+  },
+  "charts": {
+    "empty": "Нет данных для построения графика.",
+    "aria": {
+      "chart": "График",
+      "campaignRiskGauge": "Индикатор индекса риска кампании",
+      "eventsOverTime": "График событий по времени",
+      "campaignSchedule": "График расписания отправки целей кампании",
+      "campaignFunnel": "График воронки кампании",
+      "campaignEventDistribution": "График распределения событий кампании",
+      "dashboardEventDistribution": "График распределения событий на дашборде",
+      "dashboardTopDepartments": "График отделов с самым высоким риском",
+      "dashboardActivityCalendar": "Календарь активности дашборда"
+    },
+    "risk": {
+      "title": "Индекс риска кампании",
+      "value": "Индекс риска",
+      "tooltip": "Индекс риска кампании: {value}",
+      "low": "Низкий",
+      "moderate": "Средний",
+      "high": "Высокий",
+      "empty": "Пока нет событий для расчета риска."
+    },
+    "eventDistribution": {
+      "title": "Распределение событий",
+      "series": "Распределение событий",
+      "empty": "Пока нет поддерживаемых событий для распределения."
+    },
+    "funnel": {
+      "title": "Воронка кампании",
+      "series": "Воронка кампании",
+      "empty": "Пока нет поддерживаемых событий для воронки."
+    },
+    "eventsOverTime": {
+      "title": "События по времени",
+      "empty": "Пока нет поддерживаемой активности событий."
+    },
+    "schedule": {
+      "series": "Запланированные цели",
+      "empty": "Пока нет запланированных целей.",
+      "status": "Статус",
+      "scheduled": "Запланировано",
+      "created": "Создано",
+      "token": "Токен"
+    },
+    "departments": {
+      "riskIndex": "Индекс риска",
+      "employees": "Сотрудники",
+      "empty": "Для расчета риска отделов нужны данные по сотрудникам и отделам."
+    },
+    "calendar": {
+      "series": "Календарь активности",
+      "empty": "Нет поддерживаемой активности событий за выбранный период.",
+      "tooltip": "Поддерживаемые события: {count}",
+      "days": ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
+      "months": ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+    }
+  },
+  "layout": {
+    "mainNavigation": "Основная навигация",
+    "currentSession": "Текущая сессия",
+    "online": "В сети",
+    "administrator": "Администратор",
+    "collapseSidebar": "Свернуть боковую панель",
+    "expandSidebar": "Развернуть боковую панель",
+    "dashboardTitle": "Дашборд ClickSafe",
+    "language": {
+      "label": "Язык",
+      "aria": "Language",
+      "switchToEnglish": "Switch language to English",
+      "switchToRussian": "Переключить язык на русский"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Дашборд",
+      "description": "Оперативный обзор активности кампаний, риск-сигналов и следующих действий.",
+      "partialData": "Данные дашборда загружены частично",
+      "unavailable": "Дашборд недоступен",
+      "noActivityTitle": "Нет поддерживаемой активности в выборке",
+      "noActivityMessage": "За {year} год не было поддерживаемых событий симуляции.",
+      "metricsLoading": "Загрузка показателей дашборда",
+      "metrics": "Показатели дашборда",
+      "compactAnalytics": "Компактная аналитика дашборда",
+      "operationalData": "Операционные данные дашборда",
+      "activityCalendarTitle": "Календарь активности",
+      "activityCalendarDescription": "Поддерживаемые события симуляции по дням.",
+      "year": "Год",
+      "eventDistributionTitle": "Распределение событий",
+      "eventDistributionDescription": "Объем активности по типам событий.",
+      "topDepartmentsTitle": "Отделы с высоким риском",
+      "topDepartmentsDescription": "Самый высокий средний индекс риска.",
+      "activeCampaignsTitle": "Активные кампании",
+      "activeCampaignsDescription": "Текущие запущенные кампании и их активность целей.",
+      "activeCampaignsAria": "Активные кампании",
+      "columns": {
+        "opens": "Открытия",
+        "clicks": "Переходы",
+        "submissions": "Отправки",
+        "actions": "Действия"
+      },
+      "recentEventsTitle": "Последние события",
+      "recentEventsDescription": "Последняя поддерживаемая активность в выбранном году.",
+      "noRecentEventsTitle": "Нет последних событий",
+      "noRecentEventsDescription": "За {year} год пока не было поддерживаемой активности.",
+      "noActiveCampaignsTitle": "Нет активных кампаний",
+      "noActiveCampaignsDescription": "Создайте кампанию или откройте существующие кампании, чтобы продолжить работу.",
+      "metrics": {
+        "activeCampaigns": {
+          "label": "Активные кампании",
+          "description": "Текущие запущенные кампании"
+        },
+        "riskIndex": {
+          "label": "Индекс риска",
+          "description": "Средний риск целей в {year}"
+        },
+        "openRate": {
+          "label": "Доля открытий",
+          "description": "Уникальные цели со стадией «Письмо открыто»"
+        },
+        "clickRate": {
+          "label": "Доля переходов",
+          "description": "Уникальные цели со стадией «Ссылка открыта»"
+        },
+        "submitRate": {
+          "label": "Доля отправки данных",
+          "description": "Уникальные цели со стадией «Данные отправлены»"
+        }
+      },
+      "riskTooltip": "Для каждой цели ClickSafe берет наивысшее достигнутое поддерживаемое событие: Письмо отправлено = 0, Ошибка доставки = 0, Письмо открыто = 15, Ссылка открыта = 45, Данные отправлены = 100. Индекс риска — это среднее значение по целям в выбранном году на дашборде.",
+      "employeeLookupUnavailable": "Не удалось загрузить сведения о сотрудниках. Аналитика по отделам недоступна.",
+      "departmentLookupUnavailable": "Не удалось загрузить названия отделов. Аналитика по отделам недоступна."
+    },
+    "campaigns": {
+      "title": "Кампании",
+      "description": "Управление кампаниями фишинговых симуляций.",
+      "filtersAria": "Фильтры кампаний",
+      "searchLabel": "Поиск по названию кампании",
+      "searchPlaceholder": "Название кампании",
+      "tableTitle": "Список кампаний",
+      "tableDescription": "Поля кампании и показатели активности целей на основе мониторинга бэкенда.",
+      "tableAria": "Список кампаний",
+      "columns": {
+        "campaign": "Кампания",
+        "status": "Статус",
+        "domain": "Домен",
+        "dateRange": "Диапазон дат",
+        "resources": "Ресурсы",
+        "targets": "Цели",
+        "opens": "Открытия",
+        "clicks": "Переходы",
+        "submissions": "Отправка данных",
+        "actions": "Действия"
+      },
+      "preview": {
+        "resource": "Предпросмотр ресурса",
+        "message": "Предпросмотр сообщения",
+        "landing": "Предпросмотр лендинга",
+        "education": "Предпросмотр обучающего ресурса",
+        "messageMissing": "Шаблон письма не выбран",
+        "landingMissing": "Лендинг не выбран",
+        "educationMissing": "Обучающий ресурс не выбран",
+        "messageNoHtml": "У шаблона письма нет HTML-файла.",
+        "landingNoHtml": "У лендинга нет HTML-файла.",
+        "loadFailed": "Не удалось загрузить предпросмотр ресурса.",
+        "selectResource": "Выберите ресурс кампании для предпросмотра."
+      },
+      "errors": {
+        "metricsLoad": "Не удалось загрузить метрики целей.",
+        "load": "Не удалось загрузить список кампаний."
+      },
+      "emptyTitle": "Кампании не найдены",
+      "emptyDescription": "Кампании отсутствуют или не соответствуют текущим фильтрам."
+    },
+    "campaignDetail": {
+      "loadingTitle": "Мониторинг кампании",
+      "loadingDescription": "Загрузка данных кампании",
+      "notFoundTitle": "Кампания не найдена",
+      "notFoundDescription": "Запрошенная кампания не существует или больше недоступна.",
+      "backToCampaigns": "Назад к кампаниям",
+      "sessionDescription": "Проверка состояния сессии",
+      "loadDescription": "Не удалось загрузить данные кампании",
+      "loadTitle": "Не удалось загрузить кампанию",
+      "retry": "Повторить",
+      "summaryAria": "Сводка по кампании",
+      "tabsAria": "Разделы мониторинга кампании",
+      "partialMonitoringData": "Данные мониторинга загружены частично",
+      "monitoringUnavailable": "Мониторинг недоступен",
+      "monitoringLoadingState": "Загрузка данных мониторинга",
+      "monitoringSessionState": "Проверка сессии мониторинга",
+      "tabs": {
+        "overview": "Обзор",
+        "targets": "Цели",
+        "settings": "Настройки"
+      },
+      "labels": {
+        "dateRange": "Диапазон дат",
+        "campaign": "Кампания",
+        "scheduledAt": "Время отправки",
+        "createdAt": "Создано",
+        "activityHistory": "История событий",
+        "targetActivity": "Активность цели",
+        "attributes": "Атрибуты",
+        "campaignLabel": "Название кампании",
+        "settingsDescription": "Поля кампании из текущей записи бэкенда.",
+        "attributesDescription": "Необработанные атрибуты кампании из записи бэкенда."
+      },
+      "overview": {
+        "riskTitle": "Индекс риска кампании",
+        "riskDescription": "Средний риск целей на основе поддерживаемой активности.",
+        "riskFormula": "Формула индекса риска кампании",
+        "riskFormulaText": "Для каждой цели берется максимальный достигнутый балл: Письмо отправлено = 0, Ошибка доставки = 0, Письмо открыто = 15, Ссылка открыта = 45, Данные отправлены = 100. Индекс риска кампании — это среднее значение по целям.",
+        "eventDistributionTitle": "Распределение событий",
+        "eventDistributionDescription": "Количество уникальных целей по типам поддерживаемых событий.",
+        "funnelTitle": "Воронка кампании",
+        "funnelDescription": "Количество уникальных целей по стадиям мониторинга.",
+        "eventsOverTimeTitle": "События по времени",
+        "eventsOverTimeDescription": "Объем активности по поддерживаемым событиям.",
+        "monitoringLoadFailed": "Не удалось загрузить данные мониторинга.",
+        "noTargets": "В этой кампании пока нет целей."
+      },
+      "targets": {
+        "title": "Цели",
+        "description": "Просмотр статуса целей, истории событий и текущего расписания отправки.",
+        "summary": {
+          "targets": "целей",
+          "scheduled": "назначено",
+          "unscheduled": "без времени",
+          "activityRecords": "событий",
+          "visible": "видимо"
+        },
+        "scheduleTitle": "Лента расписания",
+        "scheduleDescription": "Каждая точка — цель с назначенным временем отправки. Для изменения расписания откройте редактирование кампании.",
+        "allStatuses": "Все статусы",
+        "filtersAria": "Фильтры мониторинга целей",
+        "monitoringTargetLoadFailed": "Не удалось загрузить данные целей кампании.",
+        "noTargets": "В этой кампании пока нет целей.",
+        "noMatchingTargets": "Нет целей с выбранным статусом.",
+        "inspect": "Просмотр активности цели",
+        "columns": {
+          "employee": "Сотрудник",
+          "campaign": "Кампания",
+          "status": "Статус",
+          "scheduledAt": "Время отправки",
+          "createdAt": "Создано",
+          "token": "Токен",
+          "actions": "Действия"
+        },
+        "drawerDescription": "Просмотр сведений о цели и поддерживаемой истории событий.",
+        "activityDescription": "Поддерживаемые события цели из текущего словаря событий бэкенда.",
+        "noActivity": "Для этой цели пока нет поддерживаемой активности."
+      }
+    },
+    "campaignWizard": {
+      "createTitle": "Создать кампанию",
+      "editTitle": "Редактировать кампанию",
+      "createDescription": "Настройте ресурсы кампании, цели и расписание.",
+      "editDescription": "Обновите поля кампании, цели и расписание отправки.",
+      "navigationAria": "Навигация мастера кампании",
+      "editLoadingState": "Загрузка кампании для редактирования",
+      "editSessionState": "Проверка сессии редактирования кампании",
+      "panelDescriptionCreate": "Заполните обязательные поля, выберите ресурсы и подготовьте цели.",
+      "panelDescriptionEdit": "Измените доступные поля кампании и расписание целей.",
+      "domainHelper": "Домен используется в настройках кампании и отправке целей.",
+      "stepsAria": "Шаги настройки кампании",
+      "messageSelectionAria": "Выбор шаблона письма",
+      "landingSelectionAria": "Выбор лендинга",
+      "educationSelectionAria": "Выбор обучающего ресурса",
+      "targetSelectionAria": "Выбор целей кампании",
+      "employeeTableAria": "Список сотрудников для выбора целей",
+      "selectedMessage": "Выбранный шаблон письма",
+      "selectedLanding": "Выбранный лендинг",
+      "selectedEducation": "Выбранный обучающий ресурс",
+      "selectMessage": "Выбрать шаблон письма",
+      "selectLanding": "Выбрать лендинг",
+      "selectEducation": "Выбрать обучающий ресурс",
+      "messageSearchPlaceholder": "Поиск шаблонов писем",
+      "landingSearchPlaceholder": "Поиск лендингов",
+      "educationSearchPlaceholder": "Поиск обучающих ресурсов",
+      "educationTemplates": "Обучающие шаблоны",
+      "noMessageTemplates": "Нет шаблонов писем",
+      "noMessageTemplatesDescription": "Создайте шаблон письма перед настройкой кампании.",
+      "noLandingPages": "Нет лендингов",
+      "noLandingPagesDescription": "Создайте лендинг перед настройкой кампании.",
+      "noEducationAssets": "Нет обучающих ресурсов",
+      "employeeSearch": "Поиск сотрудников",
+      "employeeSearchPlaceholder": "Имя или email сотрудника",
+      "selectedCount": "Выбрано: {count}",
+      "targetCount": "Целей: {count}",
+      "targetOperationFailed": "Действие с целью не выполнено.",
+      "targetChangesDisabled": "Изменение целей сейчас недоступно.",
+      "targetMutationDisabled": "Изменение целей доступно только для черновика или кампании на паузе.",
+      "currentTargetsTitle": "Текущие цели",
+      "currentTargetsDescription": "Цели, уже привязанные к кампании.",
+      "noCampaignTargets": "В кампании пока нет целей",
+      "noCampaignTargetsDescription": "Добавьте сотрудников в цели кампании.",
+      "noEmployees": "Нет сотрудников",
+      "noEmployeesDescription": "Создайте сотрудников перед выбором целей.",
+      "noMatchingEmployees": "Сотрудники не найдены",
+      "noMatchingEmployeesDescription": "Измените поиск, чтобы увидеть больше сотрудников.",
+      "targetsEditNote": "В режиме редактирования изменения целей сохраняются сразу.",
+      "targetsCreateNote": "В режиме создания цели будут добавлены при отправке кампании.",
+      "scheduleTitle": "Расписание отправки",
+      "scheduleEditDescription": "Изменяйте время отправки для текущих целей кампании.",
+      "scheduleCreateDescription": "Подготовьте время отправки для выбранных целей.",
+      "scheduledCount": "Назначено: {count}",
+      "unscheduledCount": "Без времени: {count}",
+      "scheduleOperationFailed": "Расписание не сохранено.",
+      "noTargetsToSchedule": "Нет целей для расписания.",
+      "noTargetsToScheduleEdit": "Добавьте цели, чтобы назначить время отправки.",
+      "noTargetsToScheduleCreate": "Выберите сотрудников, чтобы назначить время отправки.",
+      "scheduleEditorAria": "Редактор расписания целей",
+      "newScheduledAt": "Новое время отправки",
+      "scheduleDate": "Дата отправки",
+      "scheduleTime": "Время отправки",
+      "autoDistributeEditNote": "Автораспределение изменит расписание текущих целей.",
+      "autoDistributeCreateNote": "Автораспределение подготовит расписание выбранных целей.",
+      "validationWarnings": "Предупреждения проверки",
+      "noValidationWarnings": "Предупреждений нет.",
+      "readyToSave": "Готово к сохранению.",
+      "readyForFinalAction": "Готово к финальному действию.",
+      "finalAction": "Финальное действие",
+      "finalActions": "Финальные действия",
+      "finalActionEditDescription": "Сохраните изменения кампании.",
+      "finalActionCreateDescription": "Сохраните черновик или создайте кампанию с целями.",
+      "partialFailureMessage": "Часть действий не завершилась. Проверьте детали и повторите.",
+      "completeRequiredBeforeSubmit": "Заполните обязательные шаги перед отправкой.",
+      "steps": {
+        "basicInfo": "Основная информация",
+        "message": "Шаблон письма",
+        "landing": "Лендинг",
+        "education": "Обучающий ресурс",
+        "targets": "Цели",
+        "review": "Расписание и проверка"
+      },
+      "submitStages": {
+        "savingCampaign": "Сохранение кампании...",
+        "creatingCampaign": "Создание кампании...",
+        "savingSchedules": "Сохранение расписания...",
+        "creatingTargets": "Создание целей..."
+      },
+      "preview": {
+        "message": "Предпросмотр шаблона письма",
+        "messageHtmlBody": "HTML шаблона письма",
+        "landing": "Предпросмотр лендинга",
+        "landingHtmlBody": "HTML лендинга",
+        "education": "Предпросмотр обучающего ресурса"
+      },
+      "discard": {
+        "createTitle": "Покинуть создание кампании",
+        "editTitle": "Покинуть редактирование кампании",
+        "message": "Несохраненные изменения будут потеряны."
+      },
+      "deleteTarget": {
+        "title": "Удалить цель",
+        "message": "Цель будет удалена из кампании.",
+        "confirm": "Удалить цель"
+      },
+      "validation": {
+        "labelRequired": "Введите название кампании.",
+        "labelMissing": "Название кампании не заполнено.",
+        "domainRequired": "Введите домен.",
+        "domainMissing": "Домен не выбран.",
+        "domainInvalid": "Введите корректный домен.",
+        "bothDatesRequired": "Укажите дату начала и окончания.",
+        "dateRangeMissing": "Диапазон дат не заполнен.",
+        "dateRangeInvalid": "Дата окончания должна быть позже даты начала.",
+        "dateRangeRequiredForDistribution": "Для распределения нужно указать диапазон дат.",
+        "scheduleRequired": "Укажите время отправки.",
+        "scheduleInvalid": "Время отправки некорректно.",
+        "scheduleInsideRange": "Время отправки должно попадать в диапазон кампании.",
+        "clearingScheduleUnsupported": "Очистка расписания для существующей цели не поддерживается.",
+        "selectMessage": "Выберите шаблон письма.",
+        "messageMissing": "Шаблон письма не выбран.",
+        "selectLanding": "Выберите лендинг.",
+        "landingMissing": "Лендинг не выбран.",
+        "selectEducation": "Выберите обучающий ресурс.",
+        "educationMissing": "Обучающий ресурс не выбран.",
+        "selectEmployee": "Выберите сотрудника.",
+        "targetsMissing": "Цели не выбраны.",
+        "addTargetBeforeDistribution": "Добавьте цели перед распределением.",
+        "onlyPendingCanSchedule": "Расписание можно менять только для целей в ожидании."
+      },
+      "notifications": {
+        "scheduleDistributedTitle": "Расписание распределено",
+        "scheduleDistributedMessage": "Время отправки распределено по целям.",
+        "targetsDistributedTitle": "Цели распределены",
+        "targetsDistributedMessage": "Цели созданы и распределены по расписанию.",
+        "autoDistributeFailedTitle": "Автораспределение не выполнено",
+        "targetsPartiallyAddedTitle": "Часть целей добавлена",
+        "targetsAddedTitle": "Цели добавлены",
+        "targetsAddedMessage": "Добавлено целей: {count}",
+        "addTargetsFailedTitle": "Не удалось добавить цели",
+        "scheduleSavedTitle": "Расписание сохранено",
+        "scheduleSavedMessage": "Время отправки цели обновлено.",
+        "scheduleFailedTitle": "Не удалось сохранить расписание",
+        "targetDeletedTitle": "Цель удалена",
+        "targetDeletedMessage": "Цель удалена из кампании.",
+        "targetDeleteFailedTitle": "Не удалось удалить цель",
+        "scheduleNeedsAttentionTitle": "Проверьте расписание",
+        "campaignUpdatedTitle": "Кампания обновлена",
+        "campaignUpdatedMessage": "Изменения кампании сохранены.",
+        "draftSavedTitle": "Черновик сохранен",
+        "draftSavedMessage": "Кампания сохранена как черновик.",
+        "campaignNeedsAttentionTitle": "Кампания требует внимания",
+        "campaignTargetsDistributedMessage": "Кампания создана, цели распределены.",
+        "campaignCreatedTitle": "Кампания создана",
+        "campaignCreatedMessage": "Кампания успешно создана."
+      },
+      "errors": {
+        "createFailedTitle": "Не удалось создать кампанию",
+        "updateFailedTitle": "Не удалось сохранить кампанию",
+        "scheduleDistributionFailed": "Не удалось распределить расписание.",
+        "targetsDistributionFailed": "Не удалось распределить цели.",
+        "targetCreateFailed": "Не удалось создать цель.",
+        "targetsAddFailed": "Не удалось добавить цели.",
+        "scheduleSaveFailed": "Не удалось сохранить расписание.",
+        "targetDeleteFailed": "Не удалось удалить цель.",
+        "editUnavailableStatus": "Редактирование доступно только для черновика или кампании на паузе.",
+        "partialScheduleSave": "Часть расписания не была сохранена.",
+        "createdSchedulePartial": "Кампания создана, но часть расписания не сохранена.",
+        "createdTargetsPartial": "Кампания создана, но часть целей не добавлена.",
+        "scheduleFailuresCount": "Ошибок расписания: {count}"
+      }
+    },
+    "attachments": {
+      "title": "Файлы",
+      "description": "Управление загруженными файлами, HTML-ресурсами, публичным доступом и обязательными переменными.",
+      "libraryTitle": "Библиотека файлов",
+      "uploadTitle": "Загрузить файл",
+      "uploadErrorTitle": "Не удалось загрузить файл",
+      "editTitle": "Редактировать файл",
+      "editDescription": "Измените метку, публичность и обязательные переменные файла.",
+      "updateErrorTitle": "Не удалось обновить файл",
+      "privateFileNoPublicPath": "У приватного файла нет публичного пути.",
+      "previewDescription": "Просмотр сохраненного файла.",
+      "validation": {
+        "selectFile": "Выберите файл.",
+        "selectFileFirst": "Сначала выберите файл.",
+        "labelRequired": "Введите название файла."
+      },
+      "notifications": {
+        "copyUnavailableTitle": "Копирование недоступно",
+        "copyUnavailableMessage": "Для этого файла нет публичного пути.",
+        "publicPathCopied": "Публичный путь скопирован.",
+        "copyFailedTitle": "Не удалось скопировать",
+        "copyFailedMessage": "Скопируйте путь вручную.",
+        "uploaded": "Файл загружен.",
+        "uploadFailedTitle": "Не удалось загрузить файл",
+        "updated": "Файл обновлен.",
+        "updateFailedTitle": "Не удалось обновить файл",
+        "deleted": "Файл удален.",
+        "deleteFailedTitle": "Не удалось удалить файл"
+      },
+      "delete": {
+        "title": "Удалить файл",
+        "message": "Файл будет удален из библиотеки."
+      }
+    },
+    "emailTemplates": {
+      "title": "Шаблоны писем",
+      "description": "Управление отправителем, темой, HTML-контентом и связанными файлами.",
+      "createTitle": "Создать шаблон письма",
+      "editTitle": "Редактировать шаблон письма",
+      "createDescription": "Настройте отправителя, тему, HTML и файлы.",
+      "editDescription": "Обновите отправителя, тему, HTML и файлы шаблона.",
+      "copyLabel": "{label} — копия",
+      "unavailable": "Шаблоны писем недоступны",
+      "tableTitle": "Шаблоны писем",
+      "previewHtmlBody": "Предпросмотр HTML",
+      "emailHtmlPreview": "HTML письма",
+      "backToList": "К списку шаблонов",
+      "formAttention": "Проверьте обязательные поля перед сохранением.",
+      "stepsAria": "Шаги настройки шаблона письма",
+      "htmlBodyTitle": "HTML-контент письма",
+      "saveHtmlAttachment": "Сохранить HTML-файл",
+      "senderIdentityDescription": "Отправитель, тема и метка шаблона.",
+      "htmlBodyAttachment": "HTML-файл письма",
+      "noHtmlAttachments": "Нет HTML-файлов",
+      "editAsNewVersion": "Редактировать как новую версию",
+      "templateAttachments": "Файлы шаблона",
+      "reviewDescription": "Проверьте шаблон перед сохранением.",
+      "steps": {
+        "basicInfo": "Основная информация",
+        "review": "Проверка"
+      },
+      "placeholders": {
+        "label": "Квартальное уведомление",
+        "fromName": "Обучение безопасности",
+        "subject": "Требуется действие"
+      },
+      "validation": {
+        "labelRequired": "Введите название шаблона.",
+        "fromEmailRequired": "Введите email отправителя.",
+        "htmlEmpty": "HTML-контент не должен быть пустым."
+      },
+      "notifications": {
+        "editorUnavailableTitle": "Редактор недоступен",
+        "editorUnavailableMessage": "Не удалось открыть HTML-редактор.",
+        "htmlSourceUnavailableTitle": "HTML-источник недоступен",
+        "htmlSavedTitle": "HTML сохранен",
+        "htmlSavedMessage": "HTML-файл обновлен.",
+        "htmlUploadFailedTitle": "Не удалось сохранить HTML",
+        "created": "Шаблон письма создан.",
+        "updated": "Шаблон письма обновлен.",
+        "saveFailedTitle": "Не удалось сохранить шаблон",
+        "deleted": "Шаблон письма удален.",
+        "deleteFailedTitle": "Не удалось удалить шаблон"
+      },
+      "delete": {
+        "title": "Удалить шаблон письма",
+        "message": "Шаблон письма будет удален."
+      }
+    },
+    "landingPages": {
+      "title": "Лендинги",
+      "description": "Управление шаблонами лендингов и их HTML-контентом.",
+      "createTitle": "Создать лендинг",
+      "editTitle": "Редактировать лендинг",
+      "createDescription": "Настройте название и HTML лендинга.",
+      "editDescription": "Обновите название и HTML лендинга.",
+      "copyLabel": "{label} — копия",
+      "unavailable": "Лендинги недоступны",
+      "tableTitle": "Лендинги",
+      "previewHtml": "Предпросмотр HTML",
+      "backToList": "К списку лендингов",
+      "formAttention": "Проверьте обязательные поля перед сохранением.",
+      "htmlBodyTitle": "HTML-контент лендинга",
+      "saveHtmlAttachment": "Сохранить HTML-файл",
+      "stepsAria": "Шаги настройки лендинга",
+      "basicInfoDescription": "Название лендинга для выбора в кампаниях.",
+      "labelPlaceholder": "Название лендинга",
+      "htmlBodyAttachment": "HTML-файл лендинга",
+      "noHtmlAttachments": "Нет HTML-файлов",
+      "editAsNewVersion": "Редактировать как новую версию",
+      "reviewDescription": "Проверьте лендинг перед сохранением.",
+      "htmlPreviewTitle": "Предпросмотр лендинга",
+      "steps": {
+        "basicInfo": "Основная информация",
+        "review": "Проверка"
+      },
+      "validation": {
+        "labelRequired": "Введите название лендинга.",
+        "htmlEmpty": "HTML-контент не должен быть пустым."
+      },
+      "notifications": {
+        "editorUnavailableTitle": "Редактор недоступен",
+        "editorUnavailableMessage": "Не удалось открыть HTML-редактор.",
+        "htmlSourceUnavailableTitle": "HTML-источник недоступен",
+        "htmlSavedTitle": "HTML сохранен",
+        "htmlSavedMessage": "HTML-файл обновлен.",
+        "htmlUploadFailedTitle": "Не удалось сохранить HTML",
+        "created": "Лендинг создан.",
+        "updated": "Лендинг обновлен.",
+        "saveFailedTitle": "Не удалось сохранить лендинг",
+        "deleted": "Лендинг удален.",
+        "deleteFailedTitle": "Не удалось удалить лендинг"
+      },
+      "delete": {
+        "title": "Удалить лендинг",
+        "message": "Лендинг будет удален."
+      }
+    },
+    "employees": {
+      "title": "Сотрудники",
+      "description": "Управление сотрудниками, доступными для выбора в целях кампаний.",
+      "createTitle": "Создать сотрудника",
+      "editTitle": "Редактировать сотрудника",
+      "createDescription": "Добавьте сотрудника для выбора в целях кампаний.",
+      "backToList": "К списку сотрудников",
+      "formAttention": "Проверьте обязательные поля перед сохранением.",
+      "stepsAria": "Шаги настройки сотрудника",
+      "basicInfoDescription": "Имя и контактные данные сотрудника.",
+      "departmentDescription": "Свяжите сотрудника с отделом, если он уже создан.",
+      "departmentSearch": "Поиск отдела",
+      "departmentSearchPlaceholder": "Название отдела",
+      "noDepartmentHint": "Сотрудника можно сохранить без отдела.",
+      "reviewDescription": "Проверьте запись сотрудника перед сохранением.",
+      "searchPlaceholder": "Имя, фамилия или email",
+      "unavailable": "Сотрудники недоступны",
+      "tableTitle": "Сотрудники",
+      "emptyDepartmentUpdateHint": "Отдел можно назначить позже.",
+      "import": {
+        "action": "Импорт файла",
+        "success": "Импорт сотрудников завершен.",
+        "failedTitle": "Не удалось импортировать файл",
+        "failedMessage": "Проверьте строки файла и попробуйте снова.",
+        "rowError": "Строка {row}{field}: {error}"
+      },
+      "labels": {
+        "firstName": "Имя",
+        "lastName": "Фамилия"
+      },
+      "steps": {
+        "basicInfo": "Основная информация",
+        "review": "Проверка"
+      },
+      "validation": {
+        "firstNameRequired": "Введите имя.",
+        "lastNameRequired": "Введите фамилию.",
+        "emailRequired": "Введите email."
+      },
+      "notifications": {
+        "created": "Сотрудник создан.",
+        "updated": "Сотрудник обновлен.",
+        "deleted": "Сотрудник удален.",
+        "createFailedTitle": "Не удалось создать сотрудника",
+        "saveFailedTitle": "Не удалось сохранить сотрудника",
+        "deleteFailedTitle": "Не удалось удалить сотрудника"
+      },
+      "delete": {
+        "title": "Удалить сотрудника",
+        "message": "Сотрудник будет удален."
+      },
+      "discard": {
+        "title": "Покинуть сотрудника"
+      }
+    },
+    "departments": {
+      "title": "Отделы",
+      "description": "Управление отделами и атрибутами для группировки сотрудников.",
+      "createTitle": "Создать отдел",
+      "editTitle": "Редактировать отдел",
+      "createDescription": "Добавьте отдел для группировки сотрудников.",
+      "backToList": "К списку отделов",
+      "formAttention": "Проверьте обязательные поля перед сохранением.",
+      "stepsAria": "Шаги настройки отдела",
+      "basicInfoDescription": "Название отдела и атрибуты.",
+      "labelPlaceholder": "Название отдела",
+      "reviewDescription": "Проверьте отдел перед сохранением.",
+      "searchPlaceholder": "Название отдела",
+      "unavailable": "Отделы недоступны",
+      "tableTitle": "Отделы",
+      "employeeCount": "Сотрудников: {count}",
+      "import": {
+        "action": "Импорт файла",
+        "success": "Импорт отделов завершен.",
+        "failedTitle": "Не удалось импортировать файл",
+        "failedMessage": "Проверьте строки файла и попробуйте снова.",
+        "rowError": "Строка {row}{field}: {error}"
+      },
+      "steps": {
+        "basicInfo": "Основная информация",
+        "review": "Проверка"
+      },
+      "validation": {
+        "labelRequired": "Введите название отдела."
+      },
+      "notifications": {
+        "created": "Отдел создан.",
+        "updated": "Отдел обновлен.",
+        "deleted": "Отдел удален.",
+        "createFailedTitle": "Не удалось создать отдел",
+        "saveFailedTitle": "Не удалось сохранить отдел",
+        "deleteFailedTitle": "Не удалось удалить отдел"
+      },
+      "delete": {
+        "title": "Удалить отдел",
+        "message": "Отдел будет удален."
+      },
+      "discard": {
+        "title": "Покинуть отдел"
+      }
+    },
+    "organization": {
+      "title": "Организация",
+      "description": "Управление профилем организации, брендингом и атрибутами.",
+      "notCreatedTitle": "Организация еще не создана",
+      "notCreatedMessage": "Создайте профиль организации, чтобы сохранить брендинг и атрибуты.",
+      "unavailable": "Настройки организации недоступны",
+      "formAttention": "Проверьте данные организации перед сохранением.",
+      "profileTitle": "Профиль организации",
+      "profileDescription": "Держите отображаемое название организации синхронизированным с настройками бэкенда.",
+      "labelPlaceholder": "Название организации",
+      "noBrandingAttachment": "Файл брендинга не выбран",
+      "removeBranding": "Удалить брендинг",
+      "brandingMeta": "Метаданные брендинга",
+      "noBrandingSelected": "Брендинг не выбран",
+      "createAction": "Создать организацию",
+      "brandingPreviewAlt": "Предпросмотр брендинга организации",
+      "attributesDescription": "Храните атрибуты организации, используемые в симуляциях и отчетах.",
+      "branding": {
+        "title": "Брендинг",
+        "description": "Выберите сохраненное изображение для логотипа организации или загрузите новое.",
+        "select": "Файл брендинга",
+        "upload": "Загрузить брендинг",
+        "remove": "Удалить брендинг",
+        "selected": "Выбранный файл брендинга",
+        "empty": "Файл брендинга не выбран.",
+        "uploadSuccess": "Файл брендинга загружен и выбран.",
+        "saveHint": "Сохраните изменения, чтобы применить выбранный файл брендинга к организации.",
+        "unsupportedType": "Неподдерживаемый тип файла брендинга. Допустимые типы: {types}.",
+        "preview": "Предпросмотр брендинга",
+        "selectedSummary": "Тип: {type}"
+      },
+      "validation": {
+        "selectBrandingFile": "Выберите файл брендинга.",
+        "labelRequired": "Введите название организации."
+      },
+      "notifications": {
+        "brandingUploaded": "Файл брендинга загружен.",
+        "uploadFailedTitle": "Не удалось загрузить брендинг",
+        "created": "Организация создана.",
+        "updated": "Организация обновлена.",
+        "saveFailedTitle": "Не удалось сохранить организацию"
+      }
+    },
+    "targetsEvents": {
+      "title": "Цели и события",
+      "description": "Просмотр целей кампаний и поддерживаемой истории событий.",
+      "unavailable": "Цели и события недоступны",
+      "noSelection": "Выберите цель, чтобы посмотреть историю событий.",
+      "noEvents": "Для этой цели пока нет поддерживаемых событий.",
+      "deleteMessage": "Эта цель будет удалена из списка целей кампании."
+    },
+    "reports": {
+      "title": "Отчеты",
+      "description": "Производная аналитика на уровне компании по кампаниям, целям и событиям.",
+      "partialData": "Данные отчета загружены частично",
+      "unavailable": "Отчеты недоступны",
+      "filtersAria": "Фильтры отчетов",
+      "exportPdf": "Экспорт PDF",
+      "exportPreparing": "Готовим PDF...",
+      "exportFailed": "Не удалось экспортировать PDF",
+      "chartExportUnavailable": "График недоступен для экспорта.",
+      "currentScope": "Текущая область отчета",
+      "selectedCampaign": "Выбранная кампания",
+      "selectedDepartment": "Выбранный отдел",
+      "rangeStart": "Начало",
+      "rangeNow": "Сейчас",
+      "allRecordedDates": "Все записанные даты",
+      "departmentFilterRequiresEmployees": "Фильтр по отделу требует поиска отдела сотрудника.",
+      "riskTooltip": "Для каждой цели ClickSafe берет наивысшее достигнутое поддерживаемое событие: Письмо отправлено = 0, Ошибка доставки = 0, Письмо открыто = 15, Ссылка открыта = 45, Данные отправлены = 100. Индекс риска компании — это среднее значение по целям в текущих фильтрах отчета.",
+      "departmentRiskTooltip": "Риск отдела усредняет риск сотрудников в текущей выборке отчета.",
+      "highRisk": "Высокий риск",
+      "lowRisk": "Низкий риск",
+      "risk": "Риск",
+      "riskSignals": "Сигналы риска",
+      "eventFunnel": "Воронка событий",
+      "day": "День",
+      "riskSignalVolume": "Объем сигналов риска",
+      "weightedRiskTooltip": "Взвешено как «Письмо открыто» * 15, «Ссылка открыта» * 45, «Данные отправлены» * 100.",
+      "eventActivityVolume": "Объем активности событий",
+      "emptyTitle": "Нет данных отчета для текущих фильтров",
+      "emptyDescription": "Очистите фильтры или выберите кампанию с записанной активностью целей.",
+      "noSupportedEventsTitle": "Нет поддерживаемых событий в выборке",
+      "noSupportedEventsDescription": "Цели по фильтрам загружены, но поддерживаемая активность пока не записана.",
+      "printTitle": "ClickSafe - Отчет",
+      "kpis": {
+        "companyRisk": {
+          "label": "Индекс риска компании",
+          "description": "Средний сигнал риска по отфильтрованным целям"
+        },
+        "campaignsAnalyzed": {
+          "label": "Проанализировано кампаний",
+          "description": "Кампании, представленные в отфильтрованных целях"
+        },
+        "employeesTested": {
+          "label": "Сотрудников проверено",
+          "description": "Уникальные сотрудники в текущей выборке"
+        },
+        "emailOpenRate": {
+          "label": "Уровень открытий писем",
+          "description": "Достигли этапа «Письмо открыто»"
+        },
+        "linkClickRate": {
+          "label": "Уровень переходов по ссылкам",
+          "description": "Достигли этапа «Ссылка открыта»"
+        },
+        "dataSubmittedRate": {
+          "label": "Уровень отправки данных",
+          "description": "Достигли этапа «Данные отправлены»"
+        },
+        "totalEvents": {
+          "label": "Всего событий",
+          "description": "Объем поддерживаемой активности событий"
+        }
+      },
+      "csv": {
+        "section": "Раздел",
+        "field": "Поле",
+        "value": "Значение",
+        "filters": "Фильтры"
+      },
+      "aria": {
+        "kpiCards": "Карточки KPI отчета",
+        "charts": "Аналитические графики отчета"
+      },
+      "charts": {
+        "companyRiskIndexTitle": "Индекс риска компании",
+        "companyRiskIndexDescription": "Среднее значение максимального поддерживаемого события на цель.",
+        "eventDistributionTitle": "Распределение событий",
+        "eventDistributionDescription": "Объем поддерживаемой активности событий.",
+        "campaignComparisonTitle": "Сравнение кампаний",
+        "campaignComparisonDescription": "Количество уникальных целей по типам событий и риск кампаний.",
+        "funnelTitle": "Воронка вовлеченности",
+        "funnelDescription": "Количество достигнутых стадий без учета ошибок доставки.",
+        "trendTitle": "Тренды событий",
+        "trendDescription": "Дневной объем взвешенных риск-сигналов.",
+        "departmentRiskTitle": "Риск отделов",
+        "departmentRiskDescription": "Средний риск сотрудников по отделам.",
+        "employeeRiskTitle": "Риск сотрудников",
+        "employeeRiskDescription": "Риск-сигналы по сотрудникам с группировкой по отделам.",
+        "topEmployeesTitle": "Сотрудники с наибольшим риском",
+        "topEmployeesDescription": "Наибольшие производные риск-сигналы сотрудников в текущей области отчета.",
+        "topEmployeesEmpty": "Нет строк риска сотрудников для текущих фильтров."
+      }
+    },
+    "placeholder": {
+      "reserved": "Экран зарезервирован",
+      "milestoneShell": "Каркас этапа",
+      "description": "Маршрут уже входит в согласованную навигацию v2. Контент, загрузка данных и действия будут добавлены на следующих этапах.",
+      "panelKicker": "Зарезервированная область",
+      "panelTitle": "Готово для реализации сценария",
+      "panelDescription": "Каркас, отступы и контейнер состояний уже подготовлены без фейковых данных и неподдерживаемых метрик."
+    }
+  }
+}

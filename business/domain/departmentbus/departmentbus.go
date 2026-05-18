@@ -17,6 +17,7 @@ var (
 
 type Storer interface {
 	Save(ctx context.Context, department Department) error
+	SaveMany(ctx context.Context, departments []Department) error
 	Update(ctx context.Context, department Department) error
 	Delete(ctx context.Context, department Department) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Department, error)
@@ -44,6 +45,27 @@ func (b *Business) Save(ctx context.Context, department NewDepartment) (Departme
 	}
 
 	return dep, nil
+}
+
+func (b *Business) SaveMany(ctx context.Context, departments []NewDepartment) error {
+	deps := make([]Department, len(departments))
+	for i, department := range departments {
+		deps[i] = Department{
+			ID:         uuid.New(),
+			Label:      department.Label,
+			Attributes: department.Attributes,
+		}
+	}
+
+	if len(deps) == 0 {
+		return nil
+	}
+
+	if err := b.storer.SaveMany(ctx, deps); err != nil {
+		return fmt.Errorf("savemany: %w", err)
+	}
+
+	return nil
 }
 
 func (b *Business) Update(ctx context.Context, department Department, up UpdateDepartment) (Department, error) {

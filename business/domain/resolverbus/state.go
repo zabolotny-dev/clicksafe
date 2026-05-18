@@ -31,6 +31,9 @@ type resolveState struct {
 	targetQuerier targetQuerier
 	targetLink    string
 	linkLoaded    bool
+
+	campaign   campaignbus.Campaign
+	campLoaded bool
 }
 
 func (s *resolveState) resolvePath(ctx context.Context, path string) (string, bool, error) {
@@ -94,6 +97,14 @@ func (s *resolveState) rootValue(ctx context.Context, root string) (reflect.Valu
 		}
 
 		return reflect.ValueOf(targetData), false, nil
+
+	case rootCampaign:
+		campaignData, err := s.loadCampaign(ctx)
+		if err != nil {
+			return reflect.Value{}, false, err
+		}
+
+		return reflect.ValueOf(campaignData), false, nil
 
 	default:
 		return reflect.Value{}, false, fmt.Errorf("%w: %s", ErrUnsupportedPath, root)
@@ -199,4 +210,24 @@ func (s *resolveState) loadTarget(ctx context.Context) (targetData, error) {
 	s.targetLink = link
 
 	return targetData{Link: s.targetLink}, nil
+}
+
+func (s *resolveState) loadCampaign(ctx context.Context) (campaignbus.Campaign, error) {
+	if s.campLoaded {
+		return s.campaign, nil
+	}
+
+	s.campLoaded = true
+
+	campaign, err := s.targetQuerier.QueryCampaignByID(ctx, s.target.CampaignID)
+	if err != nil {
+		if errors.Is(err, campaignbus.ErrCampaignNotFound) {
+			return campaignbus.Campaign{}, fmt.Errorf("resolve campaign: %w", ErrCampaignNotFound)
+		}
+		return campaignbus.Campaign{}, fmt.Errorf("resolve campaign: %w", err)
+	}
+
+	s.campaign = campaign
+
+	return s.campaign, nil
 }

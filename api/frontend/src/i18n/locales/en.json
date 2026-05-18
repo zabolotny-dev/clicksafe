@@ -1,0 +1,1308 @@
+{
+  "app": {
+    "name": "ClickSafe",
+    "adminPanel": "ClickSafe Admin Panel",
+    "securitySimulationConsole": "Security Simulation Console"
+  },
+  "sections": {
+    "operations": "Operations",
+    "campaigns": "Campaigns",
+    "templates": "Templates",
+    "people": "People",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "auth": "Sign in"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "campaigns": "Campaigns",
+    "templates": "Templates",
+    "emailTemplates": "Email Templates",
+    "landingPages": "Landing Pages",
+    "attachments": "Attachments",
+    "people": "People",
+    "employees": "Employees",
+    "departments": "Departments",
+    "reports": "Reports",
+    "organizationSettings": "Organization"
+  },
+  "routes": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Operational overview of campaigns, events, and risk signals."
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Manage campaigns, lifecycle actions, and setup."
+    },
+    "campaignCreate": {
+      "title": "Create Campaign",
+      "description": "Configure campaign resources, targets, and schedule."
+    },
+    "campaignEdit": {
+      "title": "Edit Campaign",
+      "description": "Update campaign fields, targets, and schedule."
+    },
+    "campaignDetail": {
+      "title": "Campaign Monitoring",
+      "description": "Campaign status, targets, events, and derived analytics."
+    },
+    "targetsEvents": {
+      "title": "Targets & Events",
+      "description": "Search campaign targets and inspect event history."
+    },
+    "emailTemplates": {
+      "title": "Email Templates",
+      "description": "Manage sender identity, subject, HTML content, and files."
+    },
+    "emailTemplateCreate": {
+      "title": "Create Email Template",
+      "description": "Create an email template with HTML content and files."
+    },
+    "emailTemplateEdit": {
+      "title": "Edit Email Template",
+      "description": "Update sender identity, HTML content, and files."
+    },
+    "landingPages": {
+      "title": "Landing Pages",
+      "description": "Manage landing page templates for campaigns."
+    },
+    "landingPageCreate": {
+      "title": "Create Landing Page",
+      "description": "Create a landing page from a saved HTML file."
+    },
+    "landingPageEdit": {
+      "title": "Edit Landing Page",
+      "description": "Update landing label and HTML content."
+    },
+    "attachments": {
+      "title": "Attachments",
+      "description": "Manage uploaded files, HTML assets, and file properties."
+    },
+    "employees": {
+      "title": "Employees",
+      "description": "Manage employees available for campaign target selection."
+    },
+    "employeeCreate": {
+      "title": "Create Employee",
+      "description": "Create an employee record for campaign targeting."
+    },
+    "departments": {
+      "title": "Departments",
+      "description": "Manage departments and related attributes."
+    },
+    "departmentCreate": {
+      "title": "Create Department",
+      "description": "Create a department for grouping employees."
+    },
+    "reports": {
+      "title": "Reports",
+      "description": "Derived analytics for campaigns, targets, and events."
+    },
+    "organizationSettings": {
+      "title": "Organization",
+      "description": "Organization profile, branding, and attributes."
+    }
+  },
+  "common": {
+    "placeholder": "—",
+    "loadedCount": "Loaded from backend: {count}",
+    "availableCount": "{filtered} of {total} available",
+    "actions": {
+      "save": "Save",
+      "confirm": "Confirm",
+      "saveChanges": "Save Changes",
+      "saveDraft": "Save Draft",
+      "create": "Create",
+      "createCampaign": "Create Campaign",
+      "createAndDistribute": "Create & Distribute Targets",
+      "createMessage": "Create Email Template",
+      "createLanding": "Create Landing Page",
+      "createDepartment": "Create Department",
+      "createEmployee": "Create Employee",
+      "cancel": "Cancel",
+      "back": "Back",
+      "next": "Next",
+      "continue": "Continue",
+      "continueEditing": "Continue editing",
+      "discard": "Discard",
+      "discardChanges": "Discard changes",
+      "reset": "Reset",
+      "retry": "Retry",
+      "refresh": "Refresh",
+      "edit": "Edit",
+      "delete": "Delete",
+      "duplicate": "Duplicate",
+      "download": "Download",
+      "downloadFile": "Download file",
+      "upload": "Upload",
+      "preview": "Preview",
+      "view": "Open",
+      "viewReports": "View reports",
+      "viewCampaigns": "View campaigns",
+      "select": "Select",
+      "selected": "Selected",
+      "clear": "Clear",
+      "clearSelection": "Clear selection",
+      "selectVisible": "Select visible",
+      "addSelected": "Add selected",
+      "addAttribute": "Add attribute",
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "openCreatedCampaign": "Open created campaign",
+      "autoDistribute": "Auto-distribute",
+      "keepCampaign": "Keep campaign",
+      "keepTarget": "Keep target",
+      "keepEditing": "Keep editing",
+      "copy": "Copy",
+      "copyPublicPath": "Copy public path",
+      "dismiss": "Dismiss"
+    },
+    "states": {
+      "loading": "Loading",
+      "loadingEllipsis": "Loading...",
+      "saving": "Saving...",
+      "creating": "Creating...",
+      "deleting": "Deleting...",
+      "uploading": "Uploading file...",
+      "working": "Working...",
+      "submitting": "Submitting...",
+      "distributing": "Distributing...",
+      "starting": "Starting...",
+      "pausing": "Pausing...",
+      "canceling": "Canceling..."
+    },
+    "labels": {
+      "name": "Name",
+      "fullName": "Full Name",
+      "email": "Email",
+      "phone": "Phone",
+      "domain": "Domain",
+      "status": "Status",
+      "subject": "Subject",
+      "from": "From",
+      "fromEmail": "From Email",
+      "fromName": "From Name",
+      "htmlBody": "HTML",
+      "attachments": "Attachments",
+      "attributes": "Attributes",
+      "department": "Department",
+      "message": "Email Template",
+      "landing": "Landing Page",
+      "educationAsset": "Education Asset",
+      "dateFrom": "Date From",
+      "dateTo": "Date To",
+      "dateRange": "Date Range",
+      "currentSchedule": "Current Schedule",
+      "scheduledAt": "Scheduled At",
+      "createdAt": "Created At",
+      "uploadedAt": "Uploaded At",
+      "type": "Type",
+      "rows": "Rows",
+      "resourceType": "Resource Type",
+      "key": "Key",
+      "value": "Value",
+      "id": "ID",
+      "token": "Token",
+      "campaign": "Campaign",
+      "target": "Target",
+      "targets": "Targets",
+      "employee": "Employee",
+      "employees": "Employees",
+      "events": "Events",
+      "activity": "Activity",
+      "schedule": "Schedule",
+      "public": "Public",
+      "private": "Private",
+      "publicPath": "Public Path",
+      "requiredVars": "Required Variables",
+      "fileName": "Filename",
+      "size": "Size",
+      "generatedAt": "Generated At",
+      "timeRange": "Time Range",
+      "organization": "Organization",
+      "organizationId": "Organization ID",
+      "branding": "Branding",
+      "brandingAttachment": "Branding Attachment",
+      "uploadBranding": "Upload branding",
+      "messageTemplate": "Email Template",
+      "landingPage": "Landing Page",
+      "education": "Education",
+      "review": "Review",
+      "currentCount": "Current Count",
+      "selectedCount": "Selected Count",
+      "scheduled": "Scheduled",
+      "unscheduled": "Unscheduled",
+      "visible": "Visible",
+      "riskIndex": "Risk Index",
+      "search": "Search",
+      "unknown": "Unknown"
+    },
+    "filters": {
+      "apply": "Apply filters",
+      "clear": "Clear filters",
+      "allCampaigns": "All campaigns",
+      "allStatuses": "All statuses",
+      "allEmployees": "All employees",
+      "allDepartments": "All departments",
+      "anyStatus": "Any status"
+    },
+    "date": {
+      "placeholder": "mm/dd/yyyy",
+      "open": "Open calendar",
+      "clear": "Clear date",
+      "today": "Today",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "months": [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+      ],
+      "weekdaysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    },
+    "time": {
+      "placeholder": "hh:mm",
+      "clear": "Clear",
+      "hours": "Hours",
+      "minutes": "Minutes"
+    },
+    "selection": {
+      "none": "Nothing selected",
+      "noDepartment": "No department"
+    },
+    "pagination": {
+      "pageOf": "Page {page} of {total}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "page": "Page",
+      "of": "of",
+      "rows": "ROWS",
+      "previous": "Previous",
+      "next": "Next",
+      "showing": "Showing {from}-{to} of {total}",
+      "empty": "No records"
+    },
+    "notifications": {
+      "host": "Notifications",
+      "dismissLabel": "Dismiss notification: {title}",
+      "defaultTitle": "Notification"
+    },
+    "empty": {
+      "noData": "No data",
+      "noMatchingRecords": "No records match the current filters"
+    },
+    "drawers": {
+      "close": "Close panel",
+      "closePreview": "Close preview",
+      "resize": "Resize panel"
+    },
+    "preview": {
+      "rawTemplate": "Raw template preview. Variables are not substituted.",
+      "campaignResource": "Campaign resource preview",
+      "resource": "Resource preview",
+      "attachment": "Attachment preview",
+      "template": "Template preview",
+      "selectResource": "Select a resource to preview.",
+      "selectHtmlAsset": "Select an HTML asset to preview the saved source.",
+      "selectHtmlOrText": "Select an HTML or text attachment to preview.",
+      "unavailable": "Preview unavailable",
+      "failed": "Preview failed",
+      "noneSelected": "No preview selected",
+      "unsupported": "This file type is not rendered inline. Download the file to inspect it.",
+      "image": "Image preview",
+      "text": "Text preview"
+    },
+    "resource": {
+      "ready": "Ready",
+      "missing": "Missing",
+      "noResourcesFound": "No resources found",
+      "createBeforeAssigning": "Create a resource before assigning it to a campaign.",
+      "noMatchingResources": "No matching resources",
+      "adjustSearchQuery": "Adjust the search query to see more records.",
+      "searchByLabel": "Search by label",
+      "selectedResource": "Selected resource",
+      "refreshResources": "Refresh resources",
+      "resourcesUnavailable": "Resources unavailable",
+      "noHtmlBody": "No HTML body to preview",
+      "selectedAttachment": "Selected attachment",
+      "selectedAttachments": "Selected attachments",
+      "searchAttachments": "Search, inspect, and select saved backend attachments.",
+      "attachmentsUnavailable": "Attachments unavailable",
+      "adjustAttachmentFilters": "Adjust the label or type filter, then refresh the list.",
+      "refreshAttachments": "Refresh attachments",
+      "allTypes": "All types",
+      "allSupportedTypes": "All supported types",
+      "allImageTypes": "All images",
+      "dropOneFile": "Drop one file here",
+      "singleFileUpload": "Use one file per upload. The backend derives the attachment type from the file extension.",
+      "optionalUploadLabel": "Optional label after upload",
+      "unsupportedType": "Unsupported file type. Allowed types: {types}.",
+      "publicAttachment": "Public attachment",
+      "publicAttachmentHint": "Expose through the backend public path when available.",
+      "detectedType": "Detected Type",
+      "discardMessage": "Unsaved changes will be lost."
+    },
+    "attributes": {
+      "title": "Attributes",
+      "noneAdded": "No attributes added.",
+      "keyPlaceholder": "region",
+      "valuePlaceholder": "internal"
+    }
+  },
+  "components": {
+    "htmlEditor": {
+      "addImage": "Add image"
+    },
+    "imageAssetDrawer": {
+      "title": "Images",
+      "subtitle": "Choose an uploaded image and copy its HTML URL.",
+      "searchPlaceholder": "Search images by name",
+      "typeAllImages": "All image types",
+      "empty": "No images match the current filters",
+      "loadingMore": "Loading more images...",
+      "copyUrl": "Copy HTML URL",
+      "preview": "Preview image",
+      "copySuccess": "Image link copied",
+      "copyPrivateWarning": "This file is private. Make it public to use it in HTML.",
+      "copyError": "Could not copy link"
+    }
+  },
+  "auth": {
+    "eyebrow": "Authorized access only",
+    "title": "Sign in to ClickSafe",
+    "description": "Use internal administrator credentials to manage security simulations.",
+    "login": "Login",
+    "password": "Password",
+    "submit": "Sign in",
+    "hint": "Access is limited to authorized organization staff. The session uses cookies and CSRF protection.",
+    "enterCredentials": "Enter login and password."
+  },
+  "errors": {
+    "unknown": "The request could not be completed.",
+    "requestFailed": "The request could not be completed.",
+    "dashboardLoad": "Dashboard could not be loaded.",
+    "reportsLoad": "Reports could not be loaded.",
+    "campaignsLoad": "Campaigns could not be loaded.",
+    "campaignLoad": "Campaign could not be loaded.",
+    "campaignEditLoad": "Campaign could not be loaded for editing.",
+    "monitoringLoad": "Monitoring data could not be loaded.",
+    "organizationLoad": "Organization settings could not be loaded.",
+    "organizationSave": "Organization settings could not be saved.",
+    "brandingAttachmentsLoad": "Branding attachments could not be loaded.",
+    "brandingUpload": "Branding attachment could not be uploaded.",
+    "messagesLoad": "Email templates could not be loaded.",
+    "landingsLoad": "Landing templates could not be loaded.",
+    "attachmentsLoad": "Attachments could not be loaded.",
+    "employeesLoad": "Employees could not be loaded.",
+    "departmentsLoad": "Departments could not be loaded.",
+    "targetsEventsLoad": "Targets and events could not be loaded.",
+    "referenceLoad": "Reference data could not be loaded.",
+    "targetsLoad": "Campaign targets could not be loaded.",
+    "targetMutation": "The target action could not be completed.",
+    "scheduleSave": "Schedule could not be saved.",
+    "sessionCheck": "Your session could not be verified for this action. Try again.",
+    "resolveValidation": "Resolve the highlighted fields before submitting.",
+    "auth": {
+      "invalidCredentials": "Invalid login or password.",
+      "tooManyAttempts": "Too many sign-in attempts. Wait a moment and try again.",
+      "sessionExpired": "Session expired. Sign in again to continue.",
+      "validationFailed": "Check the login and password.",
+      "loginInvalid": "Login must start with a Latin letter and contain only Latin letters, numbers, dots, hyphens, or underscores.",
+      "loginTooShort": "Login must be at least {count} characters.",
+      "loginTooLong": "Login must be {count} characters or fewer.",
+      "loginTooCommon": "This login is too common.",
+      "passwordInvalid": "Password does not meet the validation rules.",
+      "passwordEdgeSpaces": "Password must not start or end with spaces.",
+      "passwordTooShort": "Password must be at least {count} characters.",
+      "passwordTooLong": "Password must be {count} characters or fewer.",
+      "passwordControlCharacter": "Password must not contain control characters.",
+      "passwordDifferentCharacters": "Password must contain different characters.",
+      "passwordCharacterClasses": "Password must contain at least three character classes: lowercase or uppercase letters, numbers, or symbols.",
+      "passwordTooCommon": "This password is too common."
+    }
+  },
+  "campaign": {
+    "status": {
+      "draft": "Draft",
+      "active": "Active",
+      "paused": "Paused",
+      "completed": "Completed",
+      "canceled": "Canceled"
+    },
+    "actions": {
+      "start": "Start",
+      "pause": "Pause",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "startSuccess": "Campaign started.",
+      "pauseSuccess": "Campaign paused.",
+      "cancelSuccess": "Campaign canceled.",
+      "updateSuccess": "Campaign updated.",
+      "deleteSuccess": "Campaign deleted.",
+      "deleteDescription": "Campaign removed.",
+      "unknownStatus": "Campaign status is unknown.",
+      "editUnavailableCanceled": "Canceled campaigns cannot be edited because the backend locks required fields.",
+      "editUnavailableStatus": "Editing is available only for Draft and Paused campaigns.",
+      "targetMutationUnavailable": "Target schedule changes are available only for Draft and Paused campaigns.",
+      "otherActionPending": "Another campaign action is still in progress.",
+      "notAvailableForStatus": "This action is not available for the current campaign status.",
+      "cancelDialogTitle": "Cancel campaign",
+      "cancelDialogMessage": "The campaign will be canceled and can no longer continue sending targets.",
+      "deleteDialogTitle": "Delete campaign",
+      "deleteDialogMessage": "The campaign will be removed.",
+      "deleteDialogConfirm": "Delete campaign"
+    },
+    "labels": {
+      "label": "Campaign Label"
+    }
+  },
+  "target": {
+    "status": {
+      "pending": "Pending",
+      "sent": "Sent",
+      "failed": "Failed",
+      "opened": "Opened",
+      "clicked": "Clicked",
+      "submitted": "Data Submitted"
+    }
+  },
+  "events": {
+    "messageSent": "Message Sent",
+    "deliveryFailed": "Delivery Failed",
+    "emailOpened": "Email Opened",
+    "linkOpened": "Link Opened",
+    "dataSent": "Data Submitted"
+  },
+  "attachments": {
+    "visibility": {
+      "public": "Public",
+      "private": "Private"
+    }
+  },
+  "charts": {
+    "empty": "No chart data available.",
+    "aria": {
+      "chart": "Chart",
+      "campaignRiskGauge": "Campaign risk index gauge",
+      "eventsOverTime": "Events over time chart",
+      "campaignSchedule": "Campaign target schedule chart",
+      "campaignFunnel": "Campaign funnel chart",
+      "campaignEventDistribution": "Campaign event distribution chart",
+      "dashboardEventDistribution": "Dashboard event distribution chart",
+      "dashboardTopDepartments": "Top risk departments chart",
+      "dashboardActivityCalendar": "Dashboard activity calendar"
+    },
+    "risk": {
+      "title": "Campaign Risk Index",
+      "value": "Risk Index",
+      "tooltip": "Campaign Risk Index: {value}",
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High",
+      "empty": "No risk activity yet."
+    },
+    "eventDistribution": {
+      "title": "Event Distribution",
+      "series": "Event Distribution",
+      "empty": "No supported events available for distribution."
+    },
+    "funnel": {
+      "title": "Campaign Funnel",
+      "series": "Campaign Funnel",
+      "empty": "No supported funnel events yet."
+    },
+    "eventsOverTime": {
+      "title": "Events Over Time",
+      "empty": "No supported event activity yet."
+    },
+    "schedule": {
+      "series": "Scheduled Targets",
+      "empty": "No scheduled targets yet.",
+      "status": "Status",
+      "scheduled": "Scheduled",
+      "created": "Created",
+      "token": "Token"
+    },
+    "departments": {
+      "riskIndex": "Risk Index",
+      "employees": "Employees",
+      "empty": "Department risk requires employee and department data."
+    },
+    "calendar": {
+      "series": "Activity Calendar",
+      "empty": "No supported event activity for the selected period.",
+      "tooltip": "Supported events: {count}",
+      "days": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    }
+  },
+  "layout": {
+    "mainNavigation": "Main navigation",
+    "currentSession": "Current session",
+    "online": "Online",
+    "administrator": "Administrator",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "dashboardTitle": "ClickSafe dashboard",
+    "language": {
+      "label": "Language",
+      "aria": "Language",
+      "switchToEnglish": "Switch language to English",
+      "switchToRussian": "Switch language to Russian"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Operational overview of campaign activity, risk signals, and next actions.",
+      "partialData": "Dashboard data is partially available",
+      "unavailable": "Dashboard unavailable",
+      "noActivityTitle": "No supported activity in scope",
+      "noActivityMessage": "No supported simulation events were recorded in {year}.",
+      "metricsLoading": "Dashboard metrics loading",
+      "metrics": "Dashboard metrics",
+      "compactAnalytics": "Dashboard compact analytics",
+      "operationalData": "Dashboard operational data",
+      "activityCalendarTitle": "Activity Calendar",
+      "activityCalendarDescription": "Supported simulation events by day.",
+      "year": "Year",
+      "eventDistributionTitle": "Event Distribution",
+      "eventDistributionDescription": "Activity volume by event type.",
+      "topDepartmentsTitle": "Top Risk Departments",
+      "topDepartmentsDescription": "Highest average risk index.",
+      "activeCampaignsTitle": "Active Campaigns",
+      "activeCampaignsDescription": "Currently running campaigns and their target activity.",
+      "activeCampaignsAria": "Active campaigns",
+      "columns": {
+        "opens": "Opens",
+        "clicks": "Clicks",
+        "submissions": "Submissions",
+        "actions": "Actions"
+      },
+      "recentEventsTitle": "Recent Events",
+      "recentEventsDescription": "Most recent supported activity in the selected year.",
+      "noRecentEventsTitle": "No recent events",
+      "noRecentEventsDescription": "No supported activity has been recorded in {year} yet.",
+      "noActiveCampaignsTitle": "No active campaigns",
+      "noActiveCampaignsDescription": "Create a campaign or open existing campaigns to continue.",
+      "metrics": {
+        "activeCampaigns": {
+          "label": "Active Campaigns",
+          "description": "Currently running campaigns"
+        },
+        "riskIndex": {
+          "label": "Risk Index",
+          "description": "Average target risk in {year}"
+        },
+        "openRate": {
+          "label": "Open Rate",
+          "description": "Unique targets reaching “Email Opened”"
+        },
+        "clickRate": {
+          "label": "Click Rate",
+          "description": "Unique targets reaching “Link Opened”"
+        },
+        "submitRate": {
+          "label": "Data Submission Rate",
+          "description": "Unique targets reaching “Data Submitted”"
+        }
+      },
+      "riskTooltip": "Per target, ClickSafe uses the highest reached supported event: Message Sent = 0, Delivery Failed = 0, Email Opened = 15, Link Opened = 45, Data Submitted = 100. Risk index is the average across targets in the selected dashboard year.",
+      "employeeLookupUnavailable": "Employee lookup could not be loaded. Department analytics are unavailable.",
+      "departmentLookupUnavailable": "Department labels could not be loaded. Department analytics are unavailable."
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Manage phishing simulation campaigns.",
+      "filtersAria": "Campaign filters",
+      "searchLabel": "Search campaign label",
+      "searchPlaceholder": "Campaign label",
+      "tableTitle": "Campaign List",
+      "tableDescription": "Campaign fields and target activity metrics from backend monitoring.",
+      "tableAria": "Campaign list",
+      "columns": {
+        "campaign": "Campaign",
+        "status": "Status",
+        "domain": "Domain",
+        "dateRange": "Date Range",
+        "resources": "Resources",
+        "targets": "Targets",
+        "opens": "Opens",
+        "clicks": "Clicks",
+        "submissions": "Data Submission",
+        "actions": "Actions"
+      },
+      "preview": {
+        "resource": "Resource preview",
+        "message": "Message preview",
+        "landing": "Landing preview",
+        "education": "Education asset preview",
+        "messageMissing": "No message template selected",
+        "landingMissing": "No landing selected",
+        "educationMissing": "No education asset selected",
+        "messageNoHtml": "The message template has no HTML file.",
+        "landingNoHtml": "The landing has no HTML file.",
+        "loadFailed": "The resource preview could not be loaded.",
+        "selectResource": "Select a campaign resource to preview."
+      },
+      "errors": {
+        "metricsLoad": "Target metrics could not be loaded.",
+        "load": "Campaign list could not be loaded."
+      },
+      "emptyTitle": "No campaigns found",
+      "emptyDescription": "Campaigns do not exist or do not match the current filters."
+    },
+    "campaignDetail": {
+      "loadingTitle": "Campaign Monitoring",
+      "loadingDescription": "Loading campaign details",
+      "notFoundTitle": "Campaign not found",
+      "notFoundDescription": "The requested campaign does not exist or is no longer available.",
+      "backToCampaigns": "Back to Campaigns",
+      "sessionDescription": "Checking session state",
+      "loadDescription": "Campaign details could not be loaded",
+      "loadTitle": "Campaign could not be loaded",
+      "retry": "Retry",
+      "summaryAria": "Campaign monitoring summary",
+      "tabsAria": "Campaign monitoring sections",
+      "partialMonitoringData": "Monitoring data is partially available",
+      "monitoringUnavailable": "Monitoring unavailable",
+      "monitoringLoadingState": "Monitoring data loading state",
+      "monitoringSessionState": "Monitoring session state",
+      "tabs": {
+        "overview": "Overview",
+        "targets": "Targets",
+        "settings": "Settings"
+      },
+      "labels": {
+        "dateRange": "Date Range",
+        "campaign": "Campaign",
+        "scheduledAt": "Scheduled At",
+        "createdAt": "Created At",
+        "activityHistory": "Activity History",
+        "targetActivity": "Target Activity",
+        "attributes": "Attributes",
+        "campaignLabel": "Campaign Label",
+        "settingsDescription": "Campaign fields from the current backend campaign record.",
+        "attributesDescription": "Raw campaign attributes from the backend campaign record."
+      },
+      "overview": {
+        "riskTitle": "Campaign Risk Index",
+        "riskDescription": "Average target risk from supported activity.",
+        "riskFormula": "Campaign risk formula",
+        "riskFormulaText": "Per target, use the highest reached score: Message Sent = 0, Delivery Failed = 0, Email Opened = 15, Link Opened = 45, Data Submitted = 100. Campaign risk is the average across targets.",
+        "eventDistributionTitle": "Event Distribution",
+        "eventDistributionDescription": "Unique target counts by supported event type.",
+        "funnelTitle": "Campaign Funnel",
+        "funnelDescription": "Unique target counts by monitoring stage.",
+        "eventsOverTimeTitle": "Events over time",
+        "eventsOverTimeDescription": "Activity volume from supported events.",
+        "monitoringLoadFailed": "Monitoring data could not be loaded.",
+        "noTargets": "This campaign has no targets yet."
+      },
+      "targets": {
+        "title": "Targets",
+        "description": "Inspect target status, event history, and sending schedule.",
+        "summary": {
+          "targets": "targets",
+          "scheduled": "scheduled",
+          "unscheduled": "unscheduled",
+          "activityRecords": "activity records",
+          "visible": "visible"
+        },
+        "scheduleTitle": "Schedule Timeline",
+        "scheduleDescription": "Each point is a scheduled target. Open campaign editing to change the schedule.",
+        "allStatuses": "All statuses",
+        "filtersAria": "Target monitoring filters",
+        "monitoringTargetLoadFailed": "Campaign target data could not be loaded.",
+        "noTargets": "This campaign has no targets yet.",
+        "noMatchingTargets": "No targets match the selected status.",
+        "inspect": "Inspect target activity",
+        "columns": {
+          "employee": "Employee",
+          "campaign": "Campaign",
+          "status": "Status",
+          "scheduledAt": "Scheduled At",
+          "createdAt": "Created At",
+          "token": "Token",
+          "actions": "Actions"
+        },
+        "drawerDescription": "Inspect target details and supported event history.",
+        "activityDescription": "Supported target events from the current backend vocabulary.",
+        "noActivity": "No supported activity has been recorded for this target yet."
+      }
+    },
+    "campaignWizard": {
+      "createTitle": "Create Campaign",
+      "editTitle": "Edit Campaign",
+      "createDescription": "Configure campaign resources, targets, and schedule.",
+      "editDescription": "Update campaign fields, targets, and schedule.",
+      "navigationAria": "Campaign wizard navigation",
+      "editLoadingState": "Campaign edit loading state",
+      "editSessionState": "Campaign edit session state",
+      "panelDescriptionCreate": "Complete required fields, select resources, and prepare targets.",
+      "panelDescriptionEdit": "Change available campaign fields and target schedule.",
+      "domainHelper": "The domain is used by campaign setup and target sending.",
+      "stepsAria": "Campaign setup steps",
+      "messageSelectionAria": "Message template selection",
+      "landingSelectionAria": "Landing page selection",
+      "educationSelectionAria": "Education asset selection",
+      "targetSelectionAria": "Campaign target selection",
+      "employeeTableAria": "Employee target selection table",
+      "selectedMessage": "Selected message template",
+      "selectedLanding": "Selected landing page",
+      "selectedEducation": "Selected education asset",
+      "selectMessage": "Select message template",
+      "selectLanding": "Select landing page",
+      "selectEducation": "Select education asset",
+      "messageSearchPlaceholder": "Search message templates",
+      "landingSearchPlaceholder": "Search landing pages",
+      "educationSearchPlaceholder": "Search education assets",
+      "educationTemplates": "Education templates",
+      "noMessageTemplates": "No message templates",
+      "noMessageTemplatesDescription": "Create a message template before configuring a campaign.",
+      "noLandingPages": "No landing pages",
+      "noLandingPagesDescription": "Create a landing page before configuring a campaign.",
+      "noEducationAssets": "No education assets",
+      "employeeSearch": "Employee search",
+      "employeeSearchPlaceholder": "Employee name or email",
+      "selectedCount": "Selected: {count}",
+      "targetCount": "Targets: {count}",
+      "targetOperationFailed": "The target action failed.",
+      "targetChangesDisabled": "Target changes are currently unavailable.",
+      "targetMutationDisabled": "Target changes are available only for Draft or Paused campaigns.",
+      "currentTargetsTitle": "Current targets",
+      "currentTargetsDescription": "Targets already assigned to the campaign.",
+      "noCampaignTargets": "This campaign has no targets yet",
+      "noCampaignTargetsDescription": "Add employees as campaign targets.",
+      "noEmployees": "No employees",
+      "noEmployeesDescription": "Create employees before selecting targets.",
+      "noMatchingEmployees": "No matching employees",
+      "noMatchingEmployeesDescription": "Adjust the search to see more employees.",
+      "targetsEditNote": "In edit mode, target changes are saved immediately.",
+      "targetsCreateNote": "In create mode, targets are added when the campaign is submitted.",
+      "scheduleTitle": "Sending schedule",
+      "scheduleEditDescription": "Change sending time for current campaign targets.",
+      "scheduleCreateDescription": "Prepare sending time for selected targets.",
+      "scheduledCount": "Scheduled: {count}",
+      "unscheduledCount": "Unscheduled: {count}",
+      "scheduleOperationFailed": "Schedule was not saved.",
+      "noTargetsToSchedule": "No targets to schedule.",
+      "noTargetsToScheduleEdit": "Add targets to schedule sending time.",
+      "noTargetsToScheduleCreate": "Select employees to schedule sending time.",
+      "scheduleEditorAria": "Target schedule editor",
+      "newScheduledAt": "New sending time",
+      "scheduleDate": "Schedule date",
+      "scheduleTime": "Schedule time",
+      "autoDistributeEditNote": "Auto-distribution will change the schedule for current targets.",
+      "autoDistributeCreateNote": "Auto-distribution will prepare a schedule for selected targets.",
+      "validationWarnings": "Validation warnings",
+      "noValidationWarnings": "No warnings.",
+      "readyToSave": "Ready to save.",
+      "readyForFinalAction": "Ready for final action.",
+      "finalAction": "Final action",
+      "finalActions": "Final actions",
+      "finalActionEditDescription": "Save campaign changes.",
+      "finalActionCreateDescription": "Save a draft or create the campaign with targets.",
+      "partialFailureMessage": "Some actions did not finish. Review details and retry.",
+      "completeRequiredBeforeSubmit": "Complete required steps before submitting.",
+      "steps": {
+        "basicInfo": "Basic Info",
+        "message": "Message Template",
+        "landing": "Landing Page",
+        "education": "Education Asset",
+        "targets": "Targets",
+        "review": "Schedule & Review"
+      },
+      "submitStages": {
+        "savingCampaign": "Saving campaign...",
+        "creatingCampaign": "Creating campaign...",
+        "savingSchedules": "Saving schedules...",
+        "creatingTargets": "Creating targets..."
+      },
+      "preview": {
+        "message": "Message template preview",
+        "messageHtmlBody": "Message template HTML body",
+        "landing": "Landing page preview",
+        "landingHtmlBody": "Landing page HTML body",
+        "education": "Education asset preview"
+      },
+      "discard": {
+        "createTitle": "Leave campaign creation",
+        "editTitle": "Leave campaign editing",
+        "message": "Unsaved changes will be lost."
+      },
+      "deleteTarget": {
+        "title": "Delete target",
+        "message": "The target will be removed from the campaign.",
+        "confirm": "Delete target"
+      },
+      "validation": {
+        "labelRequired": "Enter a campaign label.",
+        "labelMissing": "Campaign label is missing.",
+        "domainRequired": "Enter a domain.",
+        "domainMissing": "Domain is not selected.",
+        "domainInvalid": "Enter a valid domain.",
+        "bothDatesRequired": "Enter both start and end dates.",
+        "dateRangeMissing": "Date range is missing.",
+        "dateRangeInvalid": "End date must be after start date.",
+        "dateRangeRequiredForDistribution": "Date range is required for distribution.",
+        "scheduleRequired": "Enter sending time.",
+        "scheduleInvalid": "Sending time is invalid.",
+        "scheduleInsideRange": "Sending time must be inside the campaign date range.",
+        "clearingScheduleUnsupported": "Clearing schedule for an existing target is not supported.",
+        "selectMessage": "Select a message template.",
+        "messageMissing": "Message template is not selected.",
+        "selectLanding": "Select a landing page.",
+        "landingMissing": "Landing page is not selected.",
+        "selectEducation": "Select an education asset.",
+        "educationMissing": "Education asset is not selected.",
+        "selectEmployee": "Select an employee.",
+        "targetsMissing": "No targets selected.",
+        "addTargetBeforeDistribution": "Add targets before distribution.",
+        "onlyPendingCanSchedule": "Only pending targets can be scheduled."
+      },
+      "notifications": {
+        "scheduleDistributedTitle": "Schedule distributed",
+        "scheduleDistributedMessage": "Sending time was distributed across targets.",
+        "targetsDistributedTitle": "Targets distributed",
+        "targetsDistributedMessage": "Targets were created and distributed by schedule.",
+        "autoDistributeFailedTitle": "Auto-distribution failed",
+        "targetsPartiallyAddedTitle": "Some targets were added",
+        "targetsAddedTitle": "Targets added",
+        "targetsAddedMessage": "Targets added: {count}",
+        "addTargetsFailedTitle": "Targets could not be added",
+        "scheduleSavedTitle": "Schedule saved",
+        "scheduleSavedMessage": "Target sending time was updated.",
+        "scheduleFailedTitle": "Schedule could not be saved",
+        "targetDeletedTitle": "Target deleted",
+        "targetDeletedMessage": "Target removed from campaign.",
+        "targetDeleteFailedTitle": "Target could not be deleted",
+        "scheduleNeedsAttentionTitle": "Check schedule",
+        "campaignUpdatedTitle": "Campaign updated",
+        "campaignUpdatedMessage": "Campaign changes saved.",
+        "draftSavedTitle": "Draft saved",
+        "draftSavedMessage": "Campaign saved as draft.",
+        "campaignNeedsAttentionTitle": "Campaign needs attention",
+        "campaignTargetsDistributedMessage": "Campaign created and targets distributed.",
+        "campaignCreatedTitle": "Campaign created",
+        "campaignCreatedMessage": "Campaign was created successfully."
+      },
+      "errors": {
+        "createFailedTitle": "Campaign could not be created",
+        "updateFailedTitle": "Campaign could not be saved",
+        "scheduleDistributionFailed": "Schedule could not be distributed.",
+        "targetsDistributionFailed": "Targets could not be distributed.",
+        "targetCreateFailed": "Target could not be created.",
+        "targetsAddFailed": "Targets could not be added.",
+        "scheduleSaveFailed": "Schedule could not be saved.",
+        "targetDeleteFailed": "Target could not be deleted.",
+        "editUnavailableStatus": "Editing is available only for Draft or Paused campaigns.",
+        "partialScheduleSave": "Some schedules were not saved.",
+        "createdSchedulePartial": "Campaign created, but some schedules were not saved.",
+        "createdTargetsPartial": "Campaign created, but some targets were not added.",
+        "scheduleFailuresCount": "Schedule failures: {count}"
+      }
+    },
+    "attachments": {
+      "title": "Attachments",
+      "description": "Manage uploaded files, HTML assets, public access, and required variables.",
+      "libraryTitle": "Attachment Library",
+      "uploadTitle": "Upload attachment",
+      "uploadErrorTitle": "Attachment could not be uploaded",
+      "editTitle": "Edit attachment",
+      "editDescription": "Change attachment label, visibility, and required variables.",
+      "updateErrorTitle": "Attachment could not be updated",
+      "privateFileNoPublicPath": "Private attachments do not have a public path.",
+      "previewDescription": "Inspect the saved attachment.",
+      "validation": {
+        "selectFile": "Select a file.",
+        "selectFileFirst": "Select a file first.",
+        "labelRequired": "Enter an attachment label."
+      },
+      "notifications": {
+        "copyUnavailableTitle": "Copy unavailable",
+        "copyUnavailableMessage": "This attachment has no public path.",
+        "publicPathCopied": "Public path copied.",
+        "copyFailedTitle": "Copy failed",
+        "copyFailedMessage": "Copy the path manually.",
+        "uploaded": "Attachment uploaded.",
+        "uploadFailedTitle": "Attachment could not be uploaded",
+        "updated": "Attachment updated.",
+        "updateFailedTitle": "Attachment could not be updated",
+        "deleted": "Attachment deleted.",
+        "deleteFailedTitle": "Attachment could not be deleted"
+      },
+      "delete": {
+        "title": "Delete attachment",
+        "message": "The attachment will be removed from the library."
+      }
+    },
+    "emailTemplates": {
+      "title": "Email Templates",
+      "description": "Manage sender identity, subject, HTML content, and linked files.",
+      "createTitle": "Create Email Template",
+      "editTitle": "Edit Email Template",
+      "createDescription": "Configure sender identity, subject, HTML, and files.",
+      "editDescription": "Update template sender identity, subject, HTML, and files.",
+      "copyLabel": "{label} copy",
+      "unavailable": "Email templates unavailable",
+      "tableTitle": "Email Templates",
+      "previewHtmlBody": "Preview HTML",
+      "emailHtmlPreview": "Email HTML",
+      "backToList": "Back to templates",
+      "formAttention": "Check required fields before saving.",
+      "stepsAria": "Email template setup steps",
+      "htmlBodyTitle": "Email HTML content",
+      "saveHtmlAttachment": "Save HTML attachment",
+      "senderIdentityDescription": "Sender identity, subject, and template label.",
+      "htmlBodyAttachment": "Email HTML attachment",
+      "noHtmlAttachments": "No HTML attachments",
+      "editAsNewVersion": "Edit as new version",
+      "templateAttachments": "Template attachments",
+      "reviewDescription": "Review the template before saving.",
+      "steps": {
+        "basicInfo": "Basic Info",
+        "review": "Review"
+      },
+      "placeholders": {
+        "label": "Quarterly awareness notice",
+        "fromName": "Security Training",
+        "subject": "Action requested"
+      },
+      "validation": {
+        "labelRequired": "Enter a template label.",
+        "fromEmailRequired": "Enter sender email.",
+        "htmlEmpty": "HTML content cannot be empty."
+      },
+      "notifications": {
+        "editorUnavailableTitle": "Editor unavailable",
+        "editorUnavailableMessage": "HTML editor could not be opened.",
+        "htmlSourceUnavailableTitle": "HTML source unavailable",
+        "htmlSavedTitle": "HTML saved",
+        "htmlSavedMessage": "HTML attachment updated.",
+        "htmlUploadFailedTitle": "HTML could not be saved",
+        "created": "Email template created.",
+        "updated": "Email template updated.",
+        "saveFailedTitle": "Template could not be saved",
+        "deleted": "Email template deleted.",
+        "deleteFailedTitle": "Template could not be deleted"
+      },
+      "delete": {
+        "title": "Delete email template",
+        "message": "The email template will be removed."
+      }
+    },
+    "landingPages": {
+      "title": "Landing Pages",
+      "description": "Manage landing page templates and HTML content.",
+      "createTitle": "Create Landing Page",
+      "editTitle": "Edit Landing Page",
+      "createDescription": "Configure landing label and HTML.",
+      "editDescription": "Update landing label and HTML.",
+      "copyLabel": "{label} copy",
+      "unavailable": "Landing pages unavailable",
+      "tableTitle": "Landing Pages",
+      "previewHtml": "Preview HTML",
+      "backToList": "Back to landing pages",
+      "formAttention": "Check required fields before saving.",
+      "htmlBodyTitle": "Landing HTML content",
+      "saveHtmlAttachment": "Save HTML attachment",
+      "stepsAria": "Landing page setup steps",
+      "basicInfoDescription": "Landing label for campaign selection.",
+      "labelPlaceholder": "Landing page label",
+      "htmlBodyAttachment": "Landing HTML attachment",
+      "noHtmlAttachments": "No HTML attachments",
+      "editAsNewVersion": "Edit as new version",
+      "reviewDescription": "Review the landing page before saving.",
+      "htmlPreviewTitle": "Landing preview",
+      "steps": {
+        "basicInfo": "Basic Info",
+        "review": "Review"
+      },
+      "validation": {
+        "labelRequired": "Enter a landing page label.",
+        "htmlEmpty": "HTML content cannot be empty."
+      },
+      "notifications": {
+        "editorUnavailableTitle": "Editor unavailable",
+        "editorUnavailableMessage": "HTML editor could not be opened.",
+        "htmlSourceUnavailableTitle": "HTML source unavailable",
+        "htmlSavedTitle": "HTML saved",
+        "htmlSavedMessage": "HTML attachment updated.",
+        "htmlUploadFailedTitle": "HTML could not be saved",
+        "created": "Landing page created.",
+        "updated": "Landing page updated.",
+        "saveFailedTitle": "Landing page could not be saved",
+        "deleted": "Landing page deleted.",
+        "deleteFailedTitle": "Landing page could not be deleted"
+      },
+      "delete": {
+        "title": "Delete landing page",
+        "message": "The landing page will be removed."
+      }
+    },
+    "employees": {
+      "title": "Employees",
+      "description": "Manage employees available for campaign target selection.",
+      "createTitle": "Create Employee",
+      "editTitle": "Edit Employee",
+      "createDescription": "Add an employee for campaign target selection.",
+      "backToList": "Back to employees",
+      "formAttention": "Check required fields before saving.",
+      "stepsAria": "Employee setup steps",
+      "basicInfoDescription": "Employee name and contact details.",
+      "departmentDescription": "Link the employee to a department if one exists.",
+      "departmentSearch": "Department search",
+      "departmentSearchPlaceholder": "Department label",
+      "noDepartmentHint": "The employee can be saved without a department.",
+      "reviewDescription": "Review the employee record before saving.",
+      "searchPlaceholder": "First name, last name, or email",
+      "unavailable": "Employees unavailable",
+      "tableTitle": "Employees",
+      "emptyDepartmentUpdateHint": "Department can be assigned later.",
+      "import": {
+        "action": "Import file",
+        "success": "Employee import completed.",
+        "failedTitle": "File could not be imported",
+        "failedMessage": "Review the file rows and try again.",
+        "rowError": "Row {row}{field}: {error}"
+      },
+      "labels": {
+        "firstName": "First Name",
+        "lastName": "Last Name"
+      },
+      "steps": {
+        "basicInfo": "Basic Info",
+        "review": "Review"
+      },
+      "validation": {
+        "firstNameRequired": "Enter first name.",
+        "lastNameRequired": "Enter last name.",
+        "emailRequired": "Enter email."
+      },
+      "notifications": {
+        "created": "Employee created.",
+        "updated": "Employee updated.",
+        "deleted": "Employee deleted.",
+        "createFailedTitle": "Employee could not be created",
+        "saveFailedTitle": "Employee could not be saved",
+        "deleteFailedTitle": "Employee could not be deleted"
+      },
+      "delete": {
+        "title": "Delete employee",
+        "message": "The employee will be removed."
+      },
+      "discard": {
+        "title": "Leave employee"
+      }
+    },
+    "departments": {
+      "title": "Departments",
+      "description": "Manage departments and employee grouping attributes.",
+      "createTitle": "Create Department",
+      "editTitle": "Edit Department",
+      "createDescription": "Add a department for grouping employees.",
+      "backToList": "Back to departments",
+      "formAttention": "Check required fields before saving.",
+      "stepsAria": "Department setup steps",
+      "basicInfoDescription": "Department label and attributes.",
+      "labelPlaceholder": "Department label",
+      "reviewDescription": "Review the department before saving.",
+      "searchPlaceholder": "Department label",
+      "unavailable": "Departments unavailable",
+      "tableTitle": "Departments",
+      "employeeCount": "Employees: {count}",
+      "import": {
+        "action": "Import file",
+        "success": "Department import completed.",
+        "failedTitle": "File could not be imported",
+        "failedMessage": "Review the file rows and try again.",
+        "rowError": "Row {row}{field}: {error}"
+      },
+      "steps": {
+        "basicInfo": "Basic Info",
+        "review": "Review"
+      },
+      "validation": {
+        "labelRequired": "Enter department label."
+      },
+      "notifications": {
+        "created": "Department created.",
+        "updated": "Department updated.",
+        "deleted": "Department deleted.",
+        "createFailedTitle": "Department could not be created",
+        "saveFailedTitle": "Department could not be saved",
+        "deleteFailedTitle": "Department could not be deleted"
+      },
+      "delete": {
+        "title": "Delete department",
+        "message": "The department will be removed."
+      },
+      "discard": {
+        "title": "Leave department"
+      }
+    },
+    "organization": {
+      "title": "Organization",
+      "description": "Manage the organization profile, branding, and attributes.",
+      "notCreatedTitle": "Organization is not created yet",
+      "notCreatedMessage": "Create an organization profile to save branding and attributes.",
+      "unavailable": "Organization settings unavailable",
+      "formAttention": "Review organization details before saving.",
+      "profileTitle": "Organization Profile",
+      "profileDescription": "Keep the visible organization label aligned with backend settings.",
+      "labelPlaceholder": "Organization label",
+      "noBrandingAttachment": "No branding attachment selected",
+      "removeBranding": "Remove branding",
+      "brandingMeta": "Branding metadata",
+      "noBrandingSelected": "No branding selected",
+      "createAction": "Create organization",
+      "brandingPreviewAlt": "Organization branding preview",
+      "attributesDescription": "Store organization-level attributes used by simulations and reporting.",
+      "branding": {
+        "title": "Branding",
+        "description": "Select a saved image attachment for the organization logo or upload a new one.",
+        "select": "Branding file",
+        "upload": "Upload branding",
+        "remove": "Remove branding",
+        "selected": "Selected branding file",
+        "empty": "No branding file selected.",
+        "uploadSuccess": "Branding attachment uploaded and selected.",
+        "saveHint": "Save changes to apply the selected branding file to the organization.",
+        "unsupportedType": "Unsupported branding file type. Allowed types: {types}.",
+        "preview": "Preview branding",
+        "selectedSummary": "Type: {type}"
+      },
+      "validation": {
+        "selectBrandingFile": "Select a branding attachment.",
+        "labelRequired": "Enter organization label."
+      },
+      "notifications": {
+        "brandingUploaded": "Branding attachment uploaded.",
+        "uploadFailedTitle": "Branding could not be uploaded",
+        "created": "Organization created.",
+        "updated": "Organization updated.",
+        "saveFailedTitle": "Organization could not be saved"
+      }
+    },
+    "targetsEvents": {
+      "title": "Targets & Events",
+      "description": "Inspect campaign targets and supported event history.",
+      "unavailable": "Targets and events unavailable",
+      "noSelection": "Select a target to inspect its event history.",
+      "noEvents": "No supported events have been recorded for this target.",
+      "deleteMessage": "This target will be removed from the campaign target list."
+    },
+    "reports": {
+      "title": "Reports",
+      "description": "Derived organization-level analytics for campaigns, targets, and events.",
+      "partialData": "Report data is partially available",
+      "unavailable": "Reports unavailable",
+      "filtersAria": "Report filters",
+      "exportPdf": "Export PDF",
+      "exportPreparing": "Preparing PDF...",
+      "exportFailed": "PDF export failed",
+      "chartExportUnavailable": "Chart unavailable for export.",
+      "currentScope": "Current report scope",
+      "selectedCampaign": "Selected campaign",
+      "selectedDepartment": "Selected department",
+      "rangeStart": "Start",
+      "rangeNow": "Now",
+      "allRecordedDates": "All recorded dates",
+      "departmentFilterRequiresEmployees": "Department filtering requires employee lookup.",
+      "riskTooltip": "Per target, ClickSafe uses the highest reached supported event: Message Sent = 0, Delivery Failed = 0, Email Opened = 15, Link Opened = 45, Data Submitted = 100. Company risk index is the average across targets in the current report filters.",
+      "departmentRiskTooltip": "Department risk averages employee risk in the current report scope.",
+      "highRisk": "High risk",
+      "lowRisk": "Low risk",
+      "risk": "Risk",
+      "riskSignals": "Risk signals",
+      "eventFunnel": "Event funnel",
+      "day": "Day",
+      "riskSignalVolume": "Risk signal volume",
+      "weightedRiskTooltip": "Weighted as Email Opened * 15, Link Opened * 45, Data Submitted * 100.",
+      "eventActivityVolume": "Event activity volume",
+      "emptyTitle": "No report data for the current filters",
+      "emptyDescription": "Clear filters or choose a campaign with recorded target activity.",
+      "noSupportedEventsTitle": "No supported events in scope",
+      "noSupportedEventsDescription": "Targets loaded for the selected filters, but supported activity has not been recorded yet.",
+      "printTitle": "ClickSafe - Report",
+      "kpis": {
+        "companyRisk": {
+          "label": "Company Risk Index",
+          "description": "Average risk signal across filtered targets"
+        },
+        "campaignsAnalyzed": {
+          "label": "Campaigns Analyzed",
+          "description": "Campaigns represented in filtered targets"
+        },
+        "employeesTested": {
+          "label": "Employees Tested",
+          "description": "Unique employees in the current scope"
+        },
+        "emailOpenRate": {
+          "label": "Email Open Rate",
+          "description": "Reached the Email Opened stage"
+        },
+        "linkClickRate": {
+          "label": "Link Click Rate",
+          "description": "Reached the Link Opened stage"
+        },
+        "dataSubmittedRate": {
+          "label": "Data Submission Rate",
+          "description": "Reached the Data Submitted stage"
+        },
+        "totalEvents": {
+          "label": "Total Events",
+          "description": "Supported event activity volume"
+        }
+      },
+      "csv": {
+        "section": "Section",
+        "field": "Field",
+        "value": "Value",
+        "filters": "Filters"
+      },
+      "aria": {
+        "kpiCards": "Report KPI cards",
+        "charts": "Report analytics charts"
+      },
+      "charts": {
+        "companyRiskIndexTitle": "Company Risk Index",
+        "companyRiskIndexDescription": "Average highest supported event reached per target.",
+        "eventDistributionTitle": "Event Distribution",
+        "eventDistributionDescription": "Supported event activity volume.",
+        "campaignComparisonTitle": "Campaign Comparison",
+        "campaignComparisonDescription": "Unique target counts by event type and campaign risk.",
+        "funnelTitle": "Engagement Funnel",
+        "funnelDescription": "Reached-stage counts excluding delivery failures.",
+        "trendTitle": "Event Trends",
+        "trendDescription": "Daily weighted risk-signal volume.",
+        "departmentRiskTitle": "Department Risk",
+        "departmentRiskDescription": "Average employee risk by department.",
+        "employeeRiskTitle": "Employee Risk",
+        "employeeRiskDescription": "Employee risk signals grouped by department.",
+        "topEmployeesTitle": "Top Risk Employees",
+        "topEmployeesDescription": "Highest derived employee risk signals in the current report scope.",
+        "topEmployeesEmpty": "No employee risk rows for the current filters."
+      }
+    },
+    "placeholder": {
+      "reserved": "Screen reserved",
+      "milestoneShell": "Milestone shell",
+      "description": "This route is already part of the approved v2 navigation. Content, data loading, and actions will be added in later milestones.",
+      "panelKicker": "Reserved area",
+      "panelTitle": "Ready for workflow implementation",
+      "panelDescription": "The shell, spacing, and state container are already in place without fake data or unsupported metrics."
+    }
+  }
+}

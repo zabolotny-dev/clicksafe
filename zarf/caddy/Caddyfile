@@ -9,55 +9,21 @@ api.bebra.com {
 		# >Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	}
 
-	handle /organization* {
+	@apiRoutes path /organization /department /department/* /employee /employee/* /message /message/* /event /event/* /campaign /campaign/* /target /target/* /vtarget /landing /landing/* /attachment /attachment/* /me
+	handle @apiRoutes {
 		reverse_proxy api:8080
 	}
 
-	handle /department* {
+	@authApi {
+		method POST
+		path /login /logout
+	}
+	handle @authApi {
 		reverse_proxy api:8080
 	}
 
-	handle /employee* {
-		reverse_proxy api:8080
-	}
-
-	handle /message* {
-		reverse_proxy api:8080
-	}
-
-	handle /event* {
-		reverse_proxy api:8080
-	}
-
-	handle /campaign* {
-		reverse_proxy api:8080
-	}
-
-	handle /target* {
-		reverse_proxy api:8080
-	}
-
-	handle /vtarget* {
-		reverse_proxy api:8080
-	}
-
-	handle /landing* {
-		reverse_proxy api:8080
-	}
-
-	handle /attachment* {
-		reverse_proxy api:8080
-	}
-
-	handle /login* {
-		reverse_proxy api:8080
-	}
-
-	handle /logout* {
-		reverse_proxy api:8080
-	}
-
-	handle /me* {
+	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
+	handle @visit {
 		reverse_proxy api:8080
 	}
 
@@ -69,6 +35,10 @@ api.bebra.com {
 }
 
 :80 {
+	handle /attachment* {
+		reverse_proxy api:8080
+	}
+
 	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
 	handle @visit {
 		reverse_proxy api:8080
@@ -82,6 +52,10 @@ api.bebra.com {
 :443 {
 	tls internal {
 		on_demand
+	}
+
+	handle /attachment* {
+		reverse_proxy api:8080
 	}
 
 	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"

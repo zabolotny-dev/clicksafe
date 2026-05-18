@@ -1,9 +1,11 @@
 package employeeapp
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/zabolotny-dev/clicksafe/app/sdk/csv"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/query"
@@ -112,6 +114,96 @@ func (a *app) deleteByID(c *echo.Context) error {
 	err = a.employeeBus.Delete(c.Request().Context(), employee)
 	if err != nil {
 		return mapBusErr(err, "delete")
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
+func (a *app) importCSV(c *echo.Context) error {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return errs.Errorf(errs.InvalidArgument, "importcsv: %s", err)
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return errs.Errorf(errs.InvalidArgument, "importcsv: %s", err)
+	}
+	defer file.Close()
+
+	reader, err := csv.NewReader(file, csv.Config{
+		RequiredHeaders: []string{"first_name", "last_name", "email"},
+		TrimValues:      true,
+	})
+	if err != nil {
+		return errs.Errorf(errs.InvalidArgument, "importcsv: %s", err)
+	}
+
+	var fieldErrors errs.FieldErrors
+	var newEmps []employeebus.NewEmployee
+	rowsByEmail := make(map[string]int)
+	rowsByPhone := make(map[string]int)
+
+	for reader.Next() {
+		row := reader.Row()
+
+		newEmp, errs := csvToBusNewEmployee(row)
+		if len(errs) > 0 {
+			for _, rowErr := range errs {
+				fieldErrors.AddValue("csv_row", rowErr)
+			}
+			continue
+		}
+
+		email := newEmp.Email.String()
+		phone := newEmp.Phone.String()
+
+		duplicated := false
+		if firstRow, exists := rowsByEmail[email]; exists {
+			fieldErrors.AddValue("csv_row", csvRowErrorValue{
+				Row:   row.Number(),
+				Field: "email",
+				Err:   fmt.Sprintf("duplicate email, first seen on row %d", firstRow),
+			})
+			duplicated = true
+		}
+
+		if phone != "" {
+			if firstRow, exists := rowsByPhone[phone]; exists {
+				fieldErrors.AddValue("csv_row", csvRowErrorValue{
+					Row:   row.Number(),
+					Field: "phone",
+					Err:   fmt.Sprintf("duplicate phone, first seen on row %d", firstRow),
+				})
+				duplicated = true
+			}
+		}
+
+		if duplicated {
+			continue
+		}
+
+		rowsByEmail[email] = row.Number()
+		if phone != "" {
+			rowsByPhone[phone] = row.Number()
+		}
+
+		newEmps = append(newEmps, newEmp)
+	}
+
+	for _, csvErr := range reader.Err() {
+		fieldErrors.AddValue("csv_row", csvRowErrorValue{
+			Row: csvErr.Row,
+			Err: csvErr.Err,
+		})
+	}
+
+	if len(fieldErrors) > 0 {
+		return fieldErrors.ToError(errs.InvalidArgument, "invalid csv")
+	}
+
+	if err := a.employeeBus.SaveMany(c.Request().Context(), newEmps); err != nil {
+		return mapBusErr(err, "importcsv")
 	}
 
 	return c.NoContent(http.StatusOK)

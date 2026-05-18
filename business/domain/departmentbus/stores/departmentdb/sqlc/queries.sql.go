@@ -120,6 +120,12 @@ func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 	return err
 }
 
+type SaveManyParams struct {
+	ID         uuid.UUID
+	Label      string
+	Attributes []byte
+}
+
 const update = `-- name: Update :exec
 UPDATE departments
 SET label = $1, attributes = $2

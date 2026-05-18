@@ -69,6 +69,52 @@ func (s *Store) Save(ctx context.Context, emp employeebus.Employee) error {
 	return nil
 }
 
+func (s *Store) SaveMany(ctx context.Context, emps []employeebus.Employee) error {
+	dbEmps, err := toDBEmployees(emps)
+	if err != nil {
+		return fmt.Errorf("db: %w", err)
+	}
+
+	if len(dbEmps) == 0 {
+		return nil
+	}
+
+	params := make([]sqlc.SaveManyParams, len(dbEmps))
+	for i, emp := range dbEmps {
+		params[i] = sqlc.SaveManyParams{
+			ID:           emp.ID,
+			DepartmentID: emp.DepartmentID,
+			FirstName:    emp.FirstName,
+			LastName:     emp.LastName,
+			Email:        emp.Email,
+			PhoneNumber:  emp.PhoneNumber,
+			Attributes:   emp.Attributes,
+		}
+	}
+
+	if _, err := s.q.SaveMany(ctx, params); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case database.UniqueViolation:
+				switch pgErr.ConstraintName {
+				case uniqueEmailConstraint:
+					return employeebus.ErrUniqueEmail
+				case uniquePhoneConstraint:
+					return employeebus.ErrUniquePhone
+				}
+			case database.FKViolation:
+				if pgErr.ConstraintName == departmentFKConstraint {
+					return employeebus.ErrDepartmentNotFound
+				}
+			}
+		}
+		return fmt.Errorf("db: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error) {
 	dbEmp, err := s.q.QueryByID(ctx, id)
 	if err != nil {

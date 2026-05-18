@@ -102,6 +102,14 @@ func (b *TargetBusiness) QueryByID(ctx context.Context, id uuid.UUID) (Target, e
 	return target, nil
 }
 
+func (b *TargetBusiness) QueryCampaignByID(ctx context.Context, id uuid.UUID) (Campaign, error) {
+	campaign, err := b.campaignStorer.QueryByID(ctx, id)
+	if err != nil {
+		return Campaign{}, fmt.Errorf("querycampaignbyid: campaignID[%s]: %w", id, err)
+	}
+	return campaign, nil
+}
+
 func (b *TargetBusiness) QueryByToken(ctx context.Context, token string) (Target, error) {
 	target, err := b.targetStorer.QueryByToken(ctx, token)
 	if err != nil {

@@ -16,7 +16,6 @@ const apiRoutes = [
   '/login',
   '/logout',
   '/me',
-  '/public',
 ]
 
 export default defineConfig({

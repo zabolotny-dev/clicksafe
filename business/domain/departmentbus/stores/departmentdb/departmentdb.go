@@ -46,6 +46,36 @@ func (s *Store) Save(ctx context.Context, dep departmentbus.Department) error {
 	return nil
 }
 
+func (s *Store) SaveMany(ctx context.Context, deps []departmentbus.Department) error {
+	dbDeps, err := toDBDepartments(deps)
+	if err != nil {
+		return fmt.Errorf("db: %w", err)
+	}
+
+	if len(dbDeps) == 0 {
+		return nil
+	}
+
+	params := make([]sqlc.SaveManyParams, len(dbDeps))
+	for i, dep := range dbDeps {
+		params[i] = sqlc.SaveManyParams{
+			ID:         dep.ID,
+			Label:      dep.Label,
+			Attributes: dep.Attributes,
+		}
+	}
+
+	if _, err := s.q.SaveMany(ctx, params); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == database.UniqueViolation {
+			return departmentbus.ErrUniqueLabel
+		}
+		return fmt.Errorf("db: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Store) Update(ctx context.Context, dep departmentbus.Department) error {
 	dbDep, err := toDBDepartment(dep)
 	if err != nil {

@@ -18,6 +18,7 @@ var (
 	ErrEmployeeNotFound     = errors.New("employee not found")
 	ErrDepartmentNotFound   = errors.New("department not found")
 	ErrOrganizationNotFound = errors.New("organization not found")
+	ErrCampaignNotFound     = errors.New("campaign not found")
 	ErrUnsupportedPath      = errors.New("unsupported resolver path")
 	ErrDomainRequired       = errors.New("domain not found")
 )
@@ -25,6 +26,7 @@ var (
 type targetQuerier interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target, error)
 	PhishingURL(ctx context.Context, id uuid.UUID) (string, error)
+	QueryCampaignByID(ctx context.Context, id uuid.UUID) (campaignbus.Campaign, error)
 }
 
 type employeeQuerier interface {

@@ -16,6 +16,7 @@ type Querier interface {
 	Query(ctx context.Context, arg QueryParams) ([]Employee, error)
 	QueryByID(ctx context.Context, id uuid.UUID) (Employee, error)
 	Save(ctx context.Context, arg SaveParams) error
+	SaveMany(ctx context.Context, arg []SaveManyParams) (int64, error)
 	Update(ctx context.Context, arg UpdateParams) error
 }
 

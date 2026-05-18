@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import './styles.css'
 import App from './App.vue'
+import i18n from './i18n'
+import router from './router'
+import './styles.css'
 
-createApp(App).use(ElementPlus).mount('#app')
+createApp(App).use(i18n).use(router).mount('#app')

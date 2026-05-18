@@ -21,6 +21,20 @@ func toDBDepartment(d departmentbus.Department) (sqlc.Department, error) {
 	}, nil
 }
 
+func toDBDepartments(departments []departmentbus.Department) ([]sqlc.Department, error) {
+	dbDepartments := make([]sqlc.Department, len(departments))
+
+	for i, d := range departments {
+		var err error
+		dbDepartments[i], err = toDBDepartment(d)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return dbDepartments, nil
+}
+
 func toBusDepartment(d sqlc.Department) (departmentbus.Department, error) {
 	var attributes map[string]string
 	if len(d.Attributes) > 0 {
