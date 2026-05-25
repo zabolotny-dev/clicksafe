@@ -3,20 +3,21 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   Copy,
-  Download,
   Edit3,
   Eye,
+  Mail,
+  MessageCircle,
   Plus,
   Trash2,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import AttachmentPickerPanel from '../components/ui/AttachmentPickerPanel.vue'
+import AttachmentPreviewDrawer from '../components/ui/AttachmentPreviewDrawer.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
-import HtmlAttachmentPreview from '../components/ui/HtmlAttachmentPreview.vue'
 import HtmlLiveEditor from '../components/ui/HtmlLiveEditor.vue'
 import IconButton from '../components/ui/IconButton.vue'
+import MaxAccountPickerPanel from '../components/ui/MaxAccountPickerPanel.vue'
 import PageHeader from '../components/ui/PageHeader.vue'
-import PreviewDrawer from '../components/ui/PreviewDrawer.vue'
 import ResourcePagination from '../components/ui/ResourcePagination.vue'
 import SkeletonBlock from '../components/ui/SkeletonBlock.vue'
 import UiAlert from '../components/ui/UiAlert.vue'
@@ -27,8 +28,8 @@ import { useNotifications } from '../composables/useNotifications'
 import { useResourceActions } from '../composables/useResourceActions'
 import {
   getAttachmentContent,
-  getAttachmentUrl,
   listAttachments,
+  updateAttachmentContent,
   uploadAttachment,
 } from '../resources/attachments'
 import {
@@ -36,8 +37,16 @@ import {
   deleteMessage,
   getMessage,
   listMessages,
+  MESSAGE_TYPES,
   updateMessage,
 } from '../resources/messages'
+import { listMaxAccounts } from '../resources/maxAccounts'
+import {
+  isHtmlAttachmentType,
+  isTextAttachmentType,
+  normalizeAttachmentType,
+  SUPPORTED_ATTACHMENT_TYPES,
+} from '../utils/attachmentTypes'
 import {
   errorMessage,
   formatTechnicalId,
@@ -52,13 +61,15 @@ const { t } = useI18n()
 
 const steps = computed(() => [
   t('pages.emailTemplates.steps.basicInfo'),
-  t('common.labels.htmlBody'),
+  form.type === 'MAX' ? t('common.labels.textBody') : t('common.labels.htmlBody'),
   t('common.labels.attachments'),
   t('pages.emailTemplates.steps.review'),
 ])
 
 const messages = ref([])
 const attachments = ref([])
+const maxAccounts = ref([])
+const activeMessageType = ref(MESSAGE_TYPES.includes(route.query.type) ? route.query.type : 'EMAIL')
 const page = ref(1)
 const rows = ref(10)
 const total = ref(0)
@@ -72,12 +83,19 @@ const activeStep = ref(0)
 const deleteDialogOpen = ref(false)
 const deleteTarget = ref(null)
 const previewAttachment = ref(null)
-const previewTitle = ref('')
 const htmlEditorOpen = ref(false)
+const htmlEditorMode = ref('create')
+const htmlEditorContentType = ref('html')
 const htmlEditorInitial = ref('')
 const htmlDraftFilename = ref('')
 const selectedHtmlBodyAttachment = ref(null)
+const selectedMaxAccount = ref(null)
+const selectedTemplateAttachments = ref([])
 const emailHtmlBodyPicker = ref(null)
+const maxTextBodyPicker = ref(null)
+const templateAttachmentsPicker = ref(null)
+const contentEditAttachment = ref(null)
+const maxAttachmentTypes = SUPPORTED_ATTACHMENT_TYPES.filter((type) => type !== '.html')
 
 const filters = reactive({
   label: '',
@@ -87,11 +105,14 @@ const filters = reactive({
 })
 
 const form = reactive({
+  type: 'EMAIL',
   label: '',
   from_email: '',
   from_name: '',
   subject: '',
   html_body_id: '',
+  text_body_id: '',
+  max_account_id: '',
   attachment_ids: [],
 })
 
@@ -108,37 +129,103 @@ const attachmentById = computed(() => attachments.value.reduce((acc, attachment)
   acc[attachment.id] = attachment
   return acc
 }, {}))
+const maxAccountById = computed(() => maxAccounts.value.reduce((acc, account) => {
+  acc[account.id] = account
+  return acc
+}, {}))
 const previewOpen = computed(() => Boolean(previewAttachment.value))
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / rows.value)))
+const isMaxForm = computed(() => form.type === 'MAX')
+const isUpdatingAttachmentContent = computed(() => htmlEditorMode.value === 'update')
+const htmlWorkspaceIsHtml = computed(() => htmlEditorContentType.value === 'html')
+const htmlWorkspaceTitle = computed(() => {
+  if (isUpdatingAttachmentContent.value) {
+    return htmlWorkspaceIsHtml.value ? t('common.labels.htmlBody') : t('common.labels.textBody')
+  }
+
+  return t('pages.emailTemplates.htmlBodyTitle')
+})
+const htmlWorkspaceDescription = computed(() => (
+  htmlWorkspaceIsHtml.value
+    ? t('common.preview.rawTemplate')
+    : t('common.preview.text')
+))
+const htmlWorkspaceSaveLabel = computed(() => (
+  isUpdatingAttachmentContent.value
+    ? t('common.actions.saveContent')
+    : t('pages.emailTemplates.saveHtmlAttachment')
+))
+const htmlWorkspaceFilenamePlaceholder = computed(() => (
+  htmlWorkspaceIsHtml.value ? 'message-body.html' : 'message-body.txt'
+))
+const selectedMaxAccountDisplay = computed(() => {
+  const account = selectedMaxAccount.value || maxAccountById.value[form.max_account_id]
+  if (account) {
+    return [account.label, account.phone].filter(Boolean).join(' · ') || formatTechnicalId(account.id)
+  }
+
+  return form.max_account_id ? formatTechnicalId(form.max_account_id) : t('common.placeholder')
+})
+const maxUnsupportedAttachments = computed(() => {
+  if (!isMaxForm.value) {
+    return []
+  }
+
+  return selectedTemplateAttachments.value.filter((attachment) => (
+    String(attachment?.type || '').toLowerCase() === '.html'
+  ))
+})
+const hasMaxUnsupportedAttachments = computed(() => maxUnsupportedAttachments.value.length > 0)
+const messageTypeTabs = computed(() => [
+  { value: 'EMAIL', label: t('pages.emailTemplates.tabs.email'), icon: Mail },
+  { value: 'MAX', label: t('pages.emailTemplates.tabs.max'), icon: MessageCircle },
+])
+const messageTableColumnCount = computed(() => (activeMessageType.value === 'MAX' ? 4 : 6))
 
 function clearForm() {
+  form.type = MESSAGE_TYPES.includes(route.query.type) ? route.query.type : activeMessageType.value
   form.label = ''
   form.from_email = ''
   form.from_name = ''
   form.subject = ''
   form.html_body_id = ''
+  form.text_body_id = ''
+  form.max_account_id = ''
   form.attachment_ids = []
   formError.value = ''
   activeStep.value = 0
   htmlEditorOpen.value = false
+  htmlEditorMode.value = 'create'
+  htmlEditorContentType.value = 'html'
   htmlEditorInitial.value = ''
   htmlDraftFilename.value = ''
+  contentEditAttachment.value = null
   selectedHtmlBodyAttachment.value = null
+  selectedMaxAccount.value = null
+  selectedTemplateAttachments.value = []
 }
 
 function fillForm(message) {
+  form.type = MESSAGE_TYPES.includes(message?.type) ? message.type : 'EMAIL'
   form.label = message?.label || ''
   form.from_email = message?.from_email || ''
   form.from_name = message?.from_name || ''
   form.subject = message?.subject || ''
   form.html_body_id = nullableId(message?.html_body_id)
+  form.text_body_id = nullableId(message?.text_body_id)
+  form.max_account_id = nullableId(message?.max_account_id)
   form.attachment_ids = Array.isArray(message?.attachment_ids)
     ? message.attachment_ids.map((id) => nullableId(id) || String(id)).filter(Boolean)
     : []
   formError.value = ''
   activeStep.value = 0
   htmlEditorOpen.value = false
+  htmlEditorMode.value = 'create'
+  htmlEditorContentType.value = 'html'
+  contentEditAttachment.value = null
   selectedHtmlBodyAttachment.value = null
+  selectedTemplateAttachments.value = []
+  selectedMaxAccount.value = maxAccountById.value[form.max_account_id] || null
 }
 
 function fillDuplicateForm(message) {
@@ -148,11 +235,14 @@ function fillDuplicateForm(message) {
 
 function buildPayload() {
   return {
+    type: form.type,
     label: form.label.trim(),
-    from_email: form.from_email.trim(),
-    from_name: form.from_name.trim(),
-    subject: form.subject.trim(),
-    html_body_id: nullableId(form.html_body_id),
+    from_email: form.type === 'EMAIL' ? form.from_email.trim() : '',
+    from_name: form.type === 'EMAIL' ? form.from_name.trim() : '',
+    subject: form.type === 'EMAIL' ? form.subject.trim() : '',
+    html_body_id: form.type === 'EMAIL' ? nullableId(form.html_body_id) : '',
+    text_body_id: form.type === 'MAX' ? nullableId(form.text_body_id) : '',
+    max_account_id: form.type === 'MAX' ? nullableId(form.max_account_id) : '',
     attachment_ids: form.attachment_ids,
   }
 }
@@ -162,8 +252,20 @@ function validateForm() {
     return t('pages.emailTemplates.validation.labelRequired')
   }
 
-  if (!form.from_email.trim()) {
+  if (form.type === 'EMAIL' && !form.from_email.trim()) {
     return t('pages.emailTemplates.validation.fromEmailRequired')
+  }
+
+  if (form.type === 'MAX' && !form.max_account_id) {
+    return t('pages.emailTemplates.validation.maxAccountRequired')
+  }
+
+  if (form.type === 'MAX' && !form.text_body_id) {
+    return t('pages.emailTemplates.validation.textBodyRequired')
+  }
+
+  if (form.type === 'MAX' && hasMaxUnsupportedAttachments.value) {
+    return t('pages.emailTemplates.validation.maxHtmlAttachmentUnsupported')
   }
 
   return ''
@@ -179,26 +281,80 @@ function htmlFileName() {
   return base.endsWith('.html') ? base : `${base}.html`
 }
 
-function openPreview(attachment, title = t('common.preview.template')) {
+function openPreview(attachment) {
   if (!attachment) {
-    notifyError(t('common.preview.unavailable'), t('common.preview.selectHtmlOrText'))
+    notifyError(t('common.preview.unavailable'), t('common.preview.selectResource'))
     return
   }
 
   previewAttachment.value = attachment
-  previewTitle.value = title
 }
 
 function closePreview() {
   previewAttachment.value = null
 }
 
-function attachmentDownloadUrl(attachment) {
-  return attachment?.id ? getAttachmentUrl(attachment.id) : ''
+function editableAttachmentContentType(attachment) {
+  const type = normalizeAttachmentType(attachment?.type)
+
+  if (isHtmlAttachmentType(type)) {
+    return 'html'
+  }
+
+  if (isTextAttachmentType(type)) {
+    return 'txt'
+  }
+
+  return ''
+}
+
+function attachmentEditorFilename(attachment) {
+  const type = editableAttachmentContentType(attachment)
+  const label = attachment?.label || 'message-body'
+
+  if (type === 'html' && !label.toLowerCase().endsWith('.html')) {
+    return `${label}.html`
+  }
+
+  if (type === 'txt' && !label.toLowerCase().endsWith('.txt')) {
+    return `${label}.txt`
+  }
+
+  return label
+}
+
+async function openContentEditor(attachment) {
+  const contentType = editableAttachmentContentType(attachment)
+
+  if (!attachment?.id || !contentType) {
+    notifyError(t('common.preview.unavailable'), t('common.preview.unsupported'))
+    return
+  }
+
+  formError.value = ''
+
+  try {
+    const content = await getAttachmentContent(attachment.id)
+    htmlEditorMode.value = 'update'
+    htmlEditorContentType.value = contentType
+    htmlEditorInitial.value = typeof content === 'string' ? content : ''
+    htmlDraftFilename.value = attachmentEditorFilename(attachment)
+    contentEditAttachment.value = attachment
+    htmlEditorOpen.value = true
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return
+    }
+
+    notifyError(t('common.preview.failed'), errorMessage(error, 'errors.attachmentsLoad'))
+  }
 }
 
 async function loadVisibleHtmlBodyAttachments(items) {
-  const ids = [...new Set(items.map((message) => nullableId(message?.html_body_id)).filter(Boolean))]
+  const ids = [...new Set(items.flatMap((message) => [
+    nullableId(message?.html_body_id),
+    nullableId(message?.text_body_id),
+  ]).filter(Boolean))]
 
   if (!ids.length) {
     attachments.value = []
@@ -218,6 +374,7 @@ async function loadData(options = {}) {
   try {
     const messageResponse = await listMessages({
       ...filters,
+      type: activeMessageType.value,
       page: page.value,
       rows: rows.value,
     })
@@ -239,6 +396,10 @@ async function loadData(options = {}) {
       await loadVisibleHtmlBodyAttachments(messages.value)
     }
 
+    if (activeMessageType.value === 'MAX' || isEditorRoute.value) {
+      await loadMaxAccounts()
+    }
+
     await prepareEditorFromRoute()
   } catch (error) {
     if (await handleAuthError(error)) {
@@ -249,6 +410,12 @@ async function loadData(options = {}) {
   } finally {
     isLoading.value = false
   }
+}
+
+async function loadMaxAccounts() {
+  const response = await listMaxAccounts({ rows: 100 })
+  maxAccounts.value = Array.isArray(response?.items) ? response.items : []
+  selectedMaxAccount.value = maxAccountById.value[form.max_account_id] || selectedMaxAccount.value
 }
 
 async function prepareEditorFromRoute() {
@@ -273,18 +440,60 @@ async function prepareEditorFromRoute() {
 
 function openBlankHtmlEditor() {
   formError.value = ''
+  htmlEditorMode.value = 'create'
+  htmlEditorContentType.value = 'html'
   htmlEditorInitial.value = ''
   htmlDraftFilename.value = form.label || 'message-body'
+  contentEditAttachment.value = null
   htmlEditorOpen.value = true
 }
 
 function closeHtmlEditor() {
   htmlEditorOpen.value = false
+  htmlEditorMode.value = 'create'
+  htmlEditorContentType.value = 'html'
   htmlEditorInitial.value = ''
+  htmlDraftFilename.value = ''
+  contentEditAttachment.value = null
 }
 
 function trackHtmlBodySelection(attachment) {
   selectedHtmlBodyAttachment.value = attachment
+}
+
+function trackMaxAccountSelection(account) {
+  selectedMaxAccount.value = account
+}
+
+function trackTemplateAttachmentsSelection(selected) {
+  selectedTemplateAttachments.value = Array.isArray(selected) ? selected : []
+}
+
+async function refreshAttachmentPickers() {
+  await nextTick()
+  await Promise.all([
+    emailHtmlBodyPicker.value?.refresh?.(),
+    maxTextBodyPicker.value?.refresh?.(),
+    templateAttachmentsPicker.value?.refresh?.(),
+  ].filter(Boolean))
+}
+
+function syncAttachmentContentSaved(saved) {
+  if (saved?.id) {
+    attachments.value = attachments.value.map((attachment) => (
+      nullableId(attachment.id) === nullableId(saved.id) ? saved : attachment
+    ))
+
+    if (nullableId(selectedHtmlBodyAttachment.value?.id) === nullableId(saved.id)) {
+      selectedHtmlBodyAttachment.value = saved
+    }
+
+    selectedTemplateAttachments.value = selectedTemplateAttachments.value.map((attachment) => (
+      nullableId(attachment?.id) === nullableId(saved.id) ? saved : attachment
+    ))
+
+    contentEditAttachment.value = saved
+  }
 }
 
 function htmlCopyFileName(attachment) {
@@ -303,8 +512,11 @@ async function openSelectedHtmlEditor() {
 
   try {
     const content = await getAttachmentContent(selectedHtmlBodyAttachment.value.id)
+    htmlEditorMode.value = 'create'
+    htmlEditorContentType.value = 'html'
     htmlEditorInitial.value = typeof content === 'string' ? content : ''
     htmlDraftFilename.value = htmlCopyFileName(selectedHtmlBodyAttachment.value)
+    contentEditAttachment.value = null
     htmlEditorOpen.value = true
   } catch (error) {
     if (await handleAuthError(error)) {
@@ -333,10 +545,8 @@ async function saveHtmlSource(html) {
     const uploaded = await uploadAttachment(file, { public: false }, mutationOptions())
     form.html_body_id = uploaded.id
     selectedHtmlBodyAttachment.value = uploaded
-    htmlEditorOpen.value = false
-    htmlEditorInitial.value = ''
-    await nextTick()
-    await emailHtmlBodyPicker.value?.refresh?.()
+    closeHtmlEditor()
+    await refreshAttachmentPickers()
     notifySuccess(t('pages.emailTemplates.notifications.htmlSavedTitle'), t('pages.emailTemplates.notifications.htmlSavedMessage'))
   } catch (error) {
     if (await handleAuthError(error)) {
@@ -350,11 +560,58 @@ async function saveHtmlSource(html) {
   }
 }
 
+async function saveExistingAttachmentContent(content) {
+  if (!String(content || '').trim()) {
+    formError.value = t('common.resource.contentEmpty')
+    return
+  }
+
+  if (!contentEditAttachment.value?.id || !(await ensureCsrfToken())) {
+    return
+  }
+
+  isUploadingHtml.value = true
+  formError.value = ''
+
+  try {
+    const saved = await updateAttachmentContent(contentEditAttachment.value.id, content, mutationOptions())
+    syncAttachmentContentSaved(saved)
+    notifySuccess(t('pages.attachments.notifications.contentUpdated'))
+    closeHtmlEditor()
+    await refreshAttachmentPickers()
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return
+    }
+
+    formError.value = errorMessage(error, 'errors.attachmentsLoad')
+    notifyError(t('pages.attachments.notifications.contentUpdateFailedTitle'), formError.value)
+  } finally {
+    isUploadingHtml.value = false
+  }
+}
+
+function saveWorkspaceSource(content) {
+  if (isUpdatingAttachmentContent.value) {
+    return saveExistingAttachmentContent(content)
+  }
+
+  return saveHtmlSource(content)
+}
+
 async function submitForm() {
   const validation = validateForm()
   if (validation) {
     formError.value = validation
-    activeStep.value = 0
+    if (form.type === 'MAX' && !form.max_account_id) {
+      activeStep.value = 0
+    } else if (form.type === 'MAX' && !form.text_body_id) {
+      activeStep.value = 1
+    } else if (form.type === 'MAX' && hasMaxUnsupportedAttachments.value) {
+      activeStep.value = 2
+    } else {
+      activeStep.value = 0
+    }
     return
   }
 
@@ -422,8 +679,18 @@ function goToDuplicate(message) {
     name: 'email-template-new',
     query: {
       duplicate: message.id,
+      type: message.type || activeMessageType.value,
     },
   })
+}
+
+function setActiveMessageType(type) {
+  if (!MESSAGE_TYPES.includes(type) || activeMessageType.value === type) {
+    return
+  }
+  activeMessageType.value = type
+  page.value = 1
+  loadData()
 }
 
 function applyFilters() {
@@ -460,18 +727,34 @@ onMounted(() => {
         :description="t('pages.emailTemplates.description')"
       >
         <template #actions>
-          <RouterLink class="ui-button ui-button--primary" :to="{ name: 'email-template-new' }">
+          <RouterLink class="ui-button ui-button--primary" :to="{ name: 'email-template-new', query: { type: activeMessageType } }">
             <Plus :size="16" stroke-width="1.8" aria-hidden="true" />
             {{ t('common.actions.createMessage') }}
           </RouterLink>
         </template>
       </PageHeader>
 
-      <section class="resource-filter-panel">
+      <div class="resource-type-tabs" role="tablist" :aria-label="t('pages.emailTemplates.typeTabsAria')">
+        <button
+          v-for="tab in messageTypeTabs"
+          :key="tab.value"
+          class="resource-type-tab"
+          :class="{ 'is-active': activeMessageType === tab.value }"
+          type="button"
+          role="tab"
+          :aria-selected="activeMessageType === tab.value"
+          @click="setActiveMessageType(tab.value)"
+        >
+          <component :is="tab.icon" :size="16" stroke-width="1.8" aria-hidden="true" />
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <section class="resource-filter-panel" :class="{ 'resource-filter-panel--compact': activeMessageType === 'MAX' }">
         <UiInput v-model="filters.label" :label="t('common.labels.name')" :placeholder="t('common.resource.searchByLabel')" />
-        <UiInput v-model="filters.fromEmail" :label="t('common.labels.fromEmail')" placeholder="sender@example.com" />
-        <UiInput v-model="filters.fromName" :label="t('common.labels.fromName')" :placeholder="t('common.labels.fromName')" />
-        <UiInput v-model="filters.subject" :label="t('common.labels.subject')" :placeholder="t('common.labels.subject')" />
+        <UiInput v-if="activeMessageType === 'EMAIL'" v-model="filters.fromEmail" :label="t('common.labels.fromEmail')" placeholder="sender@example.com" />
+        <UiInput v-if="activeMessageType === 'EMAIL'" v-model="filters.fromName" :label="t('common.labels.fromName')" :placeholder="t('common.labels.fromName')" />
+        <UiInput v-if="activeMessageType === 'EMAIL'" v-model="filters.subject" :label="t('common.labels.subject')" :placeholder="t('common.labels.subject')" />
         <UiButton variant="secondary" :loading="isLoading" @click="applyFilters">
           {{ t('common.filters.apply') }}
         </UiButton>
@@ -494,19 +777,21 @@ onMounted(() => {
           </div>
         </header>
 
-        <div class="resource-table resource-email-table">
+        <div
+          class="resource-table resource-message-table"
+          :class="activeMessageType === 'MAX' ? 'resource-message-table--max' : 'resource-message-table--email'"
+        >
           <div class="resource-table-row resource-table-head">
             <span>{{ t('common.labels.name') }}</span>
-            <span>{{ t('common.labels.fromEmail') }}</span>
-            <span>{{ t('common.labels.fromName') }}</span>
-            <span>{{ t('common.labels.subject') }}</span>
-            <span>{{ t('common.labels.htmlBody') }}</span>
+            <span>{{ activeMessageType === 'MAX' ? t('pages.emailTemplates.maxAccount') : t('common.labels.fromEmail') }}</span>
+            <span v-if="activeMessageType === 'EMAIL'">{{ t('common.labels.subject') }}</span>
+            <span v-if="activeMessageType === 'EMAIL'">{{ t('common.labels.htmlBody') }}</span>
             <span>{{ t('common.labels.attachments') }}</span>
             <span>{{ t('pages.campaigns.columns.actions') }}</span>
           </div>
           <template v-if="isLoading">
             <div v-for="index in 4" :key="index" class="resource-table-row">
-              <span v-for="cell in 7" :key="cell"><SkeletonBlock :rows="1" /></span>
+              <span v-for="cell in messageTableColumnCount" :key="cell"><SkeletonBlock :rows="1" /></span>
             </div>
           </template>
           <template v-else-if="messages.length">
@@ -516,16 +801,15 @@ onMounted(() => {
               class="resource-table-row"
             >
               <span><strong>{{ message.label }}</strong></span>
-              <span>{{ message.from_email || t('common.placeholder') }}</span>
-              <span>{{ message.from_name || t('common.placeholder') }}</span>
-              <span>{{ message.subject || t('common.placeholder') }}</span>
-              <span><code>{{ formatTechnicalId(message.html_body_id) }}</code></span>
+              <span>{{ activeMessageType === 'MAX' ? (maxAccountById[nullableId(message.max_account_id)]?.label || formatTechnicalId(message.max_account_id)) : (message.from_email || t('common.placeholder')) }}</span>
+              <span v-if="activeMessageType === 'EMAIL'">{{ message.subject || t('common.placeholder') }}</span>
+              <span v-if="activeMessageType === 'EMAIL'"><code>{{ formatTechnicalId(message.html_body_id) }}</code></span>
               <span>{{ Array.isArray(message.attachment_ids) ? message.attachment_ids.length : 0 }}</span>
               <span class="resource-row-actions">
                 <IconButton
-                  :label="t('pages.emailTemplates.previewHtmlBody')"
-                  :disabled="!attachmentById[nullableId(message.html_body_id)]"
-                  @click="openPreview(attachmentById[nullableId(message.html_body_id)], t('pages.emailTemplates.emailHtmlPreview'))"
+                  :label="activeMessageType === 'MAX' ? t('pages.emailTemplates.previewTextBody') : t('pages.emailTemplates.previewHtmlBody')"
+                  :disabled="!attachmentById[nullableId(activeMessageType === 'MAX' ? message.text_body_id : message.html_body_id)]"
+                  @click="openPreview(attachmentById[nullableId(activeMessageType === 'MAX' ? message.text_body_id : message.html_body_id)])"
                 >
                   <Eye :size="16" stroke-width="1.8" aria-hidden="true" />
                 </IconButton>
@@ -589,12 +873,17 @@ onMounted(() => {
         <HtmlLiveEditor
           v-model:filename="htmlDraftFilename"
           workspace
-          :initial-html="htmlEditorInitial"
-          :title="t('pages.emailTemplates.htmlBodyTitle')"
-          filename-placeholder="message-body.html"
-          :save-label="t('pages.emailTemplates.saveHtmlAttachment')"
+          :initial-content="htmlEditorInitial"
+          :content-type="htmlEditorContentType"
+          :title="htmlWorkspaceTitle"
+          :description="htmlWorkspaceDescription"
+          :filename-placeholder="htmlWorkspaceFilenamePlaceholder"
+          :filename-readonly="isUpdatingAttachmentContent"
+          :save-label="htmlWorkspaceSaveLabel"
           :saving="isUploadingHtml"
-          @save="saveHtmlSource"
+          :show-preview="htmlWorkspaceIsHtml"
+          :show-image-action="htmlWorkspaceIsHtml"
+          @save="saveWorkspaceSource"
           @cancel="closeHtmlEditor"
         />
       </section>
@@ -614,53 +903,109 @@ onMounted(() => {
             </div>
           </header>
           <div class="resource-form-grid">
+            <label class="ui-field">
+              <span>{{ t('common.labels.type') }}</span>
+              <select v-model="form.type" class="ui-select">
+                <option value="EMAIL">{{ t('pages.emailTemplates.tabs.email') }}</option>
+                <option value="MAX">{{ t('pages.emailTemplates.tabs.max') }}</option>
+              </select>
+            </label>
             <UiInput v-model="form.label" :label="t('common.labels.name')" :placeholder="t('pages.emailTemplates.placeholders.label')" />
-            <UiInput v-model="form.from_email" :label="t('common.labels.fromEmail')" placeholder="training@example.com" />
-            <UiInput v-model="form.from_name" :label="t('common.labels.fromName')" :placeholder="t('pages.emailTemplates.placeholders.fromName')" />
-            <UiInput v-model="form.subject" :label="t('common.labels.subject')" :placeholder="t('pages.emailTemplates.placeholders.subject')" />
+            <template v-if="!isMaxForm">
+              <UiInput v-model="form.from_email" :label="t('common.labels.fromEmail')" placeholder="training@example.com" />
+              <UiInput v-model="form.from_name" :label="t('common.labels.fromName')" :placeholder="t('pages.emailTemplates.placeholders.fromName')" />
+              <UiInput v-model="form.subject" :label="t('common.labels.subject')" :placeholder="t('pages.emailTemplates.placeholders.subject')" />
+            </template>
           </div>
+          <MaxAccountPickerPanel
+            v-if="isMaxForm"
+            v-model="form.max_account_id"
+            :title="t('pages.emailTemplates.maxAccount')"
+            :selected-title="t('pages.emailTemplates.selectedMaxAccount')"
+            :selected-empty-text="t('pages.emailTemplates.selectMaxAccount')"
+            :empty-title="t('pages.maxAccounts.emptyTitle')"
+            :empty-description="t('pages.maxAccounts.emptyDescription')"
+            :create-to="{ name: 'max-accounts-new' }"
+            :create-label="t('pages.maxAccounts.addTitle')"
+            @selection-change="trackMaxAccountSelection"
+          />
         </section>
 
         <section v-else-if="activeStep === 1" class="resource-editor-panel">
-          <AttachmentPickerPanel
-            ref="emailHtmlBodyPicker"
-            v-model="form.html_body_id"
-            selection-mode="single"
-            :title="t('pages.emailTemplates.htmlBodyAttachment')"
-            :empty-text="t('pages.emailTemplates.noHtmlAttachments')"
-            :allowed-types="['.html']"
-            default-type=".html"
-            show-preview-action
-            show-duplicate-action
-            show-download-action
-            show-create-action
-            @preview="openPreview($event, t('pages.emailTemplates.emailHtmlPreview'))"
-            @create="openBlankHtmlEditor"
-            @selection-change="trackHtmlBodySelection"
-          />
+          <template v-if="!isMaxForm">
+            <AttachmentPickerPanel
+              ref="emailHtmlBodyPicker"
+              v-model="form.html_body_id"
+              selection-mode="single"
+              :title="t('pages.emailTemplates.htmlBodyAttachment')"
+              :empty-text="t('pages.emailTemplates.noHtmlAttachments')"
+              :allowed-types="['.html']"
+              default-type=".html"
+              show-preview-action
+              show-duplicate-action
+              show-edit-content-action
+              show-download-action
+              show-create-action
+              @preview="openPreview"
+              @edit-content="openContentEditor"
+              @create="openBlankHtmlEditor"
+              @selection-change="trackHtmlBodySelection"
+            />
 
-          <div class="resource-inline-actions resource-picker-actions">
-            <UiButton
-              variant="secondary"
-              :disabled="!selectedHtmlBodyAttachment || isUploadingHtml"
-              @click="openSelectedHtmlEditor"
-            >
-              <Edit3 :size="16" stroke-width="1.8" aria-hidden="true" />
-              {{ t('pages.emailTemplates.editAsNewVersion') }}
-            </UiButton>
-          </div>
+            <div class="resource-inline-actions resource-picker-actions">
+              <UiButton
+                variant="secondary"
+                :disabled="!selectedHtmlBodyAttachment || isUploadingHtml"
+                @click="openSelectedHtmlEditor"
+              >
+                <Edit3 :size="16" stroke-width="1.8" aria-hidden="true" />
+                {{ t('pages.emailTemplates.editAsNewVersion') }}
+              </UiButton>
+            </div>
+          </template>
+          <AttachmentPickerPanel
+            v-else
+            ref="maxTextBodyPicker"
+            v-model="form.text_body_id"
+            selection-mode="single"
+            :title="t('pages.emailTemplates.textBodyAttachment')"
+            :empty-text="t('pages.emailTemplates.noTextAttachments')"
+            :allowed-types="['.txt']"
+            default-type=".txt"
+            show-preview-action
+            show-edit-content-action
+            show-download-action
+            show-upload-action
+            @preview="openPreview"
+            @edit-content="openContentEditor"
+          />
         </section>
 
         <section v-else-if="activeStep === 2" class="resource-editor-panel">
+          <UiAlert
+            v-if="isMaxForm"
+            variant="warning"
+            :title="t('pages.emailTemplates.maxHtmlAttachmentWarningTitle')"
+            :message="t('pages.emailTemplates.maxHtmlAttachmentWarningMessage')"
+          />
           <AttachmentPickerPanel
+            ref="templateAttachmentsPicker"
             v-model="form.attachment_ids"
             selection-mode="multiple"
             :title="t('pages.emailTemplates.templateAttachments')"
             :empty-text="t('common.empty.noMatchingRecords')"
+            :allowed-types="isMaxForm ? maxAttachmentTypes : []"
+            :restrict-to-allowed-types="isMaxForm"
+            :unsupported-type-message="isMaxForm ? t('pages.emailTemplates.validation.maxHtmlAttachmentUnsupported') : ''"
+            :all-types-label="isMaxForm ? t('pages.emailTemplates.maxAllowedAttachmentTypes') : ''"
             show-preview-action
+            show-media-preview-action
+            show-edit-content-action
             show-download-action
             show-upload-action
-            @preview="openPreview($event, t('common.preview.attachment'))"
+            @preview="openPreview"
+            @edit-content="openContentEditor"
+            @selection-change="trackTemplateAttachmentsSelection"
           />
         </section>
 
@@ -673,10 +1018,17 @@ onMounted(() => {
           </header>
           <dl class="resource-review-list">
             <div><dt>{{ t('common.labels.name') }}</dt><dd>{{ form.label || t('common.placeholder') }}</dd></div>
-            <div><dt>{{ t('common.labels.fromEmail') }}</dt><dd>{{ form.from_email || t('common.placeholder') }}</dd></div>
-            <div><dt>{{ t('common.labels.fromName') }}</dt><dd>{{ form.from_name || t('common.placeholder') }}</dd></div>
-            <div><dt>{{ t('common.labels.subject') }}</dt><dd>{{ form.subject || t('common.placeholder') }}</dd></div>
-            <div><dt>{{ t('common.labels.htmlBody') }}</dt><dd><code>{{ formatTechnicalId(form.html_body_id) }}</code></dd></div>
+            <div><dt>{{ t('common.labels.type') }}</dt><dd>{{ form.type }}</dd></div>
+            <template v-if="!isMaxForm">
+              <div><dt>{{ t('common.labels.fromEmail') }}</dt><dd>{{ form.from_email || t('common.placeholder') }}</dd></div>
+              <div><dt>{{ t('common.labels.fromName') }}</dt><dd>{{ form.from_name || t('common.placeholder') }}</dd></div>
+              <div><dt>{{ t('common.labels.subject') }}</dt><dd>{{ form.subject || t('common.placeholder') }}</dd></div>
+              <div><dt>{{ t('common.labels.htmlBody') }}</dt><dd><code>{{ formatTechnicalId(form.html_body_id) }}</code></dd></div>
+            </template>
+            <template v-else>
+              <div><dt>{{ t('pages.emailTemplates.maxAccount') }}</dt><dd>{{ selectedMaxAccountDisplay }}</dd></div>
+              <div><dt>{{ t('common.labels.textBody') }}</dt><dd><code>{{ formatTechnicalId(form.text_body_id) }}</code></dd></div>
+            </template>
             <div><dt>{{ t('common.labels.attachments') }}</dt><dd>{{ form.attachment_ids.length }}</dd></div>
           </dl>
         </section>
@@ -700,31 +1052,11 @@ onMounted(() => {
       </section>
     </template>
 
-    <PreviewDrawer
+    <AttachmentPreviewDrawer
       :open="previewOpen"
-      :title="previewTitle"
-      :subtitle="t('common.preview.rawTemplate')"
+      :attachment="previewAttachment"
       @close="closePreview"
-    >
-      <template #actions>
-        <a
-          v-if="previewAttachment"
-          class="ui-button ui-button--secondary"
-          :href="attachmentDownloadUrl(previewAttachment)"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <Download :size="16" stroke-width="1.8" aria-hidden="true" />
-          {{ t('common.actions.download') }}
-        </a>
-      </template>
-      <HtmlAttachmentPreview
-        :attachment="previewAttachment"
-        :attachment-id="previewAttachment?.id || ''"
-        :title="t('common.preview.template')"
-        :empty-text="t('common.preview.selectHtmlOrText')"
-      />
-    </PreviewDrawer>
+    />
 
     <ConfirmDialog
       :open="deleteDialogOpen"

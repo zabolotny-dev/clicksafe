@@ -111,9 +111,11 @@ function eventIcon(eventType) {
     case 'DELIVERY_FAILED':
       return AlertTriangle
     case 'EMAIL_OPENED':
+    case 'MESSAGE_READ':
       return MailOpen
     case 'LINK_OPENED':
       return MousePointerClick
+    case 'MESSAGE_REPLIED':
     case 'DATA_SENT':
       return Database
     default:

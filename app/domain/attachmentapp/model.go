@@ -26,6 +26,10 @@ type UpdateAttachment struct {
 	Public *string `json:"public"`
 }
 
+type UpdateAttachmentContent struct {
+	Content *string `json:"content"`
+}
+
 func toBusNewAttachment(l string, public bool) (attachmentbus.NewAttachment, error) {
 	var errors errs.FieldErrors
 

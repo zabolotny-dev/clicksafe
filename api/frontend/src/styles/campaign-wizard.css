@@ -88,6 +88,50 @@
   grid-column: 1 / -1;
 }
 
+.campaign-wizard-site-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 84px;
+  padding: var(--space-lg);
+  color: var(--color-ink-secondary);
+  background: var(--color-canvas-muted);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.campaign-wizard-site-toggle.is-disabled {
+  cursor: default;
+  opacity: 0.78;
+}
+
+.campaign-wizard-site-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+.campaign-wizard-site-toggle-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.campaign-wizard-site-toggle-copy strong {
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.campaign-wizard-site-toggle-copy small {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .campaign-wizard-field span,
 .campaign-wizard-final-action span {
   color: var(--color-ink-muted);

@@ -67,7 +67,9 @@ export function eventChartColor(eventType, tokens = chartTokens()) {
     MESSAGE_SENT: tokens.primary,
     DELIVERY_FAILED: tokens.accentPink,
     EMAIL_OPENED: tokens.accentViolet,
+    MESSAGE_READ: tokens.accentViolet,
     LINK_OPENED: tokens.warning,
+    MESSAGE_REPLIED: tokens.info,
     DATA_SENT: tokens.danger,
   }
 

@@ -42,7 +42,7 @@ func (s *resolveState) resolvePath(ctx context.Context, path string) (string, bo
 		return "", false, err
 	}
 
-	rootValue, isMissing, err := s.rootValue(ctx, segments[0])
+	rootValue, isMissing, err := s.rootValue(ctx, segments)
 	if err != nil || isMissing {
 		return "", isMissing, err
 	}
@@ -64,7 +64,9 @@ func (s *resolveState) resolvePath(ctx context.Context, path string) (string, bo
 	return value, false, nil
 }
 
-func (s *resolveState) rootValue(ctx context.Context, root string) (reflect.Value, bool, error) {
+func (s *resolveState) rootValue(ctx context.Context, segments []string) (reflect.Value, bool, error) {
+	root := segments[0]
+
 	switch root {
 	case rootEmployee:
 		employee, err := s.loadEmployee(ctx)
@@ -91,6 +93,10 @@ func (s *resolveState) rootValue(ctx context.Context, root string) (reflect.Valu
 		return reflect.ValueOf(organization), false, nil
 
 	case rootTarget:
+		if segments[1] != "Link" {
+			return reflect.ValueOf(targetData{}), false, nil
+		}
+
 		targetData, err := s.loadTarget(ctx)
 		if err != nil {
 			return reflect.Value{}, false, err

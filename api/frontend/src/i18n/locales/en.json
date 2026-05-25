@@ -24,7 +24,8 @@
     "employees": "Employees",
     "departments": "Departments",
     "reports": "Reports",
-    "organizationSettings": "Organization"
+    "organizationSettings": "Organization",
+    "maxAccounts": "Max Accounts"
   },
   "routes": {
     "dashboard": {
@@ -79,6 +80,10 @@
       "title": "Attachments",
       "description": "Manage uploaded files, HTML assets, and file properties."
     },
+    "attachmentContentEdit": {
+      "title": "Edit Attachment Content",
+      "description": "Full-page editing for HTML and TXT files."
+    },
     "employees": {
       "title": "Employees",
       "description": "Manage employees available for campaign target selection."
@@ -102,6 +107,14 @@
     "organizationSettings": {
       "title": "Organization",
       "description": "Organization profile, branding, and attributes."
+    },
+    "maxAccounts": {
+      "title": "Max Accounts",
+      "description": "Manage Max messenger accounts used by the adapter."
+    },
+    "maxAccountCreate": {
+      "title": "Add Max Account",
+      "description": "Connect a Max account with a verification code."
     }
   },
   "common": {
@@ -131,6 +144,8 @@
       "retry": "Retry",
       "refresh": "Refresh",
       "edit": "Edit",
+      "editContent": "Edit content",
+      "saveContent": "Save content",
       "delete": "Delete",
       "duplicate": "Duplicate",
       "download": "Download",
@@ -184,6 +199,7 @@
       "fromEmail": "From Email",
       "fromName": "From Name",
       "htmlBody": "HTML",
+      "textBody": "TXT Body",
       "attachments": "Attachments",
       "attributes": "Attributes",
       "department": "Department",
@@ -350,6 +366,7 @@
       "publicAttachment": "Public attachment",
       "publicAttachmentHint": "Expose through the backend public path when available.",
       "detectedType": "Detected Type",
+      "contentEmpty": "File content cannot be empty.",
       "discardMessage": "Unsaved changes will be lost."
     },
     "attributes": {
@@ -398,6 +415,10 @@
     "monitoringLoad": "Monitoring data could not be loaded.",
     "organizationLoad": "Organization settings could not be loaded.",
     "organizationSave": "Organization settings could not be saved.",
+    "maxAccountsLoad": "Max accounts could not be loaded.",
+    "maxAccountLogin": "Max account login could not be completed.",
+    "maxAccountAction": "Max account action could not be completed.",
+    "maxAccountUpdate": "Max account could not be saved.",
     "brandingAttachmentsLoad": "Branding attachments could not be loaded.",
     "brandingUpload": "Branding attachment could not be uploaded.",
     "messagesLoad": "Email templates could not be loaded.",
@@ -473,7 +494,8 @@
       "failed": "Failed",
       "opened": "Opened",
       "clicked": "Clicked",
-      "submitted": "Data Submitted"
+      "submitted": "Data Submitted",
+      "replied": "Replied"
     }
   },
   "events": {
@@ -481,7 +503,9 @@
     "deliveryFailed": "Delivery Failed",
     "emailOpened": "Email Opened",
     "linkOpened": "Link Opened",
-    "dataSent": "Data Submitted"
+    "dataSent": "Data Submitted",
+    "messageRead": "Message Read",
+    "messageReplied": "Max Reply"
   },
   "attachments": {
     "visibility": {
@@ -752,6 +776,13 @@
       "panelDescriptionCreate": "Complete required fields, select resources, and prepare targets.",
       "panelDescriptionEdit": "Change available campaign fields and target schedule.",
       "domainHelper": "The domain is used by campaign setup and target sending.",
+      "siteOptionLabel": "Attack site",
+      "siteOptionHelper": "Enable this when the message sends targets to a landing page and collects submitted data.",
+      "siteOptionEmailRequired": "Email campaigns need a site and domain for tracking and landing delivery.",
+      "siteEnabled": "Used",
+      "siteDisabled": "Not used",
+      "siteRequiredByMessageTitle": "The template requires a site",
+      "siteRequiredByMessageMessage": "The Max TXT body contains the Target.Link variable. Enable the site or choose a template without a link.",
       "stepsAria": "Campaign setup steps",
       "messageSelectionAria": "Message template selection",
       "landingSelectionAria": "Landing page selection",
@@ -764,15 +795,20 @@
       "selectMessage": "Select message template",
       "selectLanding": "Select landing page",
       "selectEducation": "Select education asset",
+      "selectedSiteEducation": "Education after submitted data",
+      "selectSiteEducation": "Select education after submitted data",
+      "maxEducationText": "Max education TXT reply",
       "messageSearchPlaceholder": "Search message templates",
       "landingSearchPlaceholder": "Search landing pages",
       "educationSearchPlaceholder": "Search education assets",
       "educationTemplates": "Education templates",
+      "siteEducationTemplates": "Education after submitted data",
       "noMessageTemplates": "No message templates",
       "noMessageTemplatesDescription": "Create a message template before configuring a campaign.",
       "noLandingPages": "No landing pages",
       "noLandingPagesDescription": "Create a landing page before configuring a campaign.",
       "noEducationAssets": "No education assets",
+      "noMaxEducationTexts": "No TXT files for education replies",
       "employeeSearch": "Employee search",
       "employeeSearchPlaceholder": "Employee name or email",
       "selectedCount": "Selected: {count}",
@@ -861,11 +897,14 @@
         "scheduleInsideRange": "Sending time must be inside the campaign date range.",
         "clearingScheduleUnsupported": "Clearing schedule for an existing target is not supported.",
         "selectMessage": "Select a message template.",
+        "messageRequiresSite": "The selected Max template contains a site link. Enable the site or choose a template without Target.Link.",
         "messageMissing": "Message template is not selected.",
         "selectLanding": "Select a landing page.",
         "landingMissing": "Landing page is not selected.",
         "selectEducation": "Select an education asset.",
         "educationMissing": "Education asset is not selected.",
+        "selectMaxEducation": "Select a Max education TXT reply.",
+        "maxEducationMissing": "Max education TXT reply is not selected.",
         "selectEmployee": "Select an employee.",
         "targetsMissing": "No targets selected.",
         "addTargetBeforeDistribution": "Add targets before distribution.",
@@ -939,6 +978,8 @@
         "uploadFailedTitle": "Attachment could not be uploaded",
         "updated": "Attachment updated.",
         "updateFailedTitle": "Attachment could not be updated",
+        "contentUpdated": "Attachment content updated.",
+        "contentUpdateFailedTitle": "Attachment content could not be updated",
         "deleted": "Attachment deleted.",
         "deleteFailedTitle": "Attachment could not be deleted"
       },
@@ -957,16 +998,31 @@
       "copyLabel": "{label} copy",
       "unavailable": "Email templates unavailable",
       "tableTitle": "Email Templates",
+      "typeTabsAria": "Message template type",
+      "tabs": {
+        "email": "Email",
+        "max": "Max"
+      },
       "previewHtmlBody": "Preview HTML",
+      "previewTextBody": "Preview TXT",
       "emailHtmlPreview": "Email HTML",
+      "maxTextPreview": "Max TXT",
       "backToList": "Back to templates",
       "formAttention": "Check required fields before saving.",
       "stepsAria": "Email template setup steps",
       "htmlBodyTitle": "Email HTML content",
       "saveHtmlAttachment": "Save HTML attachment",
       "senderIdentityDescription": "Sender identity, subject, and template label.",
+      "maxAccount": "Max Account",
+      "selectedMaxAccount": "Selected Max account",
+      "selectMaxAccount": "Select Max account",
+      "maxHtmlAttachmentWarningTitle": "HTML files are not sent in Max",
+      "maxHtmlAttachmentWarningMessage": "Max rejects HTML as a file attachment. Use a TXT message body or select another file type.",
+      "maxAllowedAttachmentTypes": "Types available for Max",
       "htmlBodyAttachment": "Email HTML attachment",
       "noHtmlAttachments": "No HTML attachments",
+      "textBodyAttachment": "Max TXT attachment",
+      "noTextAttachments": "No TXT attachments",
       "editAsNewVersion": "Edit as new version",
       "templateAttachments": "Template attachments",
       "reviewDescription": "Review the template before saving.",
@@ -982,6 +1038,9 @@
       "validation": {
         "labelRequired": "Enter a template label.",
         "fromEmailRequired": "Enter sender email.",
+        "maxAccountRequired": "Select a Max account.",
+        "textBodyRequired": "Select a TXT body.",
+        "maxHtmlAttachmentUnsupported": "Max does not support HTML file attachments.",
         "htmlEmpty": "HTML content cannot be empty."
       },
       "notifications": {
@@ -1193,6 +1252,63 @@
         "created": "Organization created.",
         "updated": "Organization updated.",
         "saveFailedTitle": "Organization could not be saved"
+      }
+    },
+    "maxAccounts": {
+      "title": "Max Accounts",
+      "description": "Add Max accounts and control their adapter connection state.",
+      "unavailable": "Max accounts unavailable",
+      "createTitle": "Add Max Account",
+      "createDescription": "Connect a Max account for adapter message delivery.",
+      "backToList": "Back to accounts",
+      "addTitle": "Add Account",
+      "addDescription": "Register a Max session for adapter delivery.",
+      "editTitle": "Edit Account",
+      "editDescription": "Rename the account for the sender list.",
+      "detailsTitle": "Account Details",
+      "detailsDescription": "Enter the phone number and a clear label for the sender list.",
+      "formAttention": "Review Max account details.",
+      "labelPlaceholder": "Sender account",
+      "requestCode": "Request Code",
+      "confirmTitle": "Confirm Login",
+      "confirmDescription": "Enter the code from SMS or Max app messages.",
+      "codeTitle": "Verification Code",
+      "codeDescription": "Enter the six-digit code from SMS or the Max app.",
+      "passwordTitle": "Account Password",
+      "passwordDescription": "This Max account requires a password. Enter it to finish connecting.",
+      "code": "Code",
+      "codeAria": "Max verification code",
+      "codeDigitAria": "Code digit {number}",
+      "expiresCountdown": "Code expires in {value}",
+      "codeExpired": "Code expired",
+      "password": "Password",
+      "passwordOptional": "Password if requested",
+      "expiresAt": "Expires: {value}",
+      "accountsTitle": "Accounts",
+      "filtersAria": "Max account filters",
+      "searchPlaceholder": "Account name",
+      "emptyTitle": "No Max accounts",
+      "emptyDescription": "Add an account before using Max delivery.",
+      "emptyFilteredTitle": "No accounts found",
+      "emptyFilteredDescription": "Change the name or phone and apply filters again.",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "status": {
+        "active": "Active",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "error": "Error"
+      },
+      "notifications": {
+        "codeRequested": "Code requested.",
+        "accountAdded": "Max account added.",
+        "connected": "Max account connected.",
+        "disconnected": "Max account disconnected.",
+        "deleted": "Max account deleted.",
+        "updated": "Max account updated.",
+        "loginFailedTitle": "Max login failed",
+        "saveFailedTitle": "Max account could not be saved",
+        "actionFailedTitle": "Max account action failed"
       }
     },
     "targetsEvents": {

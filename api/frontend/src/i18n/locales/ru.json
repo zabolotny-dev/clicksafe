@@ -24,7 +24,8 @@
     "employees": "Сотрудники",
     "departments": "Отделы",
     "reports": "Отчеты",
-    "organizationSettings": "Организация"
+    "organizationSettings": "Организация",
+    "maxAccounts": "Аккаунты Max"
   },
   "routes": {
     "dashboard": {
@@ -79,6 +80,10 @@
       "title": "Файлы",
       "description": "Управление загруженными файлами, HTML-ресурсами и их свойствами."
     },
+    "attachmentContentEdit": {
+      "title": "Редактировать содержимое файла",
+      "description": "Полноэкранное редактирование HTML и TXT-файлов."
+    },
     "employees": {
       "title": "Сотрудники",
       "description": "Управление сотрудниками для выбора целей кампаний."
@@ -102,6 +107,14 @@
     "organizationSettings": {
       "title": "Организация",
       "description": "Профиль организации, брендинг и атрибуты."
+    },
+    "maxAccounts": {
+      "title": "Аккаунты Max",
+      "description": "Управление аккаунтами Max для адаптера."
+    },
+    "maxAccountCreate": {
+      "title": "Добавить аккаунт Max",
+      "description": "Подключение аккаунта Max через код подтверждения."
     }
   },
   "common": {
@@ -131,6 +144,8 @@
       "retry": "Повторить",
       "refresh": "Обновить",
       "edit": "Редактировать",
+      "editContent": "Редактировать содержимое",
+      "saveContent": "Сохранить содержимое",
       "delete": "Удалить",
       "duplicate": "Дублировать",
       "download": "Скачать",
@@ -184,6 +199,7 @@
       "fromEmail": "Email отправителя",
       "fromName": "Имя отправителя",
       "htmlBody": "HTML",
+      "textBody": "TXT-текст",
       "attachments": "Файлы",
       "attributes": "Атрибуты",
       "department": "Отдел",
@@ -350,6 +366,7 @@
       "publicAttachment": "Публичный файл",
       "publicAttachmentHint": "Показывать через публичный путь бэкенда, если он доступен.",
       "detectedType": "Определенный тип",
+      "contentEmpty": "Содержимое файла не должно быть пустым.",
       "discardMessage": "Несохраненные изменения будут потеряны."
     },
     "attributes": {
@@ -398,6 +415,10 @@
     "monitoringLoad": "Не удалось загрузить данные мониторинга.",
     "organizationLoad": "Не удалось загрузить данные организации.",
     "organizationSave": "Не удалось сохранить данные организации.",
+    "maxAccountsLoad": "Не удалось загрузить аккаунты Max.",
+    "maxAccountLogin": "Не удалось завершить вход в аккаунт Max.",
+    "maxAccountAction": "Не удалось выполнить действие с аккаунтом Max.",
+    "maxAccountUpdate": "Не удалось сохранить аккаунт Max.",
     "brandingAttachmentsLoad": "Не удалось загрузить файлы брендинга.",
     "brandingUpload": "Не удалось загрузить файл брендинга.",
     "messagesLoad": "Не удалось загрузить шаблоны писем.",
@@ -473,7 +494,8 @@
       "failed": "Ошибка",
       "opened": "Открыто",
       "clicked": "Переход",
-      "submitted": "Данные отправлены"
+      "submitted": "Данные отправлены",
+      "replied": "Ответил"
     }
   },
   "events": {
@@ -481,7 +503,9 @@
     "deliveryFailed": "Ошибка доставки",
     "emailOpened": "Письмо открыто",
     "linkOpened": "Ссылка открыта",
-    "dataSent": "Данные отправлены"
+    "dataSent": "Данные отправлены",
+    "messageRead": "Сообщение прочитано",
+    "messageReplied": "Ответ в Max"
   },
   "attachments": {
     "visibility": {
@@ -752,6 +776,13 @@
       "panelDescriptionCreate": "Заполните обязательные поля, выберите ресурсы и подготовьте цели.",
       "panelDescriptionEdit": "Измените доступные поля кампании и расписание целей.",
       "domainHelper": "Домен используется в настройках кампании и отправке целей.",
+      "siteOptionLabel": "Сайт в атаке",
+      "siteOptionHelper": "Включите, если сообщение ведет на лендинг и собирает данные.",
+      "siteOptionEmailRequired": "Для email-канала сайт и домен нужны для трекинга и лендинга.",
+      "siteEnabled": "Используется",
+      "siteDisabled": "Не используется",
+      "siteRequiredByMessageTitle": "Шаблон требует сайт",
+      "siteRequiredByMessageMessage": "TXT-текст Max содержит переменную Target.Link. Включите сайт или выберите шаблон без ссылки.",
       "stepsAria": "Шаги настройки кампании",
       "messageSelectionAria": "Выбор шаблона письма",
       "landingSelectionAria": "Выбор лендинга",
@@ -764,15 +795,20 @@
       "selectMessage": "Выбрать шаблон письма",
       "selectLanding": "Выбрать лендинг",
       "selectEducation": "Выбрать обучающий ресурс",
+      "selectedSiteEducation": "Обучение после отправки данных",
+      "selectSiteEducation": "Выбрать обучение после отправки данных",
+      "maxEducationText": "Обучающий TXT-ответ Max",
       "messageSearchPlaceholder": "Поиск шаблонов писем",
       "landingSearchPlaceholder": "Поиск лендингов",
       "educationSearchPlaceholder": "Поиск обучающих ресурсов",
       "educationTemplates": "Обучающие шаблоны",
+      "siteEducationTemplates": "Обучение после отправки данных",
       "noMessageTemplates": "Нет шаблонов писем",
       "noMessageTemplatesDescription": "Создайте шаблон письма перед настройкой кампании.",
       "noLandingPages": "Нет лендингов",
       "noLandingPagesDescription": "Создайте лендинг перед настройкой кампании.",
       "noEducationAssets": "Нет обучающих ресурсов",
+      "noMaxEducationTexts": "Нет TXT-файлов для обучающего ответа",
       "employeeSearch": "Поиск сотрудников",
       "employeeSearchPlaceholder": "Имя или email сотрудника",
       "selectedCount": "Выбрано: {count}",
@@ -861,11 +897,14 @@
         "scheduleInsideRange": "Время отправки должно попадать в диапазон кампании.",
         "clearingScheduleUnsupported": "Очистка расписания для существующей цели не поддерживается.",
         "selectMessage": "Выберите шаблон письма.",
+        "messageRequiresSite": "Выбранный Max-шаблон содержит ссылку на сайт. Включите сайт или выберите шаблон без Target.Link.",
         "messageMissing": "Шаблон письма не выбран.",
         "selectLanding": "Выберите лендинг.",
         "landingMissing": "Лендинг не выбран.",
         "selectEducation": "Выберите обучающий ресурс.",
         "educationMissing": "Обучающий ресурс не выбран.",
+        "selectMaxEducation": "Выберите обучающий TXT-ответ Max.",
+        "maxEducationMissing": "Обучающий TXT-ответ Max не выбран.",
         "selectEmployee": "Выберите сотрудника.",
         "targetsMissing": "Цели не выбраны.",
         "addTargetBeforeDistribution": "Добавьте цели перед распределением.",
@@ -939,6 +978,8 @@
         "uploadFailedTitle": "Не удалось загрузить файл",
         "updated": "Файл обновлен.",
         "updateFailedTitle": "Не удалось обновить файл",
+        "contentUpdated": "Содержимое файла обновлено.",
+        "contentUpdateFailedTitle": "Не удалось обновить содержимое файла",
         "deleted": "Файл удален.",
         "deleteFailedTitle": "Не удалось удалить файл"
       },
@@ -957,16 +998,31 @@
       "copyLabel": "{label} — копия",
       "unavailable": "Шаблоны писем недоступны",
       "tableTitle": "Шаблоны писем",
+      "typeTabsAria": "Тип шаблона сообщения",
+      "tabs": {
+        "email": "Email",
+        "max": "Max"
+      },
       "previewHtmlBody": "Предпросмотр HTML",
+      "previewTextBody": "Предпросмотр TXT",
       "emailHtmlPreview": "HTML письма",
+      "maxTextPreview": "TXT Max",
       "backToList": "К списку шаблонов",
       "formAttention": "Проверьте обязательные поля перед сохранением.",
       "stepsAria": "Шаги настройки шаблона письма",
       "htmlBodyTitle": "HTML-контент письма",
       "saveHtmlAttachment": "Сохранить HTML-файл",
       "senderIdentityDescription": "Отправитель, тема и метка шаблона.",
+      "maxAccount": "Аккаунт Max",
+      "selectedMaxAccount": "Выбранный аккаунт Max",
+      "selectMaxAccount": "Выберите аккаунт Max",
+      "maxHtmlAttachmentWarningTitle": "HTML-файлы не отправляются в Max",
+      "maxHtmlAttachmentWarningMessage": "Max отклоняет HTML как файл-вложение. Используйте TXT-текст для сообщения или выберите другой тип файла.",
+      "maxAllowedAttachmentTypes": "Типы, доступные для Max",
       "htmlBodyAttachment": "HTML-файл письма",
       "noHtmlAttachments": "Нет HTML-файлов",
+      "textBodyAttachment": "TXT-файл Max",
+      "noTextAttachments": "Нет TXT-файлов",
       "editAsNewVersion": "Редактировать как новую версию",
       "templateAttachments": "Файлы шаблона",
       "reviewDescription": "Проверьте шаблон перед сохранением.",
@@ -982,6 +1038,9 @@
       "validation": {
         "labelRequired": "Введите название шаблона.",
         "fromEmailRequired": "Введите email отправителя.",
+        "maxAccountRequired": "Выберите аккаунт Max.",
+        "textBodyRequired": "Выберите TXT-текст.",
+        "maxHtmlAttachmentUnsupported": "Max не поддерживает HTML-файлы во вложениях.",
         "htmlEmpty": "HTML-контент не должен быть пустым."
       },
       "notifications": {
@@ -1193,6 +1252,63 @@
         "created": "Организация создана.",
         "updated": "Организация обновлена.",
         "saveFailedTitle": "Не удалось сохранить организацию"
+      }
+    },
+    "maxAccounts": {
+      "title": "Аккаунты Max",
+      "description": "Добавление аккаунтов Max и управление подключением к адаптеру.",
+      "unavailable": "Аккаунты Max недоступны",
+      "createTitle": "Добавить аккаунт Max",
+      "createDescription": "Подключите аккаунт Max для отправки сообщений через адаптер.",
+      "backToList": "К списку аккаунтов",
+      "addTitle": "Добавить аккаунт",
+      "addDescription": "Зарегистрируйте Max-сессию для отправки через адаптер.",
+      "editTitle": "Редактировать аккаунт",
+      "editDescription": "Переименуйте аккаунт для списка отправителей.",
+      "detailsTitle": "Данные аккаунта",
+      "detailsDescription": "Укажите телефон и понятное название для списка отправителей.",
+      "formAttention": "Проверьте данные аккаунта Max.",
+      "labelPlaceholder": "Аккаунт отправителя",
+      "requestCode": "Запросить код",
+      "confirmTitle": "Подтвердить вход",
+      "confirmDescription": "Введите код из SMS или сообщений в приложении Max.",
+      "codeTitle": "Код подтверждения",
+      "codeDescription": "Введите шестизначный код, который пришел в SMS или приложении Max.",
+      "passwordTitle": "Пароль аккаунта",
+      "passwordDescription": "Для этого аккаунта Max требуется пароль. Введите его, чтобы завершить подключение.",
+      "code": "Код",
+      "codeAria": "Код подтверждения Max",
+      "codeDigitAria": "Цифра кода {number}",
+      "expiresCountdown": "Код истекает через {value}",
+      "codeExpired": "Код истек",
+      "password": "Пароль",
+      "passwordOptional": "Пароль, если потребуется",
+      "expiresAt": "Истекает: {value}",
+      "accountsTitle": "Аккаунты",
+      "filtersAria": "Фильтры аккаунтов Max",
+      "searchPlaceholder": "Название аккаунта",
+      "emptyTitle": "Аккаунтов Max нет",
+      "emptyDescription": "Добавьте аккаунт перед использованием доставки через Max.",
+      "emptyFilteredTitle": "Аккаунты не найдены",
+      "emptyFilteredDescription": "Измените название или телефон и примените фильтры снова.",
+      "connect": "Подключить",
+      "disconnect": "Отключить",
+      "status": {
+        "active": "Активен",
+        "connected": "Подключен",
+        "disconnected": "Отключен",
+        "error": "Ошибка"
+      },
+      "notifications": {
+        "codeRequested": "Код запрошен.",
+        "accountAdded": "Аккаунт Max добавлен.",
+        "connected": "Аккаунт Max подключен.",
+        "disconnected": "Аккаунт Max отключен.",
+        "deleted": "Аккаунт Max удален.",
+        "updated": "Аккаунт Max обновлен.",
+        "loginFailedTitle": "Не удалось войти в Max",
+        "saveFailedTitle": "Не удалось сохранить аккаунт Max",
+        "actionFailedTitle": "Действие с аккаунтом Max не выполнено"
       }
     },
     "targetsEvents": {

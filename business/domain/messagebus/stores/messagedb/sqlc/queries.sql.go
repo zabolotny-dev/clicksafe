@@ -16,14 +16,16 @@ const count = `-- name: Count :one
 SELECT COUNT(*) FROM messages
 WHERE
     ($1::uuid IS NULL OR id = $1) AND
-    ($2::text IS NULL OR LOWER(label) ILIKE '%' || LOWER($2) || '%') AND
-    ($3::text IS NULL OR LOWER(from_email) ILIKE '%' || LOWER($3) || '%') AND
-    ($4::text IS NULL OR LOWER(from_name) ILIKE '%' || LOWER($4) || '%') AND
-    ($5::text IS NULL OR LOWER(subject) ILIKE '%' || LOWER($5) || '%')
+    ($2::text IS NULL OR type = $2) AND
+    ($3::text IS NULL OR LOWER(label) ILIKE '%' || LOWER($3) || '%') AND
+    ($4::text IS NULL OR LOWER(from_email) ILIKE '%' || LOWER($4) || '%') AND
+    ($5::text IS NULL OR LOWER(from_name) ILIKE '%' || LOWER($5) || '%') AND
+    ($6::text IS NULL OR LOWER(subject) ILIKE '%' || LOWER($6) || '%')
 `
 
 type CountParams struct {
 	ID        *uuid.UUID
+	Type      pgtype.Text
 	Label     pgtype.Text
 	FromEmail pgtype.Text
 	FromName  pgtype.Text
@@ -33,6 +35,7 @@ type CountParams struct {
 func (q *Queries) Count(ctx context.Context, arg CountParams) (int64, error) {
 	row := q.db.QueryRow(ctx, count,
 		arg.ID,
+		arg.Type,
 		arg.Label,
 		arg.FromEmail,
 		arg.FromName,
@@ -54,39 +57,43 @@ func (q *Queries) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 const query = `-- name: Query :many
-SELECT id, label, from_email, from_name, subject, html_body_id FROM messages
+SELECT id, type, label, from_email, from_name, subject, html_body_id, text_body_id, max_account_id FROM messages
 WHERE
     -- Точный поиск по ID (если передан)
     ($1::uuid IS NULL OR id = $1)
     AND
+    -- Поиск по type
+    ($2::text IS NULL OR type = $2)
+    AND
     -- Поиск по label
-    ($2::text IS NULL OR LOWER(label) ILIKE '%' || LOWER($2) || '%')
+    ($3::text IS NULL OR LOWER(label) ILIKE '%' || LOWER($3) || '%')
     AND
     -- Поиск по email отправителя
-    ($3::text IS NULL OR LOWER(from_email) ILIKE '%' || LOWER($3) || '%')
+    ($4::text IS NULL OR LOWER(from_email) ILIKE '%' || LOWER($4) || '%')
     AND
     -- Поиск по имени отправителя
-    ($4::text IS NULL OR LOWER(from_name) ILIKE '%' || LOWER($4) || '%')
+    ($5::text IS NULL OR LOWER(from_name) ILIKE '%' || LOWER($5) || '%')
     AND
     -- Поиск по теме
-    ($5::text IS NULL OR LOWER(subject) ILIKE '%' || LOWER($5) || '%')
+    ($6::text IS NULL OR LOWER(subject) ILIKE '%' || LOWER($6) || '%')
 ORDER BY
     -- Сортировка напрямую по бизнес-константам (a=ID, b=Label, c=Email, d=FromName, e=Subject)
-    CASE WHEN $6::text = 'a_asc' THEN id::text END ASC,
-    CASE WHEN $6::text = 'a_desc' THEN id::text END DESC,
-    CASE WHEN $6::text = 'b_asc' THEN label END ASC,
-    CASE WHEN $6::text = 'b_desc' THEN label END DESC,
-    CASE WHEN $6::text = 'c_asc' THEN from_email END ASC,
-    CASE WHEN $6::text = 'c_desc' THEN from_email END DESC,
-    CASE WHEN $6::text = 'd_asc' THEN from_name END ASC,
-    CASE WHEN $6::text = 'd_desc' THEN from_name END DESC,
-    CASE WHEN $6::text = 'e_asc' THEN subject END ASC,
-    CASE WHEN $6::text = 'e_desc' THEN subject END DESC
-LIMIT $8 OFFSET $7
+    CASE WHEN $7::text = 'a_asc' THEN id::text END ASC,
+    CASE WHEN $7::text = 'a_desc' THEN id::text END DESC,
+    CASE WHEN $7::text = 'b_asc' THEN label END ASC,
+    CASE WHEN $7::text = 'b_desc' THEN label END DESC,
+    CASE WHEN $7::text = 'c_asc' THEN from_email END ASC,
+    CASE WHEN $7::text = 'c_desc' THEN from_email END DESC,
+    CASE WHEN $7::text = 'd_asc' THEN from_name END ASC,
+    CASE WHEN $7::text = 'd_desc' THEN from_name END DESC,
+    CASE WHEN $7::text = 'e_asc' THEN subject END ASC,
+    CASE WHEN $7::text = 'e_desc' THEN subject END DESC
+LIMIT $9 OFFSET $8
 `
 
 type QueryParams struct {
 	ID        *uuid.UUID
+	Type      pgtype.Text
 	Label     pgtype.Text
 	FromEmail pgtype.Text
 	FromName  pgtype.Text
@@ -99,6 +106,7 @@ type QueryParams struct {
 func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error) {
 	rows, err := q.db.Query(ctx, query,
 		arg.ID,
+		arg.Type,
 		arg.Label,
 		arg.FromEmail,
 		arg.FromName,
@@ -116,11 +124,14 @@ func (q *Queries) Query(ctx context.Context, arg QueryParams) ([]Message, error)
 		var i Message
 		if err := rows.Scan(
 			&i.ID,
+			&i.Type,
 			&i.Label,
 			&i.FromEmail,
 			&i.FromName,
 			&i.Subject,
 			&i.HtmlBodyID,
+			&i.TextBodyID,
+			&i.MaxAccountID,
 		); err != nil {
 			return nil, err
 		}
@@ -182,7 +193,7 @@ func (q *Queries) QueryAttachmentsByMessageIDs(ctx context.Context, messageIds [
 }
 
 const queryByID = `-- name: QueryByID :one
-SELECT id, label, from_email, from_name, subject, html_body_id FROM messages
+SELECT id, type, label, from_email, from_name, subject, html_body_id, text_body_id, max_account_id FROM messages
 WHERE id = $1
 `
 
@@ -191,11 +202,14 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Message, error) 
 	var i Message
 	err := row.Scan(
 		&i.ID,
+		&i.Type,
 		&i.Label,
 		&i.FromEmail,
 		&i.FromName,
 		&i.Subject,
 		&i.HtmlBodyID,
+		&i.TextBodyID,
+		&i.MaxAccountID,
 	)
 	return i, err
 }
@@ -203,33 +217,42 @@ func (q *Queries) QueryByID(ctx context.Context, id uuid.UUID) (Message, error) 
 const save = `-- name: Save :exec
 INSERT INTO messages (
     id,
+    type,
     label,
     from_email,
     from_name,
     subject,
-    html_body_id
+    html_body_id,
+    text_body_id,
+    max_account_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 `
 
 type SaveParams struct {
-	ID         uuid.UUID
-	Label      string
-	FromEmail  string
-	FromName   pgtype.Text
-	Subject    pgtype.Text
-	HtmlBodyID *uuid.UUID
+	ID           uuid.UUID
+	Type         string
+	Label        string
+	FromEmail    string
+	FromName     pgtype.Text
+	Subject      pgtype.Text
+	HtmlBodyID   *uuid.UUID
+	TextBodyID   *uuid.UUID
+	MaxAccountID *uuid.UUID
 }
 
 func (q *Queries) Save(ctx context.Context, arg SaveParams) error {
 	_, err := q.db.Exec(ctx, save,
 		arg.ID,
+		arg.Type,
 		arg.Label,
 		arg.FromEmail,
 		arg.FromName,
 		arg.Subject,
 		arg.HtmlBodyID,
+		arg.TextBodyID,
+		arg.MaxAccountID,
 	)
 	return err
 }
@@ -264,30 +287,39 @@ func (q *Queries) SyncAttachments(ctx context.Context, arg SyncAttachmentsParams
 const update = `-- name: Update :exec
 UPDATE messages
 SET
-    label = $1,
-    from_email = $2,
-    from_name = $3,
-    subject = $4,
-    html_body_id = $5
-WHERE id = $6
+    type = $1,
+    label = $2,
+    from_email = $3,
+    from_name = $4,
+    subject = $5,
+    html_body_id = $6,
+    text_body_id = $7,
+    max_account_id = $8
+WHERE id = $9
 `
 
 type UpdateParams struct {
-	Label      string
-	FromEmail  string
-	FromName   pgtype.Text
-	Subject    pgtype.Text
-	HtmlBodyID *uuid.UUID
-	ID         uuid.UUID
+	Type         string
+	Label        string
+	FromEmail    string
+	FromName     pgtype.Text
+	Subject      pgtype.Text
+	HtmlBodyID   *uuid.UUID
+	TextBodyID   *uuid.UUID
+	MaxAccountID *uuid.UUID
+	ID           uuid.UUID
 }
 
 func (q *Queries) Update(ctx context.Context, arg UpdateParams) error {
 	_, err := q.db.Exec(ctx, update,
+		arg.Type,
 		arg.Label,
 		arg.FromEmail,
 		arg.FromName,
 		arg.Subject,
 		arg.HtmlBodyID,
+		arg.TextBodyID,
+		arg.MaxAccountID,
 		arg.ID,
 	)
 	return err

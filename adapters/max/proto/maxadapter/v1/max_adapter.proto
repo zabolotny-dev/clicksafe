@@ -1,0 +1,216 @@
+syntax = "proto3";
+
+package maxadapter.v1;
+
+option go_package = "github.com/zabolotny-dev/clicksafe/adapters/max/gen/go/maxadapter/v1;maxadapterv1";
+
+service MaxAdapterService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  rpc BeginLogin(BeginLoginRequest) returns (BeginLoginResponse);
+  rpc ConfirmLogin(ConfirmLoginRequest) returns (ConfirmLoginResponse);
+  rpc ConfirmPassword(ConfirmPasswordRequest) returns (ConfirmLoginResponse);
+
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  rpc StartAccount(StartAccountRequest) returns (Account);
+  rpc StopAccount(StopAccountRequest) returns (Account);
+
+  rpc SendMessage(stream SendMessageRequest) returns (SendMessageResponse);
+
+  rpc SubscribeEvents(SubscribeEventsRequest) returns (stream AdapterEvent);
+  rpc AckEvents(AckEventsRequest) returns (AckEventsResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}
+
+enum AccountStatus {
+  ACCOUNT_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_STATUS_PENDING_LOGIN = 1;
+  ACCOUNT_STATUS_ACTIVE = 2;
+  ACCOUNT_STATUS_CONNECTED = 3;
+  ACCOUNT_STATUS_DISCONNECTED = 4;
+  ACCOUNT_STATUS_ERROR = 5;
+}
+
+enum LoginAttemptStatus {
+  LOGIN_ATTEMPT_STATUS_UNSPECIFIED = 0;
+  LOGIN_ATTEMPT_STATUS_CODE_REQUIRED = 1;
+  LOGIN_ATTEMPT_STATUS_PASSWORD_REQUIRED = 2;
+  LOGIN_ATTEMPT_STATUS_COMPLETED = 3;
+  LOGIN_ATTEMPT_STATUS_FAILED = 4;
+  LOGIN_ATTEMPT_STATUS_EXPIRED = 5;
+}
+
+message Account {
+  string id = 1;
+  string phone = 2;
+  string label = 3;
+  AccountStatus status = 4;
+  string max_user_id = 5;
+  string last_error = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message LoginAttempt {
+  string id = 1;
+  string phone = 2;
+  string label = 3;
+  LoginAttemptStatus status = 4;
+  string error = 5;
+  string expires_at = 6;
+}
+
+message BeginLoginRequest {
+  string phone = 1;
+  string label = 2;
+}
+
+message BeginLoginResponse {
+  LoginAttempt attempt = 1;
+}
+
+message ConfirmLoginRequest {
+  string login_attempt_id = 1;
+  string code = 2;
+  string password = 3;
+}
+
+message ConfirmPasswordRequest {
+  string login_attempt_id = 1;
+  string password = 2;
+}
+
+message ConfirmLoginResponse {
+  LoginAttempt attempt = 1;
+  Account account = 2;
+}
+
+message ListAccountsRequest {}
+
+message ListAccountsResponse {
+  repeated Account accounts = 1;
+}
+
+message GetAccountRequest {
+  string account_id = 1;
+}
+
+message GetAccountResponse {
+  Account account = 1;
+}
+
+message DeleteAccountRequest {
+  string account_id = 1;
+}
+
+message DeleteAccountResponse {}
+
+message StartAccountRequest {
+  string account_id = 1;
+}
+
+message StopAccountRequest {
+  string account_id = 1;
+}
+
+enum RecipientKind {
+  RECIPIENT_KIND_UNSPECIFIED = 0;
+  RECIPIENT_KIND_CHAT_ID = 1;
+  RECIPIENT_KIND_PHONE = 2;
+  RECIPIENT_KIND_USER_ID = 3;
+}
+
+message MessageRecipient {
+  RecipientKind kind = 1;
+  string value = 2;
+}
+
+enum AttachmentKind {
+  ATTACHMENT_KIND_UNSPECIFIED = 0;
+  ATTACHMENT_KIND_PHOTO = 1;
+  ATTACHMENT_KIND_FILE = 2;
+  ATTACHMENT_KIND_VIDEO = 3;
+  ATTACHMENT_KIND_AUDIO = 4;
+}
+
+message AttachmentDescriptor {
+  string filename = 1;
+  string mime_type = 2;
+  string extension = 3;
+  int64 size = 4;
+  AttachmentKind kind = 5;
+}
+
+message SendMessageMetadata {
+  string account_id = 1;
+  MessageRecipient recipient = 2;
+  string text = 3;
+  string client_request_id = 4;
+  repeated AttachmentDescriptor attachments = 5;
+  bool notify = 6;
+  string reply_to_message_id = 7;
+}
+
+message AttachmentChunk {
+  int32 attachment_index = 1;
+  bytes data = 2;
+}
+
+message SendMessageRequest {
+  oneof payload {
+    SendMessageMetadata metadata = 1;
+    AttachmentChunk chunk = 2;
+  }
+}
+
+message SendMessageResponse {
+  string client_request_id = 1;
+  string account_id = 2;
+  string chat_id = 3;
+  string message_id = 4;
+  string sent_at = 5;
+}
+
+enum AdapterEventType {
+  ADAPTER_EVENT_TYPE_UNSPECIFIED = 0;
+  ADAPTER_EVENT_TYPE_ACCOUNT_CONNECTED = 1;
+  ADAPTER_EVENT_TYPE_ACCOUNT_DISCONNECTED = 2;
+  ADAPTER_EVENT_TYPE_MESSAGE_RECEIVED = 3;
+  ADAPTER_EVENT_TYPE_MESSAGE_READ = 4;
+  ADAPTER_EVENT_TYPE_MESSAGE_REPLIED = 5;
+  ADAPTER_EVENT_TYPE_RAW = 6;
+}
+
+message AdapterEvent {
+  int64 seq = 1;
+  AdapterEventType type = 2;
+  string account_id = 3;
+  string chat_id = 4;
+  string message_id = 5;
+  string sender_id = 6;
+  string text = 7;
+  string payload_json = 8;
+  string occurred_at = 9;
+  string reply_to_message_id = 10;
+}
+
+message SubscribeEventsRequest {
+  string consumer = 1;
+  int64 from_seq = 2;
+}
+
+message AckEventsRequest {
+  string consumer = 1;
+  int64 up_to_seq = 2;
+}
+
+message AckEventsResponse {
+  int64 acknowledged_seq = 1;
+}

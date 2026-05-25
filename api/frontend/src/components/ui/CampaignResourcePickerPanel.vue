@@ -14,7 +14,7 @@ import SkeletonBlock from './SkeletonBlock.vue'
 import UiAlert from './UiAlert.vue'
 import UiButton from './UiButton.vue'
 import UiInput from './UiInput.vue'
-import { nullableId } from '../../utils/resourceFormat'
+import { formatTechnicalId, nullableId } from '../../utils/resourceFormat'
 
 const ROW_OPTIONS = [5, 10, 25]
 
@@ -31,6 +31,11 @@ const props = defineProps({
     type: String,
     default: 'message',
     validator: (value) => ['message', 'landing', 'education'].includes(value),
+  },
+  messageType: {
+    type: String,
+    default: 'EMAIL',
+    validator: (value) => ['EMAIL', 'MAX'].includes(value),
   },
   title: {
     type: String,
@@ -83,6 +88,7 @@ const rows = ref(5)
 const pickerName = `campaign-resource-picker-${Math.random().toString(36).slice(2)}`
 
 const isMessage = computed(() => props.resourceType === 'message')
+const isMaxMessage = computed(() => isMessage.value && props.messageType === 'MAX')
 const resolvedEmptyTitle = computed(() => props.emptyTitle || t('common.resource.noResourcesFound'))
 const resolvedEmptyDescription = computed(() => props.emptyDescription || t('common.resource.createBeforeAssigning'))
 const resolvedSearchPlaceholder = computed(() => props.searchPlaceholder || t('common.resource.searchByLabel'))
@@ -135,7 +141,23 @@ function attachmentCount(item) {
 }
 
 function fromLabel(item) {
+  if (isMaxMessage.value) {
+    return formatTechnicalId(item?.max_account_id)
+  }
+
   return [item?.from_name, item?.from_email].filter(Boolean).join(' / ') || '—'
+}
+
+function messageBodyId(item) {
+  return nullableId(isMaxMessage.value ? item?.text_body_id : item?.html_body_id)
+}
+
+function messageBodyLabel() {
+  return isMaxMessage.value ? t('common.labels.textBody') : t('common.labels.subject')
+}
+
+function messageSenderLabel() {
+  return isMaxMessage.value ? t('pages.emailTemplates.maxAccount') : t('common.labels.from')
 }
 
 function selectItem(item) {
@@ -238,8 +260,8 @@ watch(() => props.items.length, () => {
         <span>{{ t('common.actions.select') }}</span>
         <span>{{ t('common.labels.name') }}</span>
         <template v-if="isMessage">
-          <span>{{ t('common.labels.from') }}</span>
-          <span>{{ t('common.labels.subject') }}</span>
+          <span>{{ messageSenderLabel() }}</span>
+          <span>{{ messageBodyLabel() }}</span>
           <span>{{ t('common.labels.attachments') }}</span>
         </template>
         <span>{{ t('pages.campaigns.columns.actions') }}</span>
@@ -280,13 +302,13 @@ watch(() => props.items.length, () => {
           </span>
           <template v-if="isMessage">
             <span>{{ fromLabel(item) }}</span>
-            <span>{{ item.subject || '—' }}</span>
+            <span>{{ isMaxMessage ? formatTechnicalId(item.text_body_id) : (item.subject || '—') }}</span>
             <span>{{ attachmentCount(item) }}</span>
           </template>
           <span class="attachment-picker-actions campaign-resource-row-actions" @click.stop>
             <IconButton
-              :label="nullableId(item.html_body_id) ? previewLabel : t('common.resource.noHtmlBody')"
-              :disabled="!nullableId(item.html_body_id)"
+              :label="messageBodyId(item) ? previewLabel : t('common.resource.noHtmlBody')"
+              :disabled="!messageBodyId(item)"
               @click="previewItem(item)"
             >
               <Eye :size="16" stroke-width="1.8" aria-hidden="true" />

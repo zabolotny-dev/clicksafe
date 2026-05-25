@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Внимание: Обучение информационной безопасности</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #fafafa;
+            color: #1a1a1a;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 650px;
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e1e8ed;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
+            padding: 40px;
+            text-align: center;
+        }
+        .badge {
+            background-color: #fee2e2;
+            color: #dc2626;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-block;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+            color: #111827;
+        }
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 32px;
+        }
+        .avatar-box {
+            background-color: #f3e8ff;
+            color: #6b21a8;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 32px;
+            display: inline-block;
+            font-weight: 500;
+        }
+        .rules-card {
+            background-color: #f9fafb;
+            border: 1px solid #f3f4f6;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: left;
+        }
+        .rules-card h3 {
+            margin-top: 0;
+            color: #1f2937;
+            font-size: 18px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+        .rule-item {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .rule-icon {
+            font-size: 20px;
+        }
+        .rule-text strong {
+            color: #111827;
+        }
+        .rule-text p {
+            margin: 4px 0 0 0;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        footer {
+            margin-top: 40px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="badge">Учебная тревога</span>
+        <h1>{{.Employee.FirstName}}, это была проверка бдительности!</h1>
+        <p>
+            Вы получили это сообщение, потому что перешли по ссылке в имитационном письме и ввели свои данные на тестовом ресурсе ClickSafe.
+            Не волнуйтесь: ваши учетные данные в безопасности, а этот инцидент используется исключительно в целях повышения осведомленности.
+        </p>
+
+        <div class="avatar-box">
+            Сотрудник: {{.Employee.FirstName}} {{.Employee.LastName}} ({{.Department.Label}})
+        </div>
+
+        <div class="rules-card">
+            <h3>Как не попасться на удочку мошенников в будущем:</h3>
+            
+            <div class="rule-item">
+                <span class="rule-icon">🔍</span>
+                <div class="rule-text">
+                    <strong>Проверяйте адрес отправителя</strong>
+                    <p>Злоумышленники часто используют похожие домены (например, m1crosoft.com вместо microsoft.com).</p>
+                </div>
+            </div>
+
+            <div class="rule-item">
+                <span class="rule-icon">🔗</span>
+                <div class="rule-text">
+                    <strong>Анализируйте ссылки перед кликом</strong>
+                    <p>Наведите курсор на ссылку, чтобы увидеть реальный адрес назначения. Не вводите пароли на сторонних сайтах.</p>
+                </div>
+            </div>
+
+            <div class="rule-item">
+                <span class="rule-icon">🚨</span>
+                <div class="rule-text">
+                    <strong>Обращайте внимание на срочность</strong>
+                    <p>Мошенники пытаются вызвать панику требованиями вроде «Срочно смените пароль» или «Ваш аккаунт будет заблокирован».</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            ClickSafe © 2026. Платформа симуляции фишинга и обучения сотрудников.
+        </footer>
+    </div>
+</body>
+</html>

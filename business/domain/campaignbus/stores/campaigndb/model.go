@@ -3,6 +3,7 @@ package campaigndb
 import (
 	"encoding/json"
 
+	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus/stores/campaigndb/sqlc"
 	"github.com/zabolotny-dev/clicksafe/business/types/date"
@@ -19,16 +20,18 @@ func toDBCampaign(c campaignbus.Campaign) (sqlc.Campaign, error) {
 	dateFrom, dateTo := c.DateRange.ToSQLNullTimestamptz()
 
 	return sqlc.Campaign{
-		ID:          c.ID,
-		MessageID:   c.MessageID,
-		LandingID:   c.LandingID,
-		EducationID: c.EducationID,
-		Label:       c.Label.String(),
-		Domain:      c.Domain.String(),
-		Status:      c.Status.String(),
-		DateFrom:    dateFrom,
-		DateTo:      dateTo,
-		Attributes:  attributes,
+		ID:                 c.ID,
+		Type:               c.Type.String(),
+		MessageID:          c.MessageID,
+		LandingID:          c.LandingID,
+		EducationID:        c.EducationID,
+		MaxEducationTextID: nullUUIDPtr(c.MaxEducationTextID),
+		Label:              c.Label.String(),
+		Domain:             c.Domain.String(),
+		Status:             c.Status.String(),
+		DateFrom:           dateFrom,
+		DateTo:             dateTo,
+		Attributes:         attributes,
 	}, nil
 }
 
@@ -45,12 +48,21 @@ func toBusCampaign(c sqlc.Campaign) (campaignbus.Campaign, error) {
 		return campaignbus.Campaign{}, err
 	}
 
-	domain, err := domain.Parse(c.Domain)
+	var campaignDomain domain.Domain
+	if c.Domain != "" {
+		parsed, err := domain.Parse(c.Domain)
+		if err != nil {
+			return campaignbus.Campaign{}, err
+		}
+		campaignDomain = parsed
+	}
+
+	status, err := campaignbus.ParseCampaignStatus(c.Status)
 	if err != nil {
 		return campaignbus.Campaign{}, err
 	}
 
-	status, err := campaignbus.ParseCampaignStatus(c.Status)
+	cmpType, err := campaignbus.ParseCampaignType(c.Type)
 	if err != nil {
 		return campaignbus.Campaign{}, err
 	}
@@ -61,15 +73,17 @@ func toBusCampaign(c sqlc.Campaign) (campaignbus.Campaign, error) {
 	}
 
 	return campaignbus.Campaign{
-		ID:          c.ID,
-		MessageID:   c.MessageID,
-		LandingID:   c.LandingID,
-		EducationID: c.EducationID,
-		Label:       campaignLabel,
-		Domain:      domain,
-		Status:      status,
-		DateRange:   dateRange,
-		Attributes:  attributes,
+		ID:                 c.ID,
+		Type:               cmpType,
+		MessageID:          c.MessageID,
+		LandingID:          c.LandingID,
+		EducationID:        c.EducationID,
+		MaxEducationTextID: ptrNullUUID(c.MaxEducationTextID),
+		Label:              campaignLabel,
+		Domain:             campaignDomain,
+		Status:             status,
+		DateRange:          dateRange,
+		Attributes:         attributes,
 	}, nil
 }
 
@@ -85,4 +99,18 @@ func toBusCampaigns(campaigns []sqlc.Campaign) ([]campaignbus.Campaign, error) {
 	}
 
 	return busCampaigns, nil
+}
+
+func nullUUIDPtr(id uuid.NullUUID) *uuid.UUID {
+	if !id.Valid {
+		return nil
+	}
+	return &id.UUID
+}
+
+func ptrNullUUID(id *uuid.UUID) uuid.NullUUID {
+	if id == nil {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: *id, Valid: true}
 }

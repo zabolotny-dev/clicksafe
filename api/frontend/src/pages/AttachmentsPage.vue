@@ -1,10 +1,14 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
+  Code,
   Download,
   Edit3,
   Eye,
+  FileText,
   FileUp,
+  Image,
   Trash2,
   UploadCloud,
 } from 'lucide-vue-next'
@@ -21,7 +25,6 @@ import UiButton from '../components/ui/UiButton.vue'
 import UiInput from '../components/ui/UiInput.vue'
 import { useNotifications } from '../composables/useNotifications'
 import { useResourceActions } from '../composables/useResourceActions'
-import { translateAttachmentVisibility } from '../i18n'
 import {
   deleteAttachment,
   getAttachmentUrl,
@@ -35,11 +38,18 @@ import {
   formatKilobytes,
   formatTechnicalId,
 } from '../utils/resourceFormat'
-import { SUPPORTED_ATTACHMENT_TYPES } from '../utils/attachmentTypes'
+import {
+  isHtmlAttachmentType,
+  isImageAttachmentType,
+  isTextPreviewAttachmentType,
+  SUPPORTED_ATTACHMENT_TYPES,
+} from '../utils/attachmentTypes'
 
 const { notifySuccess, notifyError } = useNotifications()
 const { mutationOptions, ensureCsrfToken, handleAuthError } = useResourceActions()
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const ATTACHMENT_TYPE_OPTIONS = SUPPORTED_ATTACHMENT_TYPES
 
 const attachments = ref([])
@@ -131,6 +141,38 @@ function openPreview(attachment) {
 
 function closePreview() {
   previewAttachment.value = null
+}
+
+function canEditContent(attachment) {
+  return isTextPreviewAttachmentType(attachment?.type)
+}
+
+function isMediaPreviewable(attachment) {
+  return isImageAttachmentType(attachment?.type)
+}
+
+function isHtmlLike(attachment) {
+  return isHtmlAttachmentType(attachment?.type)
+}
+
+function attachmentIcon(attachment) {
+  if (isMediaPreviewable(attachment)) {
+    return Image
+  }
+
+  return isHtmlLike(attachment) ? Code : FileText
+}
+
+function openContentEditor(attachment) {
+  if (!canEditContent(attachment)) {
+    return
+  }
+
+  router.push({
+    name: 'attachment-content-edit',
+    params: { id: attachment.id },
+    query: { redirect: route.fullPath || '/templates/attachments' },
+  })
 }
 
 function openEditDrawer(attachment) {
@@ -395,18 +437,17 @@ onMounted(() => {
       </header>
 
       <div class="resource-table resource-attachment-table">
-          <div class="resource-table-row resource-table-head">
-            <span>{{ t('common.labels.name') }}</span>
-            <span>{{ t('common.labels.type') }}</span>
-            <span>{{ t('common.labels.requiredVars') }}</span>
-            <span>{{ t('common.labels.public') }}</span>
-            <span>{{ t('common.labels.publicPath') }}</span>
-            <span>{{ t('common.labels.uploadedAt') }}</span>
-            <span>{{ t('pages.campaigns.columns.actions') }}</span>
-          </div>
+        <div class="resource-table-row resource-table-head">
+          <span>{{ t('common.labels.name') }}</span>
+          <span>{{ t('common.labels.type') }}</span>
+          <span>{{ t('common.labels.requiredVars') }}</span>
+          <span>{{ t('common.labels.publicPath') }}</span>
+          <span>{{ t('common.labels.uploadedAt') }}</span>
+          <span>{{ t('pages.campaigns.columns.actions') }}</span>
+        </div>
         <template v-if="isLoading">
           <div v-for="index in 4" :key="index" class="resource-table-row">
-            <span v-for="cell in 7" :key="cell"><SkeletonBlock :rows="1" /></span>
+            <span v-for="cell in 6" :key="cell"><SkeletonBlock :rows="1" /></span>
           </div>
         </template>
         <template v-else-if="attachments.length">
@@ -415,10 +456,14 @@ onMounted(() => {
             :key="attachment.id"
             class="resource-table-row"
           >
-            <span><strong>{{ attachment.label }}</strong></span>
+            <span class="attachment-picker-label-cell">
+              <span class="attachment-picker-file-icon" aria-hidden="true">
+                <component :is="attachmentIcon(attachment)" :size="16" stroke-width="1.8" />
+              </span>
+              <strong :title="attachment.label">{{ attachment.label || formatTechnicalId(attachment.id) }}</strong>
+            </span>
             <span>{{ attachment.type }}</span>
             <span>{{ attachment.required_vars?.length ? attachment.required_vars.join(', ') : '-' }}</span>
-            <span>{{ translateAttachmentVisibility(attachment.public) }}</span>
             <span>
               <button
                 v-if="attachment.public_path"
@@ -563,6 +608,15 @@ onMounted(() => {
         </dl>
 
         <footer class="resource-drawer-footer">
+          <UiButton
+            v-if="canEditContent(editTarget)"
+            variant="secondary"
+            :disabled="isSaving"
+            @click="openContentEditor(editTarget)"
+          >
+            <Edit3 :size="16" stroke-width="1.8" aria-hidden="true" />
+            {{ t('common.actions.editContent') }}
+          </UiButton>
           <a class="ui-button ui-button--secondary" :href="editDownloadUrl" target="_blank" rel="noreferrer">
             <Download :size="16" stroke-width="1.8" aria-hidden="true" />
             {{ t('common.actions.download') }}

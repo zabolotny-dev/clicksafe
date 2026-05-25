@@ -503,6 +503,42 @@ func TestValidateRequiresDomainForTargetLink(t *testing.T) {
 	}
 }
 
+func TestValidateUnknownTargetPathDoesNotRequireDomain(t *testing.T) {
+	t.Parallel()
+
+	targetID := uuid.New()
+	employeeID := uuid.New()
+	targetQuerier := &targetQuerierStub{err: errors.New("should not be called")}
+	business := NewBusiness(
+		targetQuerier,
+		&employeeQuerierStub{},
+		&departmentQuerierStub{},
+		&organizationGetterStub{},
+	)
+
+	missing, err := business.Validate(context.Background(), campaignbus.Campaign{}, []campaignbus.Target{
+		testTarget(targetID, employeeID),
+	}, []string{"Target.Govno"})
+	if err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+
+	expected := []campaignbus.TargetMissingVars{
+		{
+			TargetID:   targetID,
+			EmployeeID: employeeID,
+			Vars:       []string{"Target.Govno"},
+		},
+	}
+	if !reflect.DeepEqual(missing, expected) {
+		t.Fatalf("Validate missing = %#v, want %#v", missing, expected)
+	}
+
+	if targetQuerier.linkCalls != 0 {
+		t.Fatalf("target link calls = %d, want 0", targetQuerier.linkCalls)
+	}
+}
+
 // =============================================================================
 // Test Helpers
 
@@ -559,8 +595,8 @@ func testOrganization() organizationbus.Organization {
 // Stubs
 
 type targetQuerierStub struct {
-	target    campaignbus.Target
-	url       string
+	target        campaignbus.Target
+	url           string
 	err           error
 	calls         int
 	linkCalls     int

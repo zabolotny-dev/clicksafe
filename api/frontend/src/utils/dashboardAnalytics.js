@@ -6,11 +6,13 @@ export const DASHBOARD_RISK_SCORES = {
   MESSAGE_SENT: 0,
   DELIVERY_FAILED: 0,
   EMAIL_OPENED: 15,
+  MESSAGE_READ: 15,
   LINK_OPENED: 45,
+  MESSAGE_REPLIED: 60,
   DATA_SENT: 100,
 }
 
-const SENT_OR_LATER_EVENTS = ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT']
+const SENT_OR_LATER_EVENTS = ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED']
 
 function makeIdMap(items) {
   return new Map((items || []).map((item) => [String(item.id), item]))
@@ -143,7 +145,7 @@ function buildCampaignRows(campaigns, vtargets) {
         events: supportedEventsForTarget(target),
       }))
       const sentTargets = targetCountWithEvent(scopedTargets, SENT_OR_LATER_EVENTS)
-      const openedTargets = targetCountWithEvent(scopedTargets, ['EMAIL_OPENED'])
+      const openedTargets = targetCountWithEvent(scopedTargets, ['EMAIL_OPENED', 'MESSAGE_READ'])
       const clickedTargets = targetCountWithEvent(scopedTargets, ['LINK_OPENED'])
       const submittedTargets = targetCountWithEvent(scopedTargets, ['DATA_SENT'])
 
@@ -204,7 +206,7 @@ export function buildDashboardAnalytics({
 
   const activeCampaigns = (campaigns || []).filter((campaign) => campaign.status === 'ACTIVE')
   const sentTargets = targetCountWithEvent(scopedTargets, SENT_OR_LATER_EVENTS)
-  const openedTargets = targetCountWithEvent(scopedTargets, ['EMAIL_OPENED'])
+  const openedTargets = targetCountWithEvent(scopedTargets, ['EMAIL_OPENED', 'MESSAGE_READ'])
   const clickedTargets = targetCountWithEvent(scopedTargets, ['LINK_OPENED'])
   const submittedTargets = targetCountWithEvent(scopedTargets, ['DATA_SENT'])
   const totalRisk = targetsWithEvents.reduce((sum, item) => sum + targetRisk(item.events), 0)

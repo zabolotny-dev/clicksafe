@@ -34,6 +34,9 @@ func run() error {
 		Migration struct {
 			Timeout time.Duration `conf:"default:10s"`
 		}
+		Storage struct {
+			AttachmentRootDir string `conf:"default:./private/attachment"`
+		}
 		Auth struct {
 			ArgonMemory      uint32 `conf:"default:65536"`
 			ArgonIterations  uint32 `conf:"default:3"`
@@ -70,13 +73,28 @@ func run() error {
 		KeyLength:   cfg.Auth.ArgonKeyLength,
 	}
 
-	return processCommands(cfg.Args, cfg.Migration.Timeout, dbConfig, hasherConfig)
+	seedConfig := commands.SeedConfig{
+		AttachmentRootDir: cfg.Storage.AttachmentRootDir,
+	}
+
+	return processCommands(cfg.Args, cfg.Migration.Timeout, dbConfig, hasherConfig, seedConfig)
 }
 
-func processCommands(args conf.Args, timeOut time.Duration, dbConfig database.Config, hasherConfig password.Argon2idConfig) error {
+func processCommands(args conf.Args, timeOut time.Duration, dbConfig database.Config, hasherConfig password.Argon2idConfig, seedConfig commands.SeedConfig) error {
 	switch args.Num(0) {
 	case "migrate", "up":
 		return commands.Migrate(dbConfig, timeOut)
+
+	case "seed":
+		seedConfig.Scenario = args.Num(1)
+		return commands.Seed(dbConfig, timeOut, seedConfig)
+
+	case "migrate-seed":
+		if err := commands.Migrate(dbConfig, timeOut); err != nil {
+			return fmt.Errorf("migrating database: %w", err)
+		}
+		seedConfig.Scenario = args.Num(1)
+		return commands.Seed(dbConfig, timeOut, seedConfig)
 
 	case "rollback", "down":
 		return commands.Rollback(dbConfig, timeOut)
@@ -105,6 +123,8 @@ func processCommands(args conf.Args, timeOut time.Duration, dbConfig database.Co
 
 	default:
 		fmt.Println("migrate/up:    create the schema in the database")
+		fmt.Println("seed:          add demo/minimal data (seed [demo|minimal])")
+		fmt.Println("migrate-seed:  apply migrations and add seed data (migrate-seed [demo|minimal])")
 		fmt.Println("rollback/down: roll back the most recent migration")
 		fmt.Println("status:        print the status of all migrations")
 		fmt.Println("reset:         roll back all migrations")

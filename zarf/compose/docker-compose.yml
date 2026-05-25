@@ -35,8 +35,11 @@ services:
       - TOOLING_DB_PASSWORD=${POSTGRES_PASSWORD}
       - TOOLING_DB_HOST=postgres:${POSTGRES_PORT}
       - TOOLING_DB_NAME=${POSTGRES_DB}
+      - TOOLING_STORAGE_ATTACHMENT_ROOT_DIR=/var/www/my-app/private/attachment
     env_file:
       - ../../.env
+    volumes:
+      - attachment_content_data:/var/www/my-app/private/attachment
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +67,8 @@ services:
       - API_AUTH_LOGIN_REQUESTS_PER_MINUTE=${AUTH_LOGIN_REQUESTS_PER_MINUTE}
       - API_AUTH_LOGIN_BURST=${AUTH_LOGIN_BURST}
       - API_AUTH_LOGIN_EXPIRES_IN=${AUTH_LOGIN_EXPIRES_IN}
+      - API_MAX_ADAPTER_ADDR=max-adapter:9090
+      - API_MAX_ADAPTER_TOKEN=${MAX_ADAPTER_GRPC_TOKEN}
       - API_STORAGE_ATTACHMENT_ROOT_DIR=/var/www/my-app/private/attachment
       - API_STORAGE_ATTACHMENT_PATH_PREFIX=/attachment
     env_file:
@@ -75,6 +80,40 @@ services:
         condition: service_healthy
       api-tool:
         condition: service_completed_successfully
+      max-adapter:
+        condition: service_healthy
+    networks:
+      - clicksafe
+
+  max-adapter:
+    build:
+      context: ../..
+      dockerfile: zarf/docker/Dockerfile.max-adapter
+    image: clicksafe-max-adapter:latest
+    container_name: clicksafe-max-adapter
+    restart: always
+    environment:
+      - MAX_ADAPTER_GRPC_BIND=0.0.0.0:9090
+      - MAX_ADAPTER_GRPC_TOKEN=${MAX_ADAPTER_GRPC_TOKEN}
+      - MAX_ADAPTER_SECRET_KEY=${MAX_ADAPTER_SECRET_KEY}
+      - MAX_ADAPTER_DB_USER=${POSTGRES_USER}
+      - MAX_ADAPTER_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - MAX_ADAPTER_DB_HOST=postgres:${POSTGRES_PORT}
+      - MAX_ADAPTER_DB_NAME=clicksafe_max_adapter
+      - MAX_ADAPTER_TEMP_DIR=/var/lib/clicksafe-max-adapter/tmp
+    env_file:
+      - ../../.env
+    volumes:
+      - max_adapter_data:/var/lib/clicksafe-max-adapter
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import os,socket; port=int(os.environ.get('MAX_ADAPTER_GRPC_BIND','0.0.0.0:9090').rsplit(':',1)[1]); socket.create_connection(('127.0.0.1', port), 1).close()" ]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+      start_period: 5s
     networks:
       - clicksafe
 
@@ -106,5 +145,6 @@ networks:
 volumes:
   postgres_data:
   attachment_content_data:
+  max_adapter_data:
   caddy_data:
   caddy_config:

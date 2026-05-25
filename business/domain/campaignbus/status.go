@@ -57,6 +57,7 @@ var (
 	Opened    = newTargetStatus("OPENED")
 	Clicked   = newTargetStatus("CLICKED")
 	Submitted = newTargetStatus("SUBMITTED")
+	Replied   = newTargetStatus("REPLIED")
 )
 
 func newTargetStatus(s string) TargetStatus {

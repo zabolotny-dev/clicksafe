@@ -130,6 +130,31 @@ func (a *app) update(c *echo.Context) error {
 	return c.JSON(http.StatusOK, toAppAttachment(res, c.Path()))
 }
 
+func (a *app) updateContent(c *echo.Context) error {
+	var up UpdateAttachmentContent
+	if err := c.Bind(&up); err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+
+	if up.Content == nil {
+		return errs.NewFieldErrors("content", fmt.Errorf("content is required"), errs.InvalidArgument, "validation failed")
+	}
+
+	attach, err := mid.GetAttachment(c.Request().Context())
+	if err != nil {
+		return errs.Errorf(errs.Internal, "updatecontent: %s", err)
+	}
+
+	res, err := a.attachmentBus.UpdateContent(c.Request().Context(), attach, attachmentbus.UpdateAttachmentContent{
+		Content: strings.NewReader(*up.Content),
+	})
+	if err != nil {
+		return mapBusErr(err, "updatecontent")
+	}
+
+	return c.JSON(http.StatusOK, toAppAttachment(res, c.Path()))
+}
+
 func (a *app) deleteByID(c *echo.Context) error {
 	atch, err := mid.GetAttachment(c.Request().Context())
 	if err != nil {

@@ -10,14 +10,16 @@ import (
 )
 
 type Campaign struct {
-	ID          uuid.UUID
-	MessageID   *uuid.UUID
-	LandingID   *uuid.UUID
-	EducationID *uuid.UUID
-	Label       string
-	Domain      string
-	Status      string
-	DateFrom    pgtype.Timestamptz
-	DateTo      pgtype.Timestamptz
-	Attributes  []byte
+	ID                 uuid.UUID
+	Type               string
+	MessageID          *uuid.UUID
+	LandingID          *uuid.UUID
+	EducationID        *uuid.UUID
+	MaxEducationTextID *uuid.UUID
+	Label              string
+	Domain             string
+	Status             string
+	DateFrom           pgtype.Timestamptz
+	DateTo             pgtype.Timestamptz
+	Attributes         []byte
 }

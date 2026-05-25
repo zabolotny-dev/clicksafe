@@ -29,6 +29,8 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus/stores/eventdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus/stores/landingdb"
+	"github.com/zabolotny-dev/clicksafe/business/domain/maxaccountbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/maxaccountbus/stores/maxaccountdb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus/stores/messagedb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
@@ -40,8 +42,11 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus/stores/vtargetdb"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/maxadapter"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/authbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/deliverybus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/maxdeliverybus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/maxdeliverybus/stores/maxdeliverydb"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/visitbus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
@@ -98,6 +103,10 @@ func run(ctx context.Context, log *logger.Logger) error {
 			Timeout  time.Duration `conf:"default:10s"`
 			TLS      string        `conf:"default:none"`
 			SSL      bool          `conf:"default:false"`
+		}
+		MaxAdapter struct {
+			Addr  string `conf:"default:localhost:9090"`
+			Token string `conf:"noprint"`
 		}
 		Auth struct {
 			ArgonMemory            uint32        `conf:"default:65536"`
@@ -158,6 +167,18 @@ func run(ctx context.Context, log *logger.Logger) error {
 	if err != nil {
 		return fmt.Errorf("creating smtp client: %w", err)
 	}
+
+	// -------------------------------------------------------------------------
+	// Max Adapter Support
+
+	maxAdapterClient, err := maxadapter.New(maxadapter.Config{
+		Addr:  cfg.MaxAdapter.Addr,
+		Token: cfg.MaxAdapter.Token,
+	})
+	if err != nil {
+		return fmt.Errorf("creating max adapter client: %w", err)
+	}
+	defer maxAdapterClient.Close()
 
 	// -------------------------------------------------------------------------
 	// Crypto and Token Support
@@ -226,16 +247,21 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	authBus := authbus.NewBusiness(adminBus, sessionBus)
 
-	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, resolverBus, attachmentBus)
+	maxAccountStore := maxaccountdb.NewStore(db)
+	maxAccountBus := maxaccountbus.NewBusiness(maxAccountStore, maxAdapterClient)
+
+	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, employeeBus, resolverBus, attachmentBus)
 
 	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, attachmentBus, smtpClient, eventBus, renderBus)
+	maxDeliveryStore := maxdeliverydb.NewStore(db)
+	maxDeliveryBus := maxdeliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, maxAccountBus, attachmentBus, renderBus, eventBus, maxAdapterClient, maxDeliveryStore)
 
 	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus, attachmentBus, renderBus)
 
 	// -------------------------------------------------------------------------
 	// Start Workers
 
-	workers := workers.NewWorker(log, campaignBus, deliverybus, sessionBus, cfg.Worker.Interval)
+	workers := workers.NewWorker(log, campaignBus, deliverybus, maxDeliveryBus, sessionBus, cfg.Worker.Interval)
 	workers.Run(ctx)
 
 	// -------------------------------------------------------------------------
@@ -254,6 +280,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		DepartmentBus:   departmentBus,
 		EmployeeBus:     employeeBus,
 		LandingBus:      landingBus,
+		MaxAccountBus:   maxAccountBus,
 		MessageBus:      messageBus,
 		CampaignBus:     campaignBus,
 		TargetBus:       targetBus,

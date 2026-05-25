@@ -5,6 +5,8 @@ import "fmt"
 var (
 	MessageSent    = newEvent("MESSAGE_SENT")
 	DeliveryFailed = newEvent("DELIVERY_FAILED")
+	MessageRead    = newEvent("MESSAGE_READ")
+	MessageReplied = newEvent("MESSAGE_REPLIED")
 	EmailOpened    = newEvent("EMAIL_OPENED")
 	LinkOpened     = newEvent("LINK_OPENED")
 	DataSent       = newEvent("DATA_SENT")

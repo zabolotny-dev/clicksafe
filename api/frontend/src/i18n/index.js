@@ -27,6 +27,7 @@ const TARGET_STATUS_KEYS = {
   OPENED: 'target.status.opened',
   CLICKED: 'target.status.clicked',
   SUBMITTED: 'target.status.submitted',
+  REPLIED: 'target.status.replied',
 }
 
 const EVENT_TYPE_KEYS = {
@@ -35,6 +36,8 @@ const EVENT_TYPE_KEYS = {
   EMAIL_OPENED: 'events.emailOpened',
   LINK_OPENED: 'events.linkOpened',
   DATA_SENT: 'events.dataSent',
+  MESSAGE_READ: 'events.messageRead',
+  MESSAGE_REPLIED: 'events.messageReplied',
 }
 
 const KNOWN_ERROR_KEYS = new Map([

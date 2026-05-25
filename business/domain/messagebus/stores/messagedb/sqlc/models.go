@@ -10,12 +10,15 @@ import (
 )
 
 type Message struct {
-	ID         uuid.UUID
-	Label      string
-	FromEmail  string
-	FromName   pgtype.Text
-	Subject    pgtype.Text
-	HtmlBodyID *uuid.UUID
+	ID           uuid.UUID
+	Type         string
+	Label        string
+	FromEmail    string
+	FromName     pgtype.Text
+	Subject      pgtype.Text
+	HtmlBodyID   *uuid.UUID
+	TextBodyID   *uuid.UUID
+	MaxAccountID *uuid.UUID
 }
 
 type MessageAttachment struct {

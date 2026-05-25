@@ -242,11 +242,11 @@ func isValidTargetTransition(current, next TargetStatus) bool {
 	case Pending:
 		return next == Sent || next == Failed || next == Clicked
 	case Sent:
-		return next == Opened || next == Clicked || next == Failed
+		return next == Opened || next == Clicked || next == Failed || next == Replied
 	case Opened:
-		return next == Clicked
+		return next == Clicked || next == Replied
 	case Clicked:
-		return next == Submitted
+		return next == Submitted || next == Replied
 	default:
 		return false
 	}

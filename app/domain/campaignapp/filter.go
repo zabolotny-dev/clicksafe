@@ -14,6 +14,7 @@ type queryParams struct {
 	Rows     string
 	OrderBy  string
 	ID       string
+	Type     string
 	Label    string
 	Status   string
 	DateFrom string
@@ -28,6 +29,7 @@ func parseQueryParams(c *echo.Context) queryParams {
 		Rows:     values.Get("rows"),
 		OrderBy:  values.Get("orderBy"),
 		ID:       values.Get("campaign_id"),
+		Type:     values.Get("type"),
 		Label:    values.Get("label"),
 		Status:   values.Get("status"),
 		DateFrom: values.Get("date_from"),
@@ -52,6 +54,15 @@ func parseFilter(qp queryParams) (campaignbus.CampaignQueryFilter, error) {
 
 	if qp.Label != "" {
 		filter.Label = &qp.Label
+	}
+
+	if qp.Type != "" {
+		cmpType, err := campaignbus.ParseCampaignType(qp.Type)
+		if err != nil {
+			fieldErrors.Add("type", err)
+		} else {
+			filter.Type = &cmpType
+		}
 	}
 
 	if qp.Status != "" {

@@ -3,6 +3,7 @@ package resolverbus
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
@@ -15,8 +16,8 @@ func (b *Business) Validate(ctx context.Context, campaign campaignbus.Campaign, 
 		return nil, nil
 	}
 
-	needsTargetLink, err := pathsUseRoot(requiredVars, rootTarget)
-	if err != nil {
+	needsTargetLink := slices.Contains(requiredVars, "Target.Link")
+	if err := validatePaths(requiredVars); err != nil {
 		return nil, fmt.Errorf("validate paths: %w", err)
 	}
 
@@ -60,19 +61,14 @@ func (b *Business) Validate(ctx context.Context, campaign campaignbus.Campaign, 
 	return missingByTarget, nil
 }
 
-func pathsUseRoot(paths []string, root string) (bool, error) {
+func validatePaths(paths []string) error {
 	for _, path := range paths {
-		segments, err := splitPath(path)
-		if err != nil {
-			return false, err
-		}
-
-		if segments[0] == root {
-			return true, nil
+		if _, err := splitPath(path); err != nil {
+			return err
 		}
 	}
 
-	return false, nil
+	return nil
 }
 
 func missingPaths(ctx context.Context, state *resolveState, paths []string) ([]string, error) {

@@ -13,48 +13,64 @@ import (
 )
 
 type Campaign struct {
-	ID          uuid.UUID         `json:"id"`
-	MessageID   *uuid.UUID        `json:"message_id"`
-	LandingID   *uuid.UUID        `json:"landing_id"`
-	EducationID *uuid.UUID        `json:"education_id"`
-	Label       string            `json:"label"`
-	Domain      string            `json:"domain"`
-	Status      string            `json:"status"`
-	DateFrom    *time.Time        `json:"date_from"`
-	DateTo      *time.Time        `json:"date_to"`
-	Attributes  map[string]string `json:"attributes"`
+	ID                 uuid.UUID         `json:"id"`
+	Type               string            `json:"type"`
+	MessageID          *uuid.UUID        `json:"message_id"`
+	LandingID          *uuid.UUID        `json:"landing_id"`
+	EducationID        *uuid.UUID        `json:"education_id"`
+	MaxEducationTextID uuid.NullUUID     `json:"max_education_text_id"`
+	Label              string            `json:"label"`
+	Domain             string            `json:"domain"`
+	Status             string            `json:"status"`
+	DateFrom           *time.Time        `json:"date_from"`
+	DateTo             *time.Time        `json:"date_to"`
+	Attributes         map[string]string `json:"attributes"`
 }
 
 type NewCampaign struct {
-	MessageID   string            `json:"message_id"`
-	LandingID   string            `json:"landing_id"`
-	EducationID string            `json:"education_id"`
-	Label       string            `json:"label"`
-	Domain      string            `json:"domain"`
-	DateFrom    time.Time         `json:"date_from"`
-	DateTo      time.Time         `json:"date_to"`
-	Attributes  map[string]string `json:"attributes"`
+	Type               string            `json:"type"`
+	MessageID          string            `json:"message_id"`
+	LandingID          string            `json:"landing_id"`
+	EducationID        string            `json:"education_id"`
+	MaxEducationTextID string            `json:"max_education_text_id"`
+	Label              string            `json:"label"`
+	Domain             string            `json:"domain"`
+	DateFrom           time.Time         `json:"date_from"`
+	DateTo             time.Time         `json:"date_to"`
+	Attributes         map[string]string `json:"attributes"`
 }
 
 type UpdateCampaign struct {
-	MessageID   *string            `json:"message_id"`
-	LandingID   *string            `json:"landing_id"`
-	EducationID *string            `json:"education_id"`
-	Label       *string            `json:"label"`
-	Domain      *string            `json:"domain"`
-	DateFrom    *time.Time         `json:"date_from"`
-	DateTo      *time.Time         `json:"date_to"`
-	Attributes  *map[string]string `json:"attributes"`
+	Type               *string            `json:"type"`
+	MessageID          *string            `json:"message_id"`
+	LandingID          *string            `json:"landing_id"`
+	EducationID        *string            `json:"education_id"`
+	MaxEducationTextID *string            `json:"max_education_text_id"`
+	Label              *string            `json:"label"`
+	Domain             *string            `json:"domain"`
+	DateFrom           *time.Time         `json:"date_from"`
+	DateTo             *time.Time         `json:"date_to"`
+	Attributes         *map[string]string `json:"attributes"`
 }
 
 func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
-	var errors errs.FieldErrors
+	var fieldErrors errs.FieldErrors
+
+	cmpType := campaignbus.EmailCampaign
+	if req.Type != "" {
+		parsed, err := campaignbus.ParseCampaignType(req.Type)
+		if err != nil {
+			fieldErrors.Add("type", err)
+		} else {
+			cmpType = parsed
+		}
+	}
 
 	var mID *uuid.UUID
 	if req.MessageID != "" {
 		id, err := uuid.Parse(req.MessageID)
 		if err != nil {
-			errors.Add("message_id", err)
+			fieldErrors.Add("message_id", err)
 		} else {
 			mID = &id
 		}
@@ -64,7 +80,7 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 	if req.LandingID != "" {
 		id, err := uuid.Parse(req.LandingID)
 		if err != nil {
-			errors.Add("landing_id", err)
+			fieldErrors.Add("landing_id", err)
 		} else {
 			lID = &id
 		}
@@ -74,40 +90,59 @@ func toBusNewCampaign(req NewCampaign) (campaignbus.NewCampaign, error) {
 	if req.EducationID != "" {
 		id, err := uuid.Parse(req.EducationID)
 		if err != nil {
-			errors.Add("education_id", err)
+			fieldErrors.Add("education_id", err)
 		} else {
 			eID = &id
 		}
 	}
 
-	label, err := label.Parse(req.Label)
-	if err != nil {
-		errors.Add("label", err)
+	var maxEducationTextID uuid.NullUUID
+	if req.MaxEducationTextID != "" {
+		id, err := uuid.Parse(req.MaxEducationTextID)
+		if err != nil {
+			fieldErrors.Add("max_education_text_id", err)
+		} else {
+			maxEducationTextID = uuid.NullUUID{UUID: id, Valid: true}
+		}
 	}
 
-	domain, err := domain.Parse(req.Domain)
+	label, err := label.Parse(req.Label)
 	if err != nil {
-		errors.Add("domain", err)
+		fieldErrors.Add("label", err)
+	}
+
+	var dmn domain.Domain
+	if req.Domain != "" {
+		parsed, err := domain.Parse(req.Domain)
+		if err != nil {
+			fieldErrors.Add("domain", err)
+		} else {
+			dmn = parsed
+		}
+	} else if cmpType == campaignbus.EmailCampaign {
+		fieldErrors.Add("domain", errors.New("domain cannot be empty"))
 	}
 
 	dater, err := date.ParseNull(req.DateFrom, req.DateTo)
 	if err != nil {
-		errors.Add("date_from", err)
-		errors.Add("date_to", err)
+		fieldErrors.Add("date_from", err)
+		fieldErrors.Add("date_to", err)
 	}
 
-	if len(errors) > 0 {
-		return campaignbus.NewCampaign{}, errors.ToError(errs.InvalidArgument, "validation failed")
+	if len(fieldErrors) > 0 {
+		return campaignbus.NewCampaign{}, fieldErrors.ToError(errs.InvalidArgument, "validation failed")
 	}
 
 	return campaignbus.NewCampaign{
-		MessageID:   mID,
-		LandingID:   lID,
-		EducationID: eID,
-		Label:       label,
-		Domain:      domain,
-		DateRange:   dater,
-		Attributes:  req.Attributes,
+		Type:               cmpType,
+		MessageID:          mID,
+		LandingID:          lID,
+		EducationID:        eID,
+		MaxEducationTextID: maxEducationTextID,
+		Label:              label,
+		Domain:             dmn,
+		DateRange:          dater,
+		Attributes:         req.Attributes,
 	}, nil
 }
 
@@ -122,16 +157,18 @@ func toAppCampaign(cmp campaignbus.Campaign) Campaign {
 	}
 
 	return Campaign{
-		ID:          cmp.ID,
-		MessageID:   cmp.MessageID,
-		LandingID:   cmp.LandingID,
-		EducationID: cmp.EducationID,
-		Label:       cmp.Label.String(),
-		Domain:      cmp.Domain.String(),
-		Status:      cmp.Status.String(),
-		DateFrom:    dateFrom,
-		DateTo:      dateTo,
-		Attributes:  cmp.Attributes,
+		ID:                 cmp.ID,
+		Type:               cmp.Type.String(),
+		MessageID:          cmp.MessageID,
+		LandingID:          cmp.LandingID,
+		EducationID:        cmp.EducationID,
+		MaxEducationTextID: cmp.MaxEducationTextID,
+		Label:              cmp.Label.String(),
+		Domain:             cmp.Domain.String(),
+		Status:             cmp.Status.String(),
+		DateFrom:           dateFrom,
+		DateTo:             dateTo,
+		Attributes:         cmp.Attributes,
 	}
 }
 
@@ -145,6 +182,16 @@ func toAppCampaigns(campaigns []campaignbus.Campaign) []Campaign {
 
 func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error) {
 	var fieldErrors errs.FieldErrors
+
+	var cmpType *campaignbus.CampaignType
+	if req.Type != nil {
+		parsed, err := campaignbus.ParseCampaignType(*req.Type)
+		if err != nil {
+			fieldErrors.Add("type", err)
+		} else {
+			cmpType = &parsed
+		}
+	}
 
 	var mID *uuid.UUID
 	if req.MessageID != nil {
@@ -176,6 +223,19 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 		}
 	}
 
+	var maxEducationTextID *uuid.NullUUID
+	if req.MaxEducationTextID != nil {
+		maxEducationTextID = &uuid.NullUUID{}
+		if id := *req.MaxEducationTextID; id != "" {
+			parsed, err := uuid.Parse(id)
+			if err != nil {
+				fieldErrors.Add("max_education_text_id", err)
+			}
+			maxEducationTextID.UUID = parsed
+			maxEducationTextID.Valid = err == nil
+		}
+	}
+
 	var lbl *label.Label
 	if req.Label != nil {
 		parsed, err := label.Parse(*req.Label)
@@ -187,11 +247,14 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 
 	var dmn *domain.Domain
 	if req.Domain != nil {
-		parsed, err := domain.Parse(*req.Domain)
-		if err != nil {
-			fieldErrors.Add("domain", err)
+		dmn = &domain.Domain{}
+		if *req.Domain != "" {
+			parsed, err := domain.Parse(*req.Domain)
+			if err != nil {
+				fieldErrors.Add("domain", err)
+			}
+			dmn = &parsed
 		}
-		dmn = &parsed
 	}
 
 	var dater *date.Null
@@ -216,12 +279,14 @@ func toBusUpdateCampaign(req UpdateCampaign) (campaignbus.UpdateCampaign, error)
 	}
 
 	return campaignbus.UpdateCampaign{
-		MessageID:   mID,
-		LandingID:   lID,
-		EducationID: eID,
-		Label:       lbl,
-		Domain:      dmn,
-		DateRange:   dater,
-		Attributes:  req.Attributes,
+		Type:               cmpType,
+		MessageID:          mID,
+		LandingID:          lID,
+		EducationID:        eID,
+		MaxEducationTextID: maxEducationTextID,
+		Label:              lbl,
+		Domain:             dmn,
+		DateRange:          dater,
+		Attributes:         req.Attributes,
 	}, nil
 }

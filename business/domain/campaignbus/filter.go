@@ -8,6 +8,7 @@ import (
 
 type CampaignQueryFilter struct {
 	ID       *uuid.UUID
+	Type     *CampaignType
 	Label    *string
 	Status   *CampaignStatus
 	DateFrom *time.Time

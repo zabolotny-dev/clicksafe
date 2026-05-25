@@ -8,6 +8,8 @@ export const CAMPAIGN_STATUSES = [
   'CANCELED',
 ]
 
+export const CAMPAIGN_TYPES = ['EMAIL', 'MAX']
+
 const api = createApiClient(() => getStoredApiBase())
 
 function toRFC3339Date(value, edge) {
@@ -61,6 +63,10 @@ export function listCampaigns(filters = {}, options = {}) {
 
   if (CAMPAIGN_STATUSES.includes(filters.status)) {
     params.set('status', filters.status)
+  }
+
+  if (CAMPAIGN_TYPES.includes(filters.type)) {
+    params.set('type', filters.type)
   }
 
   if (dateFrom) {

@@ -4,6 +4,7 @@ import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { CalendarClock, Plus, Shuffle, Trash2 } from 'lucide-vue-next'
 import CampaignScheduleTimelineChart from '../components/charts/CampaignScheduleTimelineChart.vue'
+import AttachmentPickerPanel from '../components/ui/AttachmentPickerPanel.vue'
 import CampaignResourcePickerPanel from '../components/ui/CampaignResourcePickerPanel.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -24,6 +25,7 @@ import { useSession } from '../composables/useSession'
 import { translateTargetStatus } from '../i18n'
 import { listAttachments } from '../resources/attachments'
 import {
+  CAMPAIGN_TYPES,
   createCampaign,
   getCampaign,
   isCampaignAuthError,
@@ -33,7 +35,7 @@ import {
 import { listDepartments } from '../resources/departments'
 import { listEmployees } from '../resources/employees'
 import { listLandings } from '../resources/landings'
-import { listMessages } from '../resources/messages'
+import { listMessages, MESSAGE_TYPES } from '../resources/messages'
 import {
   createTarget,
   deleteTarget,
@@ -78,6 +80,7 @@ const referenceErrors = ref(referenceErrorState())
 const selectedMessageId = ref('')
 const selectedLandingId = ref('')
 const selectedEducationId = ref('')
+const selectedMaxEducationTextId = ref('')
 const selectedEmployeeIds = ref(new Set())
 const messageSearch = ref('')
 const landingSearch = ref('')
@@ -111,8 +114,10 @@ const resourcePreviewAttachment = ref(null)
 const resourcePreviewMeta = ref([])
 
 const form = ref({
+  type: 'EMAIL',
   label: '',
   domain: '',
+  includeSite: true,
   dateFrom: '',
   dateTo: '',
   attributes: [newAttributeRow()],
@@ -120,16 +125,22 @@ const form = ref({
 
 const isEditMode = computed(() => route.name === 'campaign-edit')
 const campaignId = computed(() => String(route.params.id ?? ''))
-const steps = computed(() => ([
-  t('pages.campaignWizard.steps.basicInfo'),
-  t('pages.campaignWizard.steps.message'),
-  t('pages.campaignWizard.steps.landing'),
-  t('pages.campaignWizard.steps.education'),
-  t('pages.campaignWizard.steps.targets'),
-  t('pages.campaignWizard.steps.review'),
+const isEmailCampaign = computed(() => form.value.type === 'EMAIL')
+const isMaxCampaign = computed(() => form.value.type === 'MAX')
+const campaignUsesSite = computed(() => isEmailCampaign.value || Boolean(form.value.includeSite))
+const stepDefinitions = computed(() => ([
+  { key: 'basic', label: t('pages.campaignWizard.steps.basicInfo') },
+  { key: 'message', label: t('pages.campaignWizard.steps.message') },
+  ...(campaignUsesSite.value ? [{ key: 'landing', label: t('pages.campaignWizard.steps.landing') }] : []),
+  { key: 'education', label: t('pages.campaignWizard.steps.education') },
+  { key: 'targets', label: t('pages.campaignWizard.steps.targets') },
+  { key: 'review', label: t('pages.campaignWizard.steps.review') },
 ]))
-const activeStep = computed(() => steps.value[activeStepIndex.value])
-const showPanelHeader = computed(() => ![1, 2, 3, 4].includes(activeStepIndex.value))
+const steps = computed(() => stepDefinitions.value.map((step) => step.label))
+const activeStepDefinition = computed(() => stepDefinitions.value[activeStepIndex.value] || stepDefinitions.value[0])
+const activeStep = computed(() => activeStepDefinition.value?.label || '')
+const activeStepKey = computed(() => activeStepDefinition.value?.key || 'basic')
+const showPanelHeader = computed(() => !['message', 'landing', 'education', 'targets'].includes(activeStepKey.value))
 const isFirstStep = computed(() => activeStepIndex.value === 0)
 const isFinalStep = computed(() => activeStepIndex.value === steps.value.length - 1)
 const isSubmitting = computed(() => Boolean(pendingSubmit.value))
@@ -178,6 +189,14 @@ const selectedMessage = computed(() => messages.value.find((item) => itemId(item
 const selectedLanding = computed(() => landings.value.find((item) => itemId(item) === selectedLandingId.value) || null)
 const selectedEducation = computed(() => landings.value.find((item) => itemId(item) === selectedEducationId.value) || null)
 const selectedEducationAttachment = computed(() => attachmentById.value[nullableId(selectedEducation.value?.html_body_id)] || null)
+const selectedMessageTextBodyAttachment = computed(() => attachmentById.value[nullableId(selectedMessage.value?.text_body_id)] || null)
+const selectedMaxEducationAttachment = computed(() => attachmentById.value[selectedMaxEducationTextId.value] || null)
+const maxMessageUsesLink = computed(() => attachmentUsesTargetLink(selectedMessageTextBodyAttachment.value))
+const maxMessageRequiresSite = computed(() => isMaxCampaign.value && maxMessageUsesLink.value && !campaignUsesSite.value)
+const campaignTypeOptions = computed(() => CAMPAIGN_TYPES.map((type) => ({
+  value: type,
+  label: type === 'MAX' ? t('pages.emailTemplates.tabs.max') : t('pages.emailTemplates.tabs.email'),
+})))
 const selectedEmployees = computed(() => employees.value.filter((employee) => selectedEmployeeIds.value.has(itemId(employee))))
 const selectedTargetCount = computed(() => selectedEmployeeIds.value.size)
 const existingTargetEmployeeIds = computed(() => {
@@ -217,12 +236,15 @@ const isWizardDirty = computed(() => {
   return Boolean(
     form.value.label.trim()
       || form.value.domain.trim()
+      || form.value.includeSite !== true
+      || form.value.type !== 'EMAIL'
       || form.value.dateFrom
       || form.value.dateTo
       || hasAttributeDraft.value
       || selectedMessageId.value
       || selectedLandingId.value
       || selectedEducationId.value
+      || selectedMaxEducationTextId.value
       || selectedEmployeeIds.value.size
       || Object.values(scheduleDrafts.value).some(Boolean),
   )
@@ -248,17 +270,23 @@ const normalizedAttributes = computed(() => {
 
 const filteredMessages = computed(() => {
   const query = messageSearch.value.trim().toLowerCase()
+  const typedMessages = messages.value.filter((message) => {
+    const type = MESSAGE_TYPES.includes(message?.type) ? message.type : 'EMAIL'
+    return type === form.value.type
+  })
 
   if (!query) {
-    return messages.value
+    return typedMessages
   }
 
-  return messages.value.filter((message) => {
+  return typedMessages.filter((message) => {
     return [
       message.label,
       message.from_email,
       message.from_name,
       message.subject,
+      message.max_account_id,
+      message.text_body_id,
     ]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(query))
@@ -308,9 +336,13 @@ const reviewWarnings = computed(() => {
     warnings.push(t('pages.campaignWizard.validation.labelMissing'))
   }
 
-  if (!form.value.domain.trim()) {
+  if (maxMessageRequiresSite.value) {
+    warnings.push(t('pages.campaignWizard.validation.messageRequiresSite'))
+  }
+
+  if (campaignUsesSite.value && !form.value.domain.trim()) {
     warnings.push(t('pages.campaignWizard.validation.domainMissing'))
-  } else if (!isValidDomain(form.value.domain)) {
+  } else if (form.value.domain.trim() && !isValidDomain(form.value.domain)) {
     warnings.push(t('pages.campaignWizard.validation.domainInvalid'))
   }
 
@@ -326,12 +358,16 @@ const reviewWarnings = computed(() => {
     warnings.push(t('pages.campaignWizard.validation.messageMissing'))
   }
 
-  if (!selectedLanding.value) {
+  if (campaignUsesSite.value && !selectedLanding.value) {
     warnings.push(t('pages.campaignWizard.validation.landingMissing'))
   }
 
-  if (!selectedEducation.value) {
+  if (campaignUsesSite.value && !selectedEducation.value) {
     warnings.push(t('pages.campaignWizard.validation.educationMissing'))
+  }
+
+  if (isMaxCampaign.value && !selectedMaxEducationAttachment.value) {
+    warnings.push(t('pages.campaignWizard.validation.maxEducationMissing'))
   }
 
   if (!isEditMode.value && !selectedTargetCount.value) {
@@ -553,6 +589,11 @@ function filterLandingsByLabel(items, searchValue) {
   return items.filter((landing) => String(landing.label || '').toLowerCase().includes(query))
 }
 
+function attachmentUsesTargetLink(attachment) {
+  return Array.isArray(attachment?.required_vars)
+    && attachment.required_vars.includes('Target.Link')
+}
+
 function isValidDomain(value) {
   try {
     const parsed = new URL(value.trim())
@@ -606,14 +647,17 @@ function attributesToRows(attributes) {
 
 function wizardSnapshot() {
   return JSON.stringify({
+    type: form.value.type,
     label: form.value.label.trim(),
     domain: form.value.domain.trim(),
+    includeSite: form.value.includeSite,
     dateFrom: form.value.dateFrom,
     dateTo: form.value.dateTo,
     attributes: normalizedAttributes.value,
     messageId: selectedMessageId.value,
     landingId: selectedLandingId.value,
     educationId: selectedEducationId.value,
+    maxEducationTextId: selectedMaxEducationTextId.value,
     selectedEmployeeIds: Array.from(selectedEmployeeIds.value).sort(),
     scheduleDrafts: scheduleDrafts.value,
   })
@@ -679,6 +723,10 @@ function handleEducationSelection() {
   clearSubmitState()
 }
 
+function handleMaxEducationSelection() {
+  clearSubmitState()
+}
+
 function closeResourcePreview() {
   resourcePreviewOpen.value = false
   resourcePreviewAttachment.value = null
@@ -686,9 +734,9 @@ function closeResourcePreview() {
   resourcePreviewKind.value = ''
 }
 
-function openResourcePreview({ title, kind, attachmentId, attachmentLabel, meta }) {
+function openResourcePreview({ title, kind, attachmentId, attachmentLabel, attachmentType = '.html', meta }) {
   if (!attachmentId) {
-    notifyError('Preview unavailable', 'This resource has no HTML body attachment.')
+    notifyError(t('common.preview.unavailable'), t('common.preview.selectHtmlOrText'))
     return
   }
 
@@ -697,23 +745,34 @@ function openResourcePreview({ title, kind, attachmentId, attachmentLabel, meta 
   resourcePreviewAttachment.value = {
     id: attachmentId,
     label: attachmentLabel,
-    type: '.html',
+    type: attachmentType,
   }
   resourcePreviewMeta.value = meta
   resourcePreviewOpen.value = true
 }
 
 function previewMessageResource(message) {
+  const isMax = (message?.type || 'EMAIL') === 'MAX'
+  const bodyId = nullableId(isMax ? message?.text_body_id : message?.html_body_id)
+  const bodyAttachment = attachmentById.value[bodyId]
+
   openResourcePreview({
-    title: t('pages.campaignWizard.preview.message'),
+    title: isMax ? t('pages.emailTemplates.maxTextPreview') : t('pages.campaignWizard.preview.message'),
     kind: t('common.labels.message'),
-    attachmentId: nullableId(message?.html_body_id),
-    attachmentLabel: message?.label || t('pages.campaignWizard.preview.messageHtmlBody'),
+    attachmentId: bodyId,
+    attachmentLabel: message?.label || (isMax ? t('common.labels.textBody') : t('pages.campaignWizard.preview.messageHtmlBody')),
+    attachmentType: bodyAttachment?.type || (isMax ? '.txt' : '.html'),
     meta: [
       [t('common.labels.name'), message?.label || t('common.placeholder')],
-      [t('common.labels.fromEmail'), message?.from_email || t('common.placeholder')],
-      [t('common.labels.fromName'), message?.from_name || t('common.placeholder')],
-      [t('common.labels.subject'), message?.subject || t('common.placeholder')],
+      isMax
+        ? [t('pages.emailTemplates.maxAccount'), formatTechnicalId(message?.max_account_id)]
+        : [t('common.labels.fromEmail'), message?.from_email || t('common.placeholder')],
+      isMax
+        ? [t('common.labels.textBody'), formatTechnicalId(message?.text_body_id)]
+        : [t('common.labels.fromName'), message?.from_name || t('common.placeholder')],
+      isMax
+        ? [t('common.labels.attachments'), Array.isArray(message?.attachment_ids) ? String(message.attachment_ids.length) : '0']
+        : [t('common.labels.subject'), message?.subject || t('common.placeholder')],
     ],
   })
 }
@@ -794,6 +853,7 @@ function targetStatusVariant(status) {
   switch (status) {
     case 'SENT':
     case 'OPENED':
+    case 'REPLIED':
       return 'primary'
     case 'CLICKED':
       return 'warning'
@@ -1295,8 +1355,10 @@ async function loadAllPages(fetcher, signal) {
 function prefillCampaignForEdit(campaign) {
   editCampaign.value = campaign
   form.value = {
+    type: CAMPAIGN_TYPES.includes(campaign?.type) ? campaign.type : 'EMAIL',
     label: campaign?.label || '',
     domain: campaign?.domain || '',
+    includeSite: campaign?.type === 'EMAIL' || Boolean(campaign?.landing_id || campaign?.education_id || campaign?.domain),
     dateFrom: toDateInputValue(campaign?.date_from),
     dateTo: toDateInputValue(campaign?.date_to),
     attributes: attributesToRows(campaign?.attributes),
@@ -1304,6 +1366,7 @@ function prefillCampaignForEdit(campaign) {
   selectedMessageId.value = nullableId(campaign?.message_id)
   selectedLandingId.value = nullableId(campaign?.landing_id)
   selectedEducationId.value = nullableId(campaign?.education_id)
+  selectedMaxEducationTextId.value = nullableId(campaign?.max_education_text_id)
   selectedEmployeeIds.value = new Set()
   scheduleDrafts.value = {}
   editTargets.value = []
@@ -1530,9 +1593,13 @@ function validateSubmit(mode) {
     errors.label = t('pages.campaignWizard.validation.labelRequired')
   }
 
-  if (!domain) {
+  if (maxMessageRequiresSite.value) {
+    errors.message = t('pages.campaignWizard.validation.messageRequiresSite')
+  }
+
+  if (campaignUsesSite.value && !domain) {
     errors.domain = t('pages.campaignWizard.validation.domainRequired')
-  } else if (!isValidDomain(domain)) {
+  } else if (domain && !isValidDomain(domain)) {
     errors.domain = t('pages.campaignWizard.validation.domainInvalid')
   }
 
@@ -1581,12 +1648,16 @@ function validateSubmit(mode) {
       errors.message = t('pages.campaignWizard.validation.selectMessage')
     }
 
-    if (!selectedLanding.value) {
+    if (campaignUsesSite.value && !selectedLanding.value) {
       errors.landing = t('pages.campaignWizard.validation.selectLanding')
     }
 
-    if (!selectedEducation.value) {
+    if (campaignUsesSite.value && !selectedEducation.value) {
       errors.education = t('pages.campaignWizard.validation.selectEducation')
+    }
+
+    if (isMaxCampaign.value && !selectedMaxEducationAttachment.value) {
+      errors.maxEducationText = t('pages.campaignWizard.validation.selectMaxEducation')
     }
 
     if (!selectedTargetCount.value) {
@@ -1599,8 +1670,9 @@ function validateSubmit(mode) {
 
 function buildCampaignPayload() {
   const payload = {
+    type: form.value.type,
     label: form.value.label.trim(),
-    domain: form.value.domain.trim(),
+    domain: campaignUsesSite.value ? form.value.domain.trim() : '',
     attributes: normalizedAttributes.value,
   }
 
@@ -1608,12 +1680,16 @@ function buildCampaignPayload() {
     payload.message_id = selectedMessageId.value
   }
 
-  if (selectedLandingId.value) {
+  if (campaignUsesSite.value && selectedLandingId.value) {
     payload.landing_id = selectedLandingId.value
   }
 
-  if (selectedEducationId.value) {
+  if (campaignUsesSite.value && selectedEducationId.value) {
     payload.education_id = selectedEducationId.value
+  }
+
+  if (isMaxCampaign.value && selectedMaxEducationTextId.value) {
+    payload.max_education_text_id = selectedMaxEducationTextId.value
   }
 
   if (form.value.dateFrom && form.value.dateTo) {
@@ -1831,6 +1907,52 @@ watch([employeeSearch, departmentFilter], () => {
   targetPage.value = 1
 })
 
+watch(() => form.value.type, () => {
+  const selectedType = MESSAGE_TYPES.includes(selectedMessage.value?.type) ? selectedMessage.value.type : 'EMAIL'
+  if (selectedMessage.value && selectedType !== form.value.type) {
+    selectedMessageId.value = ''
+  }
+
+  if (isEmailCampaign.value) {
+    form.value.includeSite = true
+    selectedMaxEducationTextId.value = ''
+  } else if (!selectedLandingId.value && !form.value.domain.trim()) {
+    form.value.includeSite = false
+  }
+
+  if (!campaignUsesSite.value) {
+    form.value.domain = ''
+    selectedLandingId.value = ''
+    selectedEducationId.value = ''
+  }
+
+  clearSubmitState()
+})
+
+watch(() => form.value.includeSite, (enabled) => {
+  if (isEmailCampaign.value && !enabled) {
+    form.value.includeSite = true
+    return
+  }
+
+  if (!enabled) {
+    form.value.domain = ''
+    selectedLandingId.value = ''
+    selectedEducationId.value = ''
+    delete formErrors.value.domain
+    delete formErrors.value.landing
+    delete formErrors.value.education
+  }
+
+  clearSubmitState()
+})
+
+watch(() => steps.value.length, () => {
+  if (activeStepIndex.value > steps.value.length - 1) {
+    activeStepIndex.value = Math.max(0, steps.value.length - 1)
+  }
+})
+
 watch(() => filteredEmployees.value.length, () => {
   if (targetPage.value > targetTotalPages.value) {
     targetPage.value = targetTotalPages.value
@@ -1974,8 +2096,38 @@ onBeforeUnmount(() => {
           </div>
         </header>
 
-        <template v-if="activeStep === t('pages.campaignWizard.steps.basicInfo')">
+        <template v-if="activeStepKey === 'basic'">
           <section class="campaign-wizard-form-grid" :aria-label="t('pages.campaignWizard.steps.basicInfo')">
+            <label class="ui-field">
+              <span class="ui-field-label">{{ t('common.labels.type') }}</span>
+              <select v-model="form.type" class="ui-select">
+                <option
+                  v-for="option in campaignTypeOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+            <label
+              class="campaign-wizard-site-toggle"
+              :class="{ 'is-disabled': isEmailCampaign }"
+            >
+              <input
+                v-model="form.includeSite"
+                type="checkbox"
+                :disabled="isEmailCampaign"
+              />
+              <span class="campaign-wizard-site-toggle-copy">
+                <strong>{{ t('pages.campaignWizard.siteOptionLabel') }}</strong>
+                <small>
+                  {{ isEmailCampaign
+                    ? t('pages.campaignWizard.siteOptionEmailRequired')
+                    : t('pages.campaignWizard.siteOptionHelper') }}
+                </small>
+              </span>
+            </label>
             <UiInput
               id="campaign-label"
               v-model="form.label"
@@ -1984,6 +2136,7 @@ onBeforeUnmount(() => {
               :error="formErrors.label"
             />
             <UiInput
+              v-if="campaignUsesSite"
               id="campaign-domain"
               v-model="form.domain"
               :label="t('common.labels.domain')"
@@ -2032,25 +2185,32 @@ onBeforeUnmount(() => {
           </section>
         </template>
 
-        <template v-else-if="activeStep === t('pages.campaignWizard.steps.message')">
+        <template v-else-if="activeStepKey === 'message'">
           <section class="campaign-wizard-picker-step" :aria-label="t('pages.campaignWizard.messageSelectionAria')">
             <CampaignResourcePickerPanel
               v-model="selectedMessageId"
               resource-type="message"
-              :title="t('nav.emailTemplates')"
+              :message-type="form.type"
+              :title="isMaxCampaign ? t('pages.emailTemplates.tabs.max') : t('nav.emailTemplates')"
               :selected-title="t('pages.campaignWizard.selectedMessage')"
               :selected-empty-text="t('pages.campaignWizard.selectMessage')"
               :empty-title="t('pages.campaignWizard.noMessageTemplates')"
               :empty-description="t('pages.campaignWizard.noMessageTemplatesDescription')"
               :search-placeholder="t('pages.campaignWizard.messageSearchPlaceholder')"
-              :items="messages"
+              :items="filteredMessages"
               :loading="referenceLoading && !referenceLoaded"
               :error="referenceErrors.messages"
-              :create-to="{ name: 'email-template-new' }"
+              :create-to="{ name: 'email-template-new', query: { type: form.type } }"
               :create-label="t('common.actions.createMessage')"
               @selection-change="handleMessageSelection"
               @preview="previewMessageResource"
               @refresh="loadReferenceData"
+            />
+            <UiAlert
+              v-if="maxMessageRequiresSite"
+              variant="warning"
+              :title="t('pages.campaignWizard.siteRequiredByMessageTitle')"
+              :message="t('pages.campaignWizard.siteRequiredByMessageMessage')"
             />
             <div v-if="formErrors.message" class="campaign-wizard-inline-error">
               {{ formErrors.message }}
@@ -2058,7 +2218,7 @@ onBeforeUnmount(() => {
           </section>
         </template>
 
-        <template v-else-if="activeStep === t('pages.campaignWizard.steps.landing')">
+        <template v-else-if="activeStepKey === 'landing'">
           <section class="campaign-wizard-picker-step" :aria-label="t('pages.campaignWizard.landingSelectionAria')">
             <CampaignResourcePickerPanel
               v-model="selectedLandingId"
@@ -2084,14 +2244,15 @@ onBeforeUnmount(() => {
           </section>
         </template>
 
-        <template v-else-if="activeStep === t('pages.campaignWizard.steps.education')">
+        <template v-else-if="activeStepKey === 'education'">
           <section class="campaign-wizard-picker-step" :aria-label="t('pages.campaignWizard.educationSelectionAria')">
             <CampaignResourcePickerPanel
+              v-if="isEmailCampaign || campaignUsesSite"
               v-model="selectedEducationId"
               resource-type="education"
-              :title="t('pages.campaignWizard.educationTemplates')"
-              :selected-title="t('pages.campaignWizard.selectedEducation')"
-              :selected-empty-text="t('pages.campaignWizard.selectEducation')"
+              :title="isMaxCampaign ? t('pages.campaignWizard.siteEducationTemplates') : t('pages.campaignWizard.educationTemplates')"
+              :selected-title="isMaxCampaign ? t('pages.campaignWizard.selectedSiteEducation') : t('pages.campaignWizard.selectedEducation')"
+              :selected-empty-text="isMaxCampaign ? t('pages.campaignWizard.selectSiteEducation') : t('pages.campaignWizard.selectEducation')"
               :empty-title="t('pages.campaignWizard.noEducationAssets')"
               :search-placeholder="t('pages.campaignWizard.educationSearchPlaceholder')"
               :items="landings"
@@ -2106,10 +2267,34 @@ onBeforeUnmount(() => {
             <div v-if="formErrors.education" class="campaign-wizard-inline-error">
               {{ formErrors.education }}
             </div>
+            <AttachmentPickerPanel
+              v-if="isMaxCampaign"
+              v-model="selectedMaxEducationTextId"
+              selection-mode="single"
+              :title="t('pages.campaignWizard.maxEducationText')"
+              :empty-text="t('pages.campaignWizard.noMaxEducationTexts')"
+              :allowed-types="['.txt']"
+              default-type=".txt"
+              show-preview-action
+              show-download-action
+              show-upload-action
+              @preview="openResourcePreview({
+                title: t('pages.campaignWizard.maxEducationText'),
+                kind: t('common.labels.educationAsset'),
+                attachmentId: $event?.id,
+                attachmentLabel: $event?.label,
+                attachmentType: $event?.type || '.txt',
+                meta: [[t('common.labels.name'), $event?.label || t('common.placeholder')]],
+              })"
+              @selection-change="handleMaxEducationSelection"
+            />
+            <div v-if="isMaxCampaign && formErrors.maxEducationText" class="campaign-wizard-inline-error">
+              {{ formErrors.maxEducationText }}
+            </div>
           </section>
         </template>
 
-        <template v-else-if="activeStep === t('pages.campaignWizard.steps.targets')">
+        <template v-else-if="activeStepKey === 'targets'">
           <section class="campaign-wizard-targets" :aria-label="t('pages.campaignWizard.targetSelectionAria')">
             <div class="campaign-wizard-target-controls">
               <UiInput
@@ -2448,8 +2633,10 @@ onBeforeUnmount(() => {
               <article class="campaign-wizard-review-card">
                 <h3>{{ t('pages.campaignWizard.steps.basicInfo') }}</h3>
                 <dl class="campaign-wizard-description-list">
+                  <div><dt>{{ t('common.labels.type') }}</dt><dd>{{ isMaxCampaign ? t('pages.emailTemplates.tabs.max') : t('pages.emailTemplates.tabs.email') }}</dd></div>
                   <div><dt>{{ t('campaign.labels.label') }}</dt><dd>{{ form.label || t('common.placeholder') }}</dd></div>
-                  <div><dt>{{ t('common.labels.domain') }}</dt><dd>{{ form.domain || t('common.placeholder') }}</dd></div>
+                  <div><dt>{{ t('pages.campaignWizard.siteOptionLabel') }}</dt><dd>{{ campaignUsesSite ? t('pages.campaignWizard.siteEnabled') : t('pages.campaignWizard.siteDisabled') }}</dd></div>
+                  <div v-if="campaignUsesSite"><dt>{{ t('common.labels.domain') }}</dt><dd>{{ form.domain || t('common.placeholder') }}</dd></div>
                 </dl>
               </article>
 
@@ -2457,12 +2644,18 @@ onBeforeUnmount(() => {
                 <h3>{{ t('common.labels.message') }}</h3>
                 <dl class="campaign-wizard-description-list">
                   <div><dt>{{ t('common.labels.name') }}</dt><dd>{{ selectedMessage?.label || t('common.placeholder') }}</dd></div>
-                  <div><dt>{{ t('common.labels.subject') }}</dt><dd>{{ formatNullable(selectedMessage?.subject) }}</dd></div>
-                  <div><dt>{{ t('common.labels.from') }}</dt><dd>{{ selectedMessage?.from_email || t('common.placeholder') }}</dd></div>
+                  <template v-if="isMaxCampaign">
+                    <div><dt>{{ t('pages.emailTemplates.maxAccount') }}</dt><dd>{{ formatTechnicalId(selectedMessage?.max_account_id) }}</dd></div>
+                    <div><dt>{{ t('common.labels.textBody') }}</dt><dd>{{ selectedMessageTextBodyAttachment?.label || formatTechnicalId(selectedMessage?.text_body_id) }}</dd></div>
+                  </template>
+                  <template v-else>
+                    <div><dt>{{ t('common.labels.subject') }}</dt><dd>{{ formatNullable(selectedMessage?.subject) }}</dd></div>
+                    <div><dt>{{ t('common.labels.from') }}</dt><dd>{{ selectedMessage?.from_email || t('common.placeholder') }}</dd></div>
+                  </template>
                 </dl>
               </article>
 
-              <article class="campaign-wizard-review-card">
+              <article v-if="campaignUsesSite" class="campaign-wizard-review-card">
                 <h3>{{ t('common.labels.landingPage') }}</h3>
                 <dl class="campaign-wizard-description-list">
                   <div><dt>{{ t('common.labels.name') }}</dt><dd>{{ selectedLanding?.label || t('common.placeholder') }}</dd></div>
@@ -2473,9 +2666,19 @@ onBeforeUnmount(() => {
               <article class="campaign-wizard-review-card">
                 <h3>{{ t('common.labels.educationAsset') }}</h3>
                 <dl class="campaign-wizard-description-list">
-                  <div><dt>{{ t('common.labels.name') }}</dt><dd>{{ selectedEducation?.label || t('common.placeholder') }}</dd></div>
-                  <div><dt>{{ t('common.labels.htmlBody') }}</dt><dd>{{ selectedEducation?.html_body_id ? t('common.resource.ready') : t('common.resource.missing') }}</dd></div>
-                  <div><dt>{{ t('common.labels.attachments') }}</dt><dd>{{ selectedEducationAttachment?.label || t('common.placeholder') }}</dd></div>
+                  <template v-if="isMaxCampaign">
+                    <div><dt>{{ t('common.labels.textBody') }}</dt><dd>{{ selectedMaxEducationAttachment?.label || t('common.placeholder') }}</dd></div>
+                    <div><dt>{{ t('common.labels.id') }}</dt><dd>{{ formatTechnicalId(selectedMaxEducationTextId) }}</dd></div>
+                    <template v-if="campaignUsesSite">
+                      <div><dt>{{ t('pages.campaignWizard.siteEducationTemplates') }}</dt><dd>{{ selectedEducation?.label || t('common.placeholder') }}</dd></div>
+                      <div><dt>{{ t('common.labels.htmlBody') }}</dt><dd>{{ selectedEducation?.html_body_id ? t('common.resource.ready') : t('common.resource.missing') }}</dd></div>
+                    </template>
+                  </template>
+                  <template v-else>
+                    <div><dt>{{ t('common.labels.name') }}</dt><dd>{{ selectedEducation?.label || t('common.placeholder') }}</dd></div>
+                    <div><dt>{{ t('common.labels.htmlBody') }}</dt><dd>{{ selectedEducation?.html_body_id ? t('common.resource.ready') : t('common.resource.missing') }}</dd></div>
+                    <div><dt>{{ t('common.labels.attachments') }}</dt><dd>{{ selectedEducationAttachment?.label || t('common.placeholder') }}</dd></div>
+                  </template>
                 </dl>
               </article>
 

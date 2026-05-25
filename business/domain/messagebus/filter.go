@@ -6,6 +6,7 @@ import (
 
 type QueryFilter struct {
 	ID        *uuid.UUID
+	Type      *MessageType
 	Label     *string
 	FromEmail *string
 	FromName  *string

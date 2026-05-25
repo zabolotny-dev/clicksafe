@@ -629,6 +629,12 @@
   max-width: 440px;
 }
 
+.html-live-editor-filename .ui-input[readonly] {
+  color: var(--color-ink-secondary);
+  background: var(--color-canvas-muted);
+  cursor: default;
+}
+
 .html-live-editor-grid {
   display: grid;
   grid-template-columns: minmax(0, var(--editor-split, 50%)) 10px minmax(0, 1fr);
@@ -637,6 +643,10 @@
   background: var(--color-surface);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
+}
+
+.html-live-editor--code-only .html-live-editor-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .html-live-editor--workspace .html-live-editor-grid {
@@ -961,6 +971,27 @@
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.max-account-picker-toolbar {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 0.7fr) auto;
+}
+
+.max-account-picker-table {
+  min-width: 0;
+}
+
+.max-account-picker-row {
+  grid-template-columns: minmax(58px, 0.24fr) minmax(240px, 1fr) minmax(180px, 0.66fr);
+  min-width: 560px;
+}
+
+.max-account-picker-row strong {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resource-pagination {

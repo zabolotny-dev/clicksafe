@@ -1,0 +1,28 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/adapters/max/src
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY adapters/max/requirements.txt adapters/max/requirements.txt
+RUN pip install --no-cache-dir -r adapters/max/requirements.txt
+
+COPY adapters/max adapters/max
+
+RUN python -m grpc_tools.protoc \
+    -I adapters/max/proto \
+    --python_out=adapters/max/src \
+    --grpc_python_out=adapters/max/src \
+    adapters/max/proto/maxadapter/v1/max_adapter.proto
+
+RUN mkdir -p /var/lib/clicksafe-max-adapter/tmp
+
+EXPOSE 9090
+
+CMD ["python", "-m", "max_adapter.main"]

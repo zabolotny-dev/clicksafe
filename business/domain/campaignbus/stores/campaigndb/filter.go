@@ -6,6 +6,7 @@ import (
 )
 
 type dbFilter struct {
+	Type     pgtype.Text
 	Label    pgtype.Text
 	Status   pgtype.Text
 	DateFrom pgtype.Timestamptz
@@ -14,6 +15,11 @@ type dbFilter struct {
 
 func toDBFilter(filter campaignbus.CampaignQueryFilter) dbFilter {
 	var labelFilter pgtype.Text
+	var typeFilter pgtype.Text
+	if filter.Type != nil {
+		typeFilter = pgtype.Text{String: filter.Type.String(), Valid: true}
+	}
+
 	if filter.Label != nil {
 		labelFilter = pgtype.Text{String: *filter.Label, Valid: true}
 	}
@@ -33,5 +39,5 @@ func toDBFilter(filter campaignbus.CampaignQueryFilter) dbFilter {
 		dateToFilter = pgtype.Timestamptz{Time: filter.DateTo.UTC(), Valid: true}
 	}
 
-	return dbFilter{Label: labelFilter, Status: statusFilter, DateFrom: dateFromFilter, DateTo: dateToFilter}
+	return dbFilter{Type: typeFilter, Label: labelFilter, Status: statusFilter, DateFrom: dateFromFilter, DateTo: dateToFilter}
 }

@@ -2,6 +2,8 @@ import { createApiClient, getStoredApiBase } from '../api'
 
 const api = createApiClient(() => getStoredApiBase())
 
+export const MESSAGE_TYPES = ['EMAIL', 'MAX']
+
 export function isMessageAuthError(error) {
   return error?.status === 401 || error?.status === 403
 }
@@ -14,6 +16,10 @@ export function listMessages(filters = {}, options = {}) {
 
   if (filters.id?.trim()) {
     params.set('id', filters.id.trim())
+  }
+
+  if (MESSAGE_TYPES.includes(filters.type)) {
+    params.set('type', filters.type)
   }
 
   if (filters.label?.trim()) {

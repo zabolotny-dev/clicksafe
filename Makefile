@@ -1,7 +1,7 @@
 COMPOSE_FILE := zarf/compose/docker-compose.yml
 ENV_FILE     := .env
 
-.PHONY: up down logs ps build rebuild migrate
+.PHONY: up up-d down down-v logs ps build rebuild migrate seed seed-minimal migrate-seed load-fixture cli
 
 ## Запуск всего стека
 up:
@@ -38,6 +38,21 @@ rebuild:
 ## Только миграции
 migrate:
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-tool
+
+## Загрузка demo seed-данных через tooling
+seed:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-tool /clicksafe_tool seed demo
+
+## Минимальный seed: организация
+seed-minimal:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-tool /clicksafe_tool seed minimal
+
+## Миграции + demo seed-данные
+migrate-seed:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) run --rm api-tool /clicksafe_tool migrate-seed demo
+
+## Старое имя для demo seed
+load-fixture: seed
 
 ## Запуск CLI-утилиты (пример: make cli CMD="admins" или make cli CMD="revoke <id>")
 cli:

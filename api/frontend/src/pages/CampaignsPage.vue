@@ -21,13 +21,13 @@ import { getLanding } from '../resources/landings'
 import { getMessage } from '../resources/messages'
 import { EVENT_TYPES, listVTargets } from '../resources/vtargets'
 import { loadAllPages } from '../utils/resourcePagination'
-import { errorMessage, formatDateRange as formatLocalizedDateRange, formatPercent as formatLocalizedPercent, nullableId } from '../utils/resourceFormat'
+import { errorMessage, formatDateRange as formatLocalizedDateRange, formatPercent as formatLocalizedPercent, formatTechnicalId, nullableId } from '../utils/resourceFormat'
 
 const { loadCurrentSession } = useSession()
 const { notifyError } = useNotifications()
 const { t } = useI18n()
 const supportedStatuses = CAMPAIGN_STATUSES
-const SENT_OR_LATER_EVENTS = ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT']
+const SENT_OR_LATER_EVENTS = ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED']
 
 const filters = reactive({
   label: '',
@@ -139,7 +139,7 @@ function buildCampaignMetrics(vtargets) {
 
     acc[campaignId].targets += 1
     acc[campaignId].sent += hasAnyEvent(target, SENT_OR_LATER_EVENTS) ? 1 : 0
-    acc[campaignId].opened += hasAnyEvent(target, ['EMAIL_OPENED']) ? 1 : 0
+    acc[campaignId].opened += hasAnyEvent(target, ['EMAIL_OPENED', 'MESSAGE_READ']) ? 1 : 0
     acc[campaignId].clicked += hasAnyEvent(target, ['LINK_OPENED']) ? 1 : 0
     acc[campaignId].submitted += hasAnyEvent(target, ['DATA_SENT']) ? 1 : 0
 
@@ -196,13 +196,13 @@ function closeAssetPreview() {
   assetPreviewKind.value = ''
 }
 
-function openAssetPreview({ title, kind, attachmentId, attachmentLabel, meta }) {
+function openAssetPreview({ title, kind, attachmentId, attachmentLabel, attachmentType = '.html', meta }) {
   assetPreviewTitle.value = title
   assetPreviewKind.value = kind
   assetPreviewAttachment.value = {
     id: attachmentId,
     label: attachmentLabel,
-    type: '.html',
+    type: attachmentType,
   }
   assetPreviewMeta.value = meta
   assetPreviewOpen.value = true
@@ -219,8 +219,9 @@ async function previewMessageAsset(campaign) {
 
   try {
     const message = await getMessage(id)
-    const htmlBodyId = nullableId(message?.html_body_id)
-    if (!htmlBodyId) {
+    const isMax = (message?.type || campaign?.type) === 'MAX'
+    const bodyId = nullableId(isMax ? message?.text_body_id : message?.html_body_id)
+    if (!bodyId) {
       notifyError(t('common.preview.unavailable'), t('pages.campaigns.preview.messageNoHtml'))
       return
     }
@@ -228,13 +229,20 @@ async function previewMessageAsset(campaign) {
     openAssetPreview({
       title: t('pages.campaigns.preview.message'),
       kind: t('common.labels.message'),
-      attachmentId: htmlBodyId,
-      attachmentLabel: message.label || t('common.labels.htmlBody'),
+      attachmentId: bodyId,
+      attachmentLabel: message.label || (isMax ? t('common.labels.textBody') : t('common.labels.htmlBody')),
+      attachmentType: isMax ? '.txt' : '.html',
       meta: [
         [t('common.labels.name'), message.label || t('common.placeholder')],
-        [t('common.labels.fromEmail'), message.from_email || t('common.placeholder')],
-        [t('common.labels.fromName'), message.from_name || t('common.placeholder')],
-        [t('common.labels.subject'), message.subject || t('common.placeholder')],
+        isMax
+          ? [t('pages.emailTemplates.maxAccount'), formatTechnicalId(message?.max_account_id)]
+          : [t('common.labels.fromEmail'), message.from_email || t('common.placeholder')],
+        isMax
+          ? [t('common.labels.textBody'), formatTechnicalId(message?.text_body_id)]
+          : [t('common.labels.fromName'), message.from_name || t('common.placeholder')],
+        isMax
+          ? [t('common.labels.attachments'), Array.isArray(message?.attachment_ids) ? String(message.attachment_ids.length) : '0']
+          : [t('common.labels.subject'), message.subject || t('common.placeholder')],
       ],
     })
   } catch (err) {

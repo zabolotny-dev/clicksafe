@@ -1,9 +1,11 @@
 -- name: Save :exec
 INSERT INTO campaigns (
     id,
+    type,
     message_id,
     landing_id,
     education_id,
+    max_education_text_id,
     label,
     domain,
     status,
@@ -11,22 +13,24 @@ INSERT INTO campaigns (
     date_to,
     attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 );
 
 -- name: Update :exec
 UPDATE campaigns
 SET
-    message_id = $1,
-    landing_id = $2,
-    education_id = $3,
-    label = $4,
-    domain = $5,
-    status = $6,
-    date_from = $7,
-    date_to = $8,
-    attributes = $9
-WHERE id = $10;
+    type = $1,
+    message_id = $2,
+    landing_id = $3,
+    education_id = $4,
+    max_education_text_id = $5,
+    label = $6,
+    domain = $7,
+    status = $8,
+    date_from = $9,
+    date_to = $10,
+    attributes = $11
+WHERE id = $12;
 
 -- name: Delete :exec
 DELETE FROM campaigns
@@ -48,6 +52,8 @@ ORDER BY date_to ASC, id ASC;
 SELECT * FROM campaigns
 WHERE
     (sqlc.narg('id')::uuid IS NULL OR id = sqlc.narg('id'))
+    AND
+    (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type'))
     AND
     (sqlc.narg('label')::text IS NULL OR LOWER(label) ILIKE '%' || LOWER(sqlc.narg('label')) || '%')
     AND
@@ -74,6 +80,7 @@ LIMIT @limit_val OFFSET @offset_val;
 SELECT COUNT(*) FROM campaigns
 WHERE
     (sqlc.narg('id')::uuid IS NULL OR id = sqlc.narg('id')) AND
+    (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type')) AND
     (sqlc.narg('label')::text IS NULL OR LOWER(label) ILIKE '%' || LOWER(sqlc.narg('label')) || '%') AND
     (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')) AND
     (sqlc.narg('date_from')::timestamptz IS NULL OR date_to > sqlc.narg('date_from')) AND

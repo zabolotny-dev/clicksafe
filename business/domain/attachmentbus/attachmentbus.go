@@ -96,6 +96,49 @@ func (b *Business) Update(ctx context.Context, atch Attachment, up UpdateAttachm
 	return atch, nil
 }
 
+func (b *Business) UpdateContent(ctx context.Context, atch Attachment, up UpdateAttachmentContent) (Attachment, error) {
+	if atch.Type != Html && atch.Type != Txt {
+		return Attachment{}, fmt.Errorf("updatecontent: %w", ErrInvalidType)
+	}
+
+	if up.Content == nil {
+		return Attachment{}, fmt.Errorf("updatecontent: %w", ErrEmptyContent)
+	}
+
+	content, err := io.ReadAll(up.Content)
+	if err != nil {
+		return Attachment{}, fmt.Errorf("updatecontent: %w", err)
+	}
+
+	if len(bytes.TrimSpace(content)) == 0 {
+		return Attachment{}, fmt.Errorf("updatecontent: %w", ErrEmptyContent)
+	}
+
+	vars, err := validateAndExtractRequiredVars(content, atch.Type)
+	if err != nil {
+		return Attachment{}, fmt.Errorf("updatecontent: %w", err)
+	}
+
+	oldPath := atch.ContentPath
+	newPath, err := b.fileStore.Save(ctx, bytes.NewReader(content), atch.Type.String())
+	if err != nil {
+		return Attachment{}, fmt.Errorf("updatecontent: %w", err)
+	}
+
+	atch.ContentPath = newPath
+	atch.RequiredVars = vars
+	atch.UploadedAt = time.Now().UTC()
+
+	if err := b.storer.Update(ctx, atch); err != nil {
+		_ = b.fileStore.Delete(ctx, newPath)
+		return Attachment{}, fmt.Errorf("updatecontent: %w", err)
+	}
+
+	_ = b.fileStore.Delete(ctx, oldPath)
+
+	return atch, nil
+}
+
 func (b *Business) Delete(ctx context.Context, atch Attachment) error {
 	if err := b.storer.Delete(ctx, atch); err != nil {
 		return fmt.Errorf("delete: %w", err)

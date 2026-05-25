@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useSession } from '../composables/useSession'
 import AdminShell from '../layouts/AdminShell.vue'
+import AttachmentContentEditorPage from '../pages/AttachmentContentEditorPage.vue'
 import AttachmentsPage from '../pages/AttachmentsPage.vue'
 import CampaignDetailPage from '../pages/CampaignDetailPage.vue'
 import CampaignWizardPage from '../pages/CampaignWizardPage.vue'
@@ -11,6 +12,7 @@ import EmailTemplatesPage from '../pages/EmailTemplatesPage.vue'
 import EmployeesPage from '../pages/EmployeesPage.vue'
 import LandingPagesPage from '../pages/LandingPagesPage.vue'
 import LoginPage from '../pages/LoginPage.vue'
+import MaxAccountsPage from '../pages/MaxAccountsPage.vue'
 import OrganizationSettingsPage from '../pages/OrganizationSettingsPage.vue'
 import PlaceholderPage from '../pages/PlaceholderPage.vue'
 import ReportsPage from '../pages/ReportsPage.vue'
@@ -148,6 +150,16 @@ const adminRoutes = [
     },
   },
   {
+    path: '/templates/attachments/:id/content/edit',
+    name: 'attachment-content-edit',
+    meta: {
+      titleKey: 'routes.attachmentContentEdit.title',
+      descriptionKey: 'routes.attachmentContentEdit.description',
+      sectionKey: 'sections.templates',
+      requiresAuth: true,
+    },
+  },
+  {
     path: '/people/employees',
     name: 'employees',
     meta: {
@@ -207,6 +219,26 @@ const adminRoutes = [
       requiresAuth: true,
     },
   },
+  {
+    path: '/max/accounts',
+    name: 'max-accounts',
+    meta: {
+      titleKey: 'routes.maxAccounts.title',
+      descriptionKey: 'routes.maxAccounts.description',
+      sectionKey: 'sections.settings',
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/max/accounts/new',
+    name: 'max-accounts-new',
+    meta: {
+      titleKey: 'routes.maxAccountCreate.title',
+      descriptionKey: 'routes.maxAccountCreate.description',
+      sectionKey: 'sections.settings',
+      requiresAuth: true,
+    },
+  },
 ]
 
 const routes = [
@@ -242,7 +274,9 @@ const routes = [
                     ? EmailTemplatesPage
                     : ['landing-pages', 'landing-page-new', 'landing-page-edit'].includes(route.name)
                       ? LandingPagesPage
-                      : route.name === 'attachments'
+                      : route.name === 'attachment-content-edit'
+                        ? AttachmentContentEditorPage
+                        : route.name === 'attachments'
                         ? AttachmentsPage
                         : ['employees', 'employees-new'].includes(route.name)
                           ? EmployeesPage
@@ -252,7 +286,9 @@ const routes = [
                               ? ReportsPage
                               : route.name === 'organization-settings'
                                 ? OrganizationSettingsPage
-                                : PlaceholderPage,
+                                : ['max-accounts', 'max-accounts-new'].includes(route.name)
+                                  ? MaxAccountsPage
+                                  : PlaceholderPage,
         props: {
           titleKey: route.meta.titleKey,
           descriptionKey: route.meta.descriptionKey,

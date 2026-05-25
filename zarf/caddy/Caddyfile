@@ -9,7 +9,7 @@ api.bebra.com {
 		# >Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	}
 
-	@apiRoutes path /organization /department /department/* /employee /employee/* /message /message/* /event /event/* /campaign /campaign/* /target /target/* /vtarget /landing /landing/* /attachment /attachment/* /me
+	@apiRoutes path /organization /department /department/* /employee /employee/* /message /message/* /event /event/* /campaign /campaign/* /target /target/* /vtarget /landing /landing/* /attachment /attachment/* /max-account /max-account/* /me
 	handle @apiRoutes {
 		reverse_proxy api:8080
 	}

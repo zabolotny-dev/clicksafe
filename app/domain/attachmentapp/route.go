@@ -26,6 +26,7 @@ func Routes(router *echo.Echo, cfg Config) {
 	router.GET("/attachment/:id", api.download, authorizeAttachment)
 	router.GET("/attachment", api.query, authen)
 	router.PUT("/attachment/:id", api.update, authen, csrf, loadAttachment)
+	router.PUT("/attachment/:id/content", api.updateContent, authen, csrf, loadAttachment)
 	router.DELETE("/attachment/:id", api.deleteByID, authen, csrf, loadAttachment)
 	router.GET("/attachment/:id/render/:target_id", api.render, authen, loadAttachment)
 }

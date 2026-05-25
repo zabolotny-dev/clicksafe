@@ -52,6 +52,7 @@ import {
   formatDateTime as formatLocalizedDateTime,
   formatMonthDay,
   formatNullable as formatLocalizedNullable,
+  nullableId,
   formatTechnicalId as formatSharedTechnicalId,
 } from '../utils/resourceFormat'
 
@@ -61,15 +62,40 @@ const { csrfToken, loadCurrentSession } = useSession()
 const { notifySuccess, notifyError } = useNotifications()
 const { t, locale } = useI18n()
 
-const funnelStagesConfig = [
+const emailFunnelStagesConfig = [
   {
     eventType: 'MESSAGE_SENT',
-    reachedBy: ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT'],
+    reachedBy: ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED'],
   },
   {
     eventType: 'EMAIL_OPENED',
-    reachedBy: ['EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT'],
+    reachedBy: ['EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED'],
   },
+  {
+    eventType: 'LINK_OPENED',
+    reachedBy: ['LINK_OPENED', 'DATA_SENT'],
+  },
+  {
+    eventType: 'DATA_SENT',
+    reachedBy: ['DATA_SENT'],
+  },
+]
+const maxBaseFunnelStagesConfig = [
+  {
+    eventType: 'MESSAGE_SENT',
+    reachedBy: ['MESSAGE_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED', 'LINK_OPENED', 'DATA_SENT'],
+  },
+  {
+    eventType: 'MESSAGE_READ',
+    reachedBy: ['MESSAGE_READ', 'MESSAGE_REPLIED', 'LINK_OPENED', 'DATA_SENT'],
+  },
+  {
+    eventType: 'MESSAGE_REPLIED',
+    reachedBy: ['MESSAGE_REPLIED'],
+  },
+]
+const maxLandingFunnelStagesConfig = [
+  ...maxBaseFunnelStagesConfig,
   {
     eventType: 'LINK_OPENED',
     reachedBy: ['LINK_OPENED', 'DATA_SENT'],
@@ -83,7 +109,9 @@ const riskScores = {
   MESSAGE_SENT: 0,
   DELIVERY_FAILED: 0,
   EMAIL_OPENED: 15,
+  MESSAGE_READ: 15,
   LINK_OPENED: 45,
+  MESSAGE_REPLIED: 60,
   DATA_SENT: 100,
 }
 
@@ -148,6 +176,17 @@ let activeTargetMutationController = null
 const campaignId = computed(() => String(route.params.id ?? ''))
 const activeTabPanelId = computed(() => `campaign-detail-${activeTab.value.toLowerCase()}`)
 const campaignTitle = computed(() => campaign.value?.label || '—')
+const isMaxCampaign = computed(() => String(campaign.value?.type || '').toUpperCase() === 'MAX')
+const hasCampaignLanding = computed(() => Boolean(nullableId(campaign.value?.landing_id)))
+const activeFunnelStagesConfig = computed(() => {
+  if (!isMaxCampaign.value) {
+    return emailFunnelStagesConfig
+  }
+
+  return hasCampaignLanding.value
+    ? maxLandingFunnelStagesConfig
+    : maxBaseFunnelStagesConfig
+})
 const supportedEvents = computed(() => flattenSupportedEvents(vtargets.value))
 const hasSupportedEvents = computed(() => supportedEvents.value.length > 0)
 const isLifecyclePending = computed(() => Boolean(pendingAction.value))
@@ -173,7 +212,7 @@ const actionAvailability = computed(() => {
         start: true,
         pause: false,
         cancel: true,
-        delete: false,
+        delete: true,
       }
     case 'COMPLETED':
     case 'CANCELED':
@@ -233,6 +272,10 @@ const attributes = computed(() => {
 
 const settings = computed(() => [
   {
+    label: t('common.labels.type'),
+    value: campaign.value?.type || 'EMAIL',
+  },
+  {
     label: t('pages.campaignDetail.labels.campaignLabel'),
     value: campaign.value?.label || '—',
   },
@@ -254,8 +297,12 @@ const settings = computed(() => [
   },
   {
     label: t('common.labels.educationAsset'),
-    value: formatTechnicalId(campaign.value?.education_id),
-    title: campaign.value?.education_id || '',
+    value: campaign.value?.type === 'MAX'
+      ? formatTechnicalId(campaign.value?.max_education_text_id)
+      : formatTechnicalId(campaign.value?.education_id),
+    title: campaign.value?.type === 'MAX'
+      ? nullableId(campaign.value?.max_education_text_id)
+      : nullableId(campaign.value?.education_id),
     technical: true,
   },
   {
@@ -287,7 +334,7 @@ const campaignRiskIndex = computed(() => {
 const funnelStages = computed(() => {
   locale.value
 
-  return funnelStagesConfig.map((stage) => ({
+  return activeFunnelStagesConfig.value.map((stage) => ({
     eventType: stage.eventType,
     label: translateEventType(stage.eventType),
     count: countTargetsReachingStage(stage.reachedBy),
@@ -909,6 +956,7 @@ function targetStatusVariant(status) {
   switch (status) {
     case 'SENT':
     case 'OPENED':
+    case 'REPLIED':
       return 'info'
     case 'CLICKED':
       return 'warning'
@@ -943,9 +991,11 @@ function eventIcon(type) {
     case 'DELIVERY_FAILED':
       return AlertTriangle
     case 'EMAIL_OPENED':
+    case 'MESSAGE_READ':
       return Eye
     case 'LINK_OPENED':
       return MousePointerClick
+    case 'MESSAGE_REPLIED':
     case 'DATA_SENT':
       return Send
     default:

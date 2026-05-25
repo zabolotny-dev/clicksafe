@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
@@ -20,35 +21,41 @@ import (
 )
 
 type Campaign struct {
-	ID          uuid.UUID
-	MessageID   *uuid.UUID
-	LandingID   *uuid.UUID
-	EducationID *uuid.UUID
-	Label       label.Label
-	Domain      domain.Domain
-	Status      CampaignStatus
-	DateRange   date.Null
-	Attributes  map[string]string
+	ID                 uuid.UUID
+	Type               CampaignType
+	MessageID          *uuid.UUID
+	LandingID          *uuid.UUID
+	EducationID        *uuid.UUID
+	MaxEducationTextID uuid.NullUUID
+	Label              label.Label
+	Domain             domain.Domain
+	Status             CampaignStatus
+	DateRange          date.Null
+	Attributes         map[string]string
 }
 
 type NewCampaign struct {
-	MessageID   *uuid.UUID
-	LandingID   *uuid.UUID
-	EducationID *uuid.UUID
-	Label       label.Label
-	Domain      domain.Domain
-	DateRange   date.Null
-	Attributes  map[string]string
+	Type               CampaignType
+	MessageID          *uuid.UUID
+	LandingID          *uuid.UUID
+	EducationID        *uuid.UUID
+	MaxEducationTextID uuid.NullUUID
+	Label              label.Label
+	Domain             domain.Domain
+	DateRange          date.Null
+	Attributes         map[string]string
 }
 
 type UpdateCampaign struct {
-	MessageID   *uuid.UUID
-	LandingID   *uuid.UUID
-	EducationID *uuid.UUID
-	Label       *label.Label
-	Domain      *domain.Domain
-	DateRange   *date.Null
-	Attributes  *map[string]string
+	Type               *CampaignType
+	MessageID          *uuid.UUID
+	LandingID          *uuid.UUID
+	EducationID        *uuid.UUID
+	MaxEducationTextID *uuid.NullUUID
+	Label              *label.Label
+	Domain             *domain.Domain
+	DateRange          *date.Null
+	Attributes         *map[string]string
 }
 
 type TargetMissingVars struct {
@@ -63,6 +70,10 @@ type MessageQuerier interface {
 
 type LandingQuerier interface {
 	QueryByID(ctx context.Context, id uuid.UUID) (landingbus.Landing, error)
+}
+
+type EmployeeQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error)
 }
 
 type VarsValidator interface {
@@ -84,16 +95,23 @@ type CampaignStorer interface {
 }
 
 func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Campaign, error) {
+	cmpType := campaign.Type
+	if cmpType == (CampaignType{}) {
+		cmpType = EmailCampaign
+	}
+
 	cmp := Campaign{
-		ID:          uuid.New(),
-		MessageID:   campaign.MessageID,
-		LandingID:   campaign.LandingID,
-		EducationID: campaign.EducationID,
-		Label:       campaign.Label,
-		Domain:      campaign.Domain,
-		Status:      Draft,
-		DateRange:   campaign.DateRange,
-		Attributes:  campaign.Attributes,
+		ID:                 uuid.New(),
+		Type:               cmpType,
+		MessageID:          campaign.MessageID,
+		LandingID:          campaign.LandingID,
+		EducationID:        campaign.EducationID,
+		MaxEducationTextID: campaign.MaxEducationTextID,
+		Label:              campaign.Label,
+		Domain:             campaign.Domain,
+		Status:             Draft,
+		DateRange:          campaign.DateRange,
+		Attributes:         campaign.Attributes,
 	}
 
 	if err := b.campaignStorer.Save(ctx, cmp); err != nil {
@@ -113,6 +131,13 @@ func (b *CampaignBusiness) Save(ctx context.Context, campaign NewCampaign) (Camp
 }
 
 func (b *CampaignBusiness) Update(ctx context.Context, cmp Campaign, upd UpdateCampaign) (Campaign, error) {
+	if upd.Type != nil {
+		if cmp.Status != Draft && cmp.Status != Paused {
+			return Campaign{}, fmt.Errorf("update: %w: cannot change type in %s status", ErrCampaignLocked, cmp.Status)
+		}
+		cmp.Type = *upd.Type
+	}
+
 	if upd.MessageID != nil {
 		cmp.MessageID = upd.MessageID
 	}
@@ -144,6 +169,13 @@ func (b *CampaignBusiness) Update(ctx context.Context, cmp Campaign, upd UpdateC
 			return Campaign{}, fmt.Errorf("update: %w: cannot change education in %s status", ErrCampaignLocked, cmp.Status)
 		}
 		cmp.EducationID = upd.EducationID
+	}
+
+	if upd.MaxEducationTextID != nil {
+		if cmp.Status != Draft && cmp.Status != Paused {
+			return Campaign{}, fmt.Errorf("update: %w: cannot change max education in %s status", ErrCampaignLocked, cmp.Status)
+		}
+		cmp.MaxEducationTextID = *upd.MaxEducationTextID
 	}
 
 	if upd.Attributes != nil {
@@ -200,22 +232,6 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: %w: cannot move from %s to %s", ErrInvalidStatusTransition, campaign.Status, Active)
 	}
 
-	if campaign.MessageID == nil {
-		return Campaign{}, fmt.Errorf("start: %w", ErrMessageRequired)
-	}
-
-	if campaign.LandingID == nil {
-		return Campaign{}, fmt.Errorf("start: %w", ErrLandingRequired)
-	}
-
-	if campaign.EducationID == nil {
-		return Campaign{}, fmt.Errorf("start: %w", ErrEducationRequired)
-	}
-
-	if campaign.Domain.IsEmpty() {
-		return Campaign{}, fmt.Errorf("start: %w", ErrDomainRequired)
-	}
-
 	if !campaign.DateRange.Valid() {
 		return Campaign{}, fmt.Errorf("start: %w", ErrDateRangeRequired)
 	}
@@ -248,32 +264,69 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 		return Campaign{}, fmt.Errorf("start: %w", &ErrUnscheduledTargets{TargetIDs: ids})
 	}
 
+	switch campaign.Type {
+	case EmailCampaign:
+		if err := b.validateEmailStart(ctx, campaign, targets); err != nil {
+			return Campaign{}, err
+		}
+	case MaxCampaign:
+		if err := b.validateMaxStart(ctx, campaign, targets); err != nil {
+			return Campaign{}, err
+		}
+	default:
+		return Campaign{}, fmt.Errorf("start: invalid campaign type: %s", campaign.Type.String())
+	}
+
+	return b.changeStatus(ctx, campaign, Active, "start")
+}
+
+func (b *CampaignBusiness) validateEmailStart(ctx context.Context, campaign Campaign, targets []Target) error {
+	if campaign.MessageID == nil {
+		return fmt.Errorf("start: %w", ErrMessageRequired)
+	}
+
+	if campaign.LandingID == nil {
+		return fmt.Errorf("start: %w", ErrLandingRequired)
+	}
+
+	if campaign.EducationID == nil {
+		return fmt.Errorf("start: %w", ErrEducationRequired)
+	}
+
+	if campaign.Domain.IsEmpty() {
+		return fmt.Errorf("start: %w", ErrDomainRequired)
+	}
+
 	vars := make(map[string]struct{})
 	message, err := b.messageProvider.QueryByID(ctx, *campaign.MessageID)
 	if err != nil {
-		return Campaign{}, fmt.Errorf("start: query message: %w", err)
+		return fmt.Errorf("start: query message: %w", err)
+	}
+
+	if message.Type != messagebus.EmailMessage {
+		return fmt.Errorf("start: %w", ErrMessageTypeMismatch)
 	}
 
 	if !message.HtmlBodyID.Valid {
-		return Campaign{}, fmt.Errorf("start: %w", ErrMessageHTMLRequired)
+		return fmt.Errorf("start: %w", ErrMessageHTMLRequired)
 	}
 
 	landing, err := b.landingProvider.QueryByID(ctx, *campaign.LandingID)
 	if err != nil {
-		return Campaign{}, fmt.Errorf("start: query landing: %w", err)
+		return fmt.Errorf("start: query landing: %w", err)
 	}
 
 	if !landing.HtmlBodyID.Valid {
-		return Campaign{}, fmt.Errorf("start: %w", ErrLandingHTMLRequired)
+		return fmt.Errorf("start: %w", ErrLandingHTMLRequired)
 	}
 
 	education, err := b.landingProvider.QueryByID(ctx, *campaign.EducationID)
 	if err != nil {
-		return Campaign{}, fmt.Errorf("start: query education: %w", err)
+		return fmt.Errorf("start: query education: %w", err)
 	}
 
 	if !education.HtmlBodyID.Valid {
-		return Campaign{}, fmt.Errorf("start: %w", ErrEducationHTMLRequired)
+		return fmt.Errorf("start: %w", ErrEducationHTMLRequired)
 	}
 
 	ids := slices.Concat(
@@ -284,7 +337,7 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 	for _, id := range ids {
 		att, err := b.attachmentProvider.QueryByID(ctx, id)
 		if err != nil {
-			return Campaign{}, fmt.Errorf("start: query attachment: %w", err)
+			return fmt.Errorf("start: query attachment: %w", err)
 		}
 		for _, v := range att.RequiredVars {
 			vars[v] = struct{}{}
@@ -299,14 +352,151 @@ func (b *CampaignBusiness) Start(ctx context.Context, campaign Campaign) (Campai
 
 	res, err := b.varsValidator.Validate(ctx, campaign, targets, reqVars)
 	if err != nil {
-		return Campaign{}, fmt.Errorf("start: %w", err)
+		return fmt.Errorf("start: %w", err)
 	}
 
 	if len(res) > 0 {
-		return Campaign{}, fmt.Errorf("start: %w", &ErrTargetsMissingVars{Targets: res})
+		return fmt.Errorf("start: %w", &ErrTargetsMissingVars{Targets: res})
 	}
 
-	return b.changeStatus(ctx, campaign, Active, "start")
+	return nil
+}
+
+func (b *CampaignBusiness) validateMaxStart(ctx context.Context, campaign Campaign, targets []Target) error {
+	if campaign.MessageID == nil {
+		return fmt.Errorf("start: %w", ErrMessageRequired)
+	}
+
+	if !campaign.MaxEducationTextID.Valid {
+		return fmt.Errorf("start: %w", ErrMaxEducationRequired)
+	}
+
+	message, err := b.messageProvider.QueryByID(ctx, *campaign.MessageID)
+	if err != nil {
+		return fmt.Errorf("start: query message: %w", err)
+	}
+
+	if message.Type != messagebus.MaxMessage {
+		return fmt.Errorf("start: %w", ErrMessageTypeMismatch)
+	}
+
+	if !message.MaxAccountID.Valid {
+		return fmt.Errorf("start: %w", messagebus.ErrMaxAccountRequired)
+	}
+
+	if !message.TextBodyID.Valid {
+		return fmt.Errorf("start: %w", messagebus.ErrTextBodyRequired)
+	}
+
+	textBody, err := b.attachmentProvider.QueryByID(ctx, message.TextBodyID.UUID)
+	if err != nil {
+		return fmt.Errorf("start: query max text: %w", err)
+	}
+	if textBody.Type != attachmentbus.Txt {
+		return fmt.Errorf("start: %w", messagebus.ErrInvalidAttachment)
+	}
+
+	educationText, err := b.attachmentProvider.QueryByID(ctx, campaign.MaxEducationTextID.UUID)
+	if err != nil {
+		return fmt.Errorf("start: query max education: %w", err)
+	}
+	if educationText.Type != attachmentbus.Txt {
+		return fmt.Errorf("start: %w", ErrMaxEducationTXTRequired)
+	}
+
+	vars := make(map[string]struct{})
+	for _, v := range slices.Concat(textBody.RequiredVars, educationText.RequiredVars) {
+		vars[v] = struct{}{}
+	}
+
+	for _, id := range message.AttachmentIDs {
+		att, err := b.attachmentProvider.QueryByID(ctx, id)
+		if err != nil {
+			return fmt.Errorf("start: query attachment: %w", err)
+		}
+		if att.Type == attachmentbus.Html {
+			return fmt.Errorf("start: %w", messagebus.ErrMaxHTMLAttachment)
+		}
+		for _, v := range att.RequiredVars {
+			vars[v] = struct{}{}
+		}
+	}
+
+	siteEnabled := campaign.LandingID != nil || campaign.EducationID != nil || !campaign.Domain.IsEmpty()
+	if siteEnabled {
+		if campaign.LandingID == nil {
+			return fmt.Errorf("start: %w", ErrLandingRequired)
+		}
+		if campaign.EducationID == nil {
+			return fmt.Errorf("start: %w", ErrEducationRequired)
+		}
+		if campaign.Domain.IsEmpty() {
+			return fmt.Errorf("start: %w", ErrDomainRequired)
+		}
+
+		landing, err := b.landingProvider.QueryByID(ctx, *campaign.LandingID)
+		if err != nil {
+			return fmt.Errorf("start: query landing: %w", err)
+		}
+		if !landing.HtmlBodyID.Valid {
+			return fmt.Errorf("start: %w", ErrLandingHTMLRequired)
+		}
+		landingBody, err := b.attachmentProvider.QueryByID(ctx, landing.HtmlBodyID.UUID)
+		if err != nil {
+			return fmt.Errorf("start: query landing body: %w", err)
+		}
+		for _, v := range landingBody.RequiredVars {
+			vars[v] = struct{}{}
+		}
+
+		education, err := b.landingProvider.QueryByID(ctx, *campaign.EducationID)
+		if err != nil {
+			return fmt.Errorf("start: query education: %w", err)
+		}
+		if !education.HtmlBodyID.Valid {
+			return fmt.Errorf("start: %w", ErrEducationHTMLRequired)
+		}
+		educationBody, err := b.attachmentProvider.QueryByID(ctx, education.HtmlBodyID.UUID)
+		if err != nil {
+			return fmt.Errorf("start: query education body: %w", err)
+		}
+		for _, v := range educationBody.RequiredVars {
+			vars[v] = struct{}{}
+		}
+	}
+
+	if !siteEnabled {
+		if _, ok := vars["Target.Link"]; ok {
+			return fmt.Errorf("start: %w", ErrLandingRequired)
+		}
+	}
+
+	for _, target := range targets {
+		employee, err := b.employeeProvider.QueryByID(ctx, target.EmployeeID)
+		if err != nil {
+			return fmt.Errorf("start: query employee: %w", err)
+		}
+		if employee.Phone.String() == "" {
+			return fmt.Errorf("start: employeeID[%s]: %w", target.EmployeeID, ErrTargetPhoneRequired)
+		}
+	}
+
+	var reqVars []string
+	for k := range vars {
+		reqVars = append(reqVars, k)
+	}
+	sort.Strings(reqVars)
+
+	res, err := b.varsValidator.Validate(ctx, campaign, targets, reqVars)
+	if err != nil {
+		return fmt.Errorf("start: %w", err)
+	}
+
+	if len(res) > 0 {
+		return fmt.Errorf("start: %w", &ErrTargetsMissingVars{Targets: res})
+	}
+
+	return nil
 }
 
 func (b *CampaignBusiness) Pause(ctx context.Context, campaign Campaign) (Campaign, error) {

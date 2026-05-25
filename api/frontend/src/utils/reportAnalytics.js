@@ -6,18 +6,20 @@ export const REPORT_RISK_SCORES = {
   MESSAGE_SENT: 0,
   DELIVERY_FAILED: 0,
   EMAIL_OPENED: 15,
+  MESSAGE_READ: 15,
   LINK_OPENED: 45,
+  MESSAGE_REPLIED: 60,
   DATA_SENT: 100,
 }
 
 const FUNNEL_STAGES = [
   {
     eventType: 'MESSAGE_SENT',
-    reachedBy: ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT'],
+    reachedBy: ['MESSAGE_SENT', 'EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED'],
   },
   {
     eventType: 'EMAIL_OPENED',
-    reachedBy: ['EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT'],
+    reachedBy: ['EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED'],
   },
   {
     eventType: 'LINK_OPENED',
@@ -29,7 +31,7 @@ const FUNNEL_STAGES = [
   },
 ]
 
-const RISK_SIGNAL_TYPES = ['EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT']
+const RISK_SIGNAL_TYPES = ['EMAIL_OPENED', 'LINK_OPENED', 'DATA_SENT', 'MESSAGE_READ', 'MESSAGE_REPLIED']
 
 function makeIdMap(items) {
   return new Map((items || []).map((item) => [String(item.id), item]))

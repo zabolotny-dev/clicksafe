@@ -6,6 +6,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/resolverbus"
 )
 
 type targetMissingVarsValue struct {
@@ -49,6 +51,9 @@ func mapBusErr(err error, op string) error {
 	case errors.Is(err, campaignbus.ErrDomainRequired):
 		return errs.New(errs.FailedPrecondition, err)
 
+	case errors.Is(err, resolverbus.ErrDomainRequired):
+		return errs.New(errs.FailedPrecondition, campaignbus.ErrDomainRequired)
+
 	case errors.Is(err, campaignbus.ErrLandingNotFound):
 		return errs.New(errs.NotFound, err)
 
@@ -68,6 +73,30 @@ func mapBusErr(err error, op string) error {
 		return errs.New(errs.FailedPrecondition, err)
 
 	case errors.Is(err, campaignbus.ErrEducationHTMLRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrMessageTypeMismatch):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrMaxEducationRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrMaxEducationTXTRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, campaignbus.ErrTargetPhoneRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, messagebus.ErrMaxAccountRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, messagebus.ErrTextBodyRequired):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, messagebus.ErrInvalidAttachment):
+		return errs.New(errs.FailedPrecondition, err)
+
+	case errors.Is(err, messagebus.ErrMaxHTMLAttachment):
 		return errs.New(errs.FailedPrecondition, err)
 
 	case errors.As(err, &unscheduledTargets):

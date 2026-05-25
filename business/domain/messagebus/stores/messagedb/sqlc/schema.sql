@@ -1,10 +1,13 @@
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY,
+    type VARCHAR(64) NOT NULL DEFAULT 'EMAIL',
     label VARCHAR(255) NOT NULL UNIQUE,
     from_email VARCHAR(255) NOT NULL,
     from_name VARCHAR(255),
     subject VARCHAR(255),
-    html_body_id UUID REFERENCES attachments(id) ON DELETE RESTRICT
+    html_body_id UUID REFERENCES attachments(id) ON DELETE RESTRICT,
+    text_body_id UUID REFERENCES attachments(id) ON DELETE RESTRICT,
+    max_account_id UUID REFERENCES max_accounts(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_html_body_id ON messages(html_body_id);

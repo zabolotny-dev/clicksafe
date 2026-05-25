@@ -72,6 +72,12 @@ export function updateAttachment(id, payload, options = {}) {
   return api.put(`/attachment/${encodeURIComponent(id)}`, body, options)
 }
 
+export function updateAttachmentContent(id, content, options = {}) {
+  return api.put(`/attachment/${encodeURIComponent(id)}/content`, {
+    content: String(content ?? ''),
+  }, options)
+}
+
 export function deleteAttachment(id, options = {}) {
   return api.delete(`/attachment/${encodeURIComponent(id)}`, options)
 }

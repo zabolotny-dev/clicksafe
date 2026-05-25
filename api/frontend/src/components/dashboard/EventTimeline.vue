@@ -10,6 +10,8 @@ const events = [
   'EMAIL_OPENED',
   'LINK_OPENED',
   'DATA_SENT',
+  'MESSAGE_READ',
+  'MESSAGE_REPLIED',
 ]
 </script>
 

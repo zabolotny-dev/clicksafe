@@ -8,21 +8,23 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/deliverybus"
+	"github.com/zabolotny-dev/clicksafe/business/usecase/maxdeliverybus"
 	"github.com/zabolotny-dev/clicksafe/foundation/logger"
 	"github.com/zabolotny-dev/clicksafe/foundation/worker"
 )
 
 type Worker struct {
-	Log         *logger.Logger
-	CampaignBus *campaignbus.CampaignBusiness
-	DeliveryBus *deliverybus.Business
-	SessionBus  *sessionbus.Business
-	Interval    time.Duration
-	tickers     []*worker.Ticker
+	Log            *logger.Logger
+	CampaignBus    *campaignbus.CampaignBusiness
+	DeliveryBus    *deliverybus.Business
+	MaxDeliveryBus *maxdeliverybus.Business
+	SessionBus     *sessionbus.Business
+	Interval       time.Duration
+	tickers        []*worker.Ticker
 }
 
-func NewWorker(log *logger.Logger, campaignBus *campaignbus.CampaignBusiness, deliveryBus *deliverybus.Business, sessionBus *sessionbus.Business, time time.Duration) *Worker {
-	return &Worker{Log: log, CampaignBus: campaignBus, DeliveryBus: deliveryBus, SessionBus: sessionBus, Interval: time}
+func NewWorker(log *logger.Logger, campaignBus *campaignbus.CampaignBusiness, deliveryBus *deliverybus.Business, maxDeliveryBus *maxdeliverybus.Business, sessionBus *sessionbus.Business, time time.Duration) *Worker {
+	return &Worker{Log: log, CampaignBus: campaignBus, DeliveryBus: deliveryBus, MaxDeliveryBus: maxDeliveryBus, SessionBus: sessionBus, Interval: time}
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -32,6 +34,15 @@ func (w *Worker) Run(ctx context.Context) {
 			w.Log.Error(ctx, "delivery", "err", err)
 		}
 	})
+
+	maxSender := worker.NewTicker(w.Interval, func(ctx context.Context) {
+		errs := w.MaxDeliveryBus.SendDue(ctx)
+		for _, err := range errs {
+			w.Log.Error(ctx, "max delivery", "err", err)
+		}
+	})
+
+	go w.runMaxEventConsumer(ctx)
 
 	campaignCompletion := worker.NewTicker(w.Interval, func(ctx context.Context) {
 		errs := w.CampaignBus.CompleteExpired(ctx)
@@ -47,10 +58,27 @@ func (w *Worker) Run(ctx context.Context) {
 		}
 	})
 
-	w.tickers = append(w.tickers, emailSender, campaignCompletion, sessionCleanup)
+	w.tickers = append(w.tickers, emailSender, maxSender, campaignCompletion, sessionCleanup)
 
 	for _, ticker := range w.tickers {
 		ticker.Start(ctx)
+	}
+}
+
+func (w *Worker) runMaxEventConsumer(ctx context.Context) {
+	for {
+		if err := w.MaxDeliveryBus.ConsumeEvents(ctx); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+			w.Log.Error(ctx, "max events", "err", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(w.Interval):
+		}
 	}
 }
 

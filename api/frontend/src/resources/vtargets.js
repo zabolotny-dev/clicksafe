@@ -8,6 +8,7 @@ export const TARGET_STATUSES = [
   'OPENED',
   'CLICKED',
   'SUBMITTED',
+  'REPLIED',
 ]
 
 export const EVENT_TYPES = [
@@ -16,6 +17,8 @@ export const EVENT_TYPES = [
   'EMAIL_OPENED',
   'LINK_OPENED',
   'DATA_SENT',
+  'MESSAGE_READ',
+  'MESSAGE_REPLIED',
 ]
 
 export const EVENT_LABELS = new Proxy({}, {

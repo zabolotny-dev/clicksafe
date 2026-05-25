@@ -103,6 +103,10 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: campaign[%s] is not active: %s", cmp.ID, cmp.Status)
 	}
 
+	if cmp.Type != campaignbus.EmailCampaign {
+		return nil
+	}
+
 	emp, err := b.employeeQuerier.QueryByID(ctx, t.EmployeeID)
 	if err != nil {
 		return fmt.Errorf("processtarget: %w", err)

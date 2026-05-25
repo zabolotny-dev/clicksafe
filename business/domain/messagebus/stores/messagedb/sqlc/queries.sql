@@ -1,24 +1,30 @@
 -- name: Save :exec
 INSERT INTO messages (
     id,
+    type,
     label,
     from_email,
     from_name,
     subject,
-    html_body_id
+    html_body_id,
+    text_body_id,
+    max_account_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 );
 
 -- name: Update :exec
 UPDATE messages
 SET
-    label = $1,
-    from_email = $2,
-    from_name = $3,
-    subject = $4,
-    html_body_id = $5
-WHERE id = $6;
+    type = $1,
+    label = $2,
+    from_email = $3,
+    from_name = $4,
+    subject = $5,
+    html_body_id = $6,
+    text_body_id = $7,
+    max_account_id = $8
+WHERE id = $9;
 
 -- name: Delete :exec
 DELETE FROM messages
@@ -33,6 +39,9 @@ SELECT * FROM messages
 WHERE
     -- Точный поиск по ID (если передан)
     (sqlc.narg('id')::uuid IS NULL OR id = sqlc.narg('id'))
+    AND
+    -- Поиск по type
+    (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type'))
     AND
     -- Поиск по label
     (sqlc.narg('label')::text IS NULL OR LOWER(label) ILIKE '%' || LOWER(sqlc.narg('label')) || '%')
@@ -63,6 +72,7 @@ LIMIT @limit_val OFFSET @offset_val;
 SELECT COUNT(*) FROM messages
 WHERE
     (sqlc.narg('id')::uuid IS NULL OR id = sqlc.narg('id')) AND
+    (sqlc.narg('type')::text IS NULL OR type = sqlc.narg('type')) AND
     (sqlc.narg('label')::text IS NULL OR LOWER(label) ILIKE '%' || LOWER(sqlc.narg('label')) || '%') AND
     (sqlc.narg('from_email')::text IS NULL OR LOWER(from_email) ILIKE '%' || LOWER(sqlc.narg('from_email')) || '%') AND
     (sqlc.narg('from_name')::text IS NULL OR LOWER(from_name) ILIKE '%' || LOWER(sqlc.narg('from_name')) || '%') AND

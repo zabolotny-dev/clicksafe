@@ -7,6 +7,7 @@ import {
   Code,
   Copy,
   Download,
+  Edit3,
   Eye,
   FileText,
   FileUp,
@@ -98,6 +99,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  showEditContentAction: {
+    type: Boolean,
+    default: false,
+  },
   showSelectedSummary: {
     type: Boolean,
     default: true,
@@ -118,6 +123,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  allTypesLabel: {
+    type: String,
+    default: '',
+  },
   uploadSuccessTitle: {
     type: String,
     default: '',
@@ -133,6 +142,7 @@ const emit = defineEmits([
   'preview',
   'create',
   'selection-change',
+  'edit-content',
   'uploaded',
   'duplicated',
 ])
@@ -214,11 +224,15 @@ const selectedFileType = computed(() => {
 })
 const acceptedTypes = computed(() => typeOptions.value.join(','))
 const allowedTypeText = computed(() => typeOptions.value.join(', '))
-const allTypesLabel = computed(() => (
-  props.restrictToAllowedTypes && props.allowedTypes.length
+const allTypesLabel = computed(() => {
+  if (props.allTypesLabel) {
+    return props.allTypesLabel
+  }
+
+  return props.restrictToAllowedTypes && props.allowedTypes.length
     ? t('common.resource.allImageTypes')
     : t('common.resource.allSupportedTypes')
-))
+})
 
 function normalizeId(value) {
   return nullableId(value) || (value ? String(value) : '')
@@ -252,6 +266,10 @@ function canPreview(attachment) {
 }
 
 function canDuplicate(attachment) {
+  return isPreviewable(attachment)
+}
+
+function canEditContent(attachment) {
   return isPreviewable(attachment)
 }
 
@@ -856,6 +874,13 @@ defineExpose({
               @click="duplicateAttachment(attachment)"
             >
               <Copy :size="16" stroke-width="1.8" aria-hidden="true" />
+            </IconButton>
+            <IconButton
+              v-if="showEditContentAction && canEditContent(attachment)"
+              :label="t('common.actions.editContent')"
+              @click="emit('edit-content', attachment)"
+            >
+              <Edit3 :size="16" stroke-width="1.8" aria-hidden="true" />
             </IconButton>
             <a
               v-if="showDownloadAction"

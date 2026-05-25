@@ -6,6 +6,7 @@ import (
 )
 
 type dbFilter struct {
+	Type      pgtype.Text
 	Label     pgtype.Text
 	FromEmail pgtype.Text
 	FromName  pgtype.Text
@@ -13,6 +14,11 @@ type dbFilter struct {
 }
 
 func toDBFilter(filter messagebus.QueryFilter) dbFilter {
+	var typeFilter pgtype.Text
+	if filter.Type != nil {
+		typeFilter = pgtype.Text{String: filter.Type.String(), Valid: true}
+	}
+
 	var labelFilter pgtype.Text
 	if filter.Label != nil {
 		labelFilter = pgtype.Text{String: *filter.Label, Valid: true}
@@ -33,5 +39,5 @@ func toDBFilter(filter messagebus.QueryFilter) dbFilter {
 		subjectFilter = pgtype.Text{String: *filter.Subject, Valid: true}
 	}
 
-	return dbFilter{Label: labelFilter, FromEmail: fromEmailFilter, FromName: fromNameFilter, Subject: subjectFilter}
+	return dbFilter{Type: typeFilter, Label: labelFilter, FromEmail: fromEmailFilter, FromName: fromNameFilter, Subject: subjectFilter}
 }

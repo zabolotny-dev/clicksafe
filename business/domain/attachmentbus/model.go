@@ -30,3 +30,7 @@ type UpdateAttachment struct {
 	Label  *label.Label
 	Public *bool
 }
+
+type UpdateAttachmentContent struct {
+	Content io.Reader
+}

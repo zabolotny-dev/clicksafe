@@ -8,6 +8,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/domain/departmentapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/employeeapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/landingapp"
+	"github.com/zabolotny-dev/clicksafe/app/domain/maxaccountapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/messageapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/organizationapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/targetapp"
@@ -20,6 +21,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/maxaccountbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus"
@@ -36,6 +38,7 @@ type Config struct {
 	DepartmentBus   *departmentbus.Business
 	EmployeeBus     *employeebus.Business
 	LandingBus      *landingbus.Business
+	MaxAccountBus   *maxaccountbus.Business
 	MessageBus      *messagebus.Business
 	CampaignBus     *campaignbus.CampaignBusiness
 	TargetBus       *campaignbus.TargetBusiness
@@ -78,6 +81,11 @@ func Add(e *echo.Echo, cfg Config) {
 	landingapp.Routes(e, landingapp.Config{
 		LandingBus: cfg.LandingBus,
 		SessionBus: cfg.SessionBus,
+	})
+
+	maxaccountapp.Routes(e, maxaccountapp.Config{
+		MaxAccountBus: cfg.MaxAccountBus,
+		SessionBus:    cfg.SessionBus,
 	})
 
 	campaignapp.Routes(e, campaignapp.Config{

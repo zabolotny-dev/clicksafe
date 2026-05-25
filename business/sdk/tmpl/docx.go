@@ -34,28 +34,38 @@ var (
 )
 
 func extractDOCXVars(content []byte, allowedRoots map[string]struct{}) ([]string, error) {
-	docxTemplate, err := gotemplatedocx.NewDocxTemplateFromBytes(content)
-	if err != nil {
-		return nil, fmt.Errorf("parse docx: %w: %v", ErrUnsupportedTemplateSyntax, err)
-	}
-
 	if err := validateDOCXTemplates(content, allowedRoots); err != nil {
 		return nil, fmt.Errorf("validate docx: %w: %v", ErrUnsupportedTemplateSyntax, err)
 	}
 
-	templateVars, err := docxTemplate.GetTemplateVariables()
+	// Extract variables ourselves instead of using the library's
+	// GetTemplateVariables(), which iterates ALL files in the ZIP
+	// (including binary media like images) and crashes when random
+	// bytes happen to look like {{ }}.
+	zipReader, err := zip.NewReader(bytes.NewReader(content), int64(len(content)))
 	if err != nil {
 		return nil, fmt.Errorf("extract docx vars: %w: %v", ErrUnsupportedTemplateSyntax, err)
 	}
 
-	requiredVars := make(map[string]struct{}, len(templateVars))
-	for templateVar := range templateVars {
-		requiredVar, err := normalizeDOCXVar(templateVar, allowedRoots)
-		if err != nil {
-			return nil, fmt.Errorf("validate docx var %q: %w: %v", templateVar, ErrUnsupportedTemplateSyntax, err)
+	requiredVars := make(map[string]struct{})
+	for _, file := range zipReader.File {
+		if !isDOCXTemplatePart(file.Name) {
+			continue
 		}
 
-		requiredVars[requiredVar] = struct{}{}
+		fileContent, err := readDOCXFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("extract docx vars: read %s: %w: %v", file.Name, ErrUnsupportedTemplateSyntax, err)
+		}
+
+		tmpl, err := template.New(path.Base(file.Name)).Parse(patchDOCXXML(string(fileContent)))
+		if err != nil {
+			return nil, fmt.Errorf("extract docx vars: parse %s: %w: %v", file.Name, ErrUnsupportedTemplateSyntax, err)
+		}
+
+		if err := validateNode(tmpl.Tree.Root, allowedRoots, requiredVars); err != nil {
+			return nil, fmt.Errorf("extract docx vars: validate %s: %w: %v", file.Name, ErrUnsupportedTemplateSyntax, err)
+		}
 	}
 
 	vars := make([]string, 0, len(requiredVars))
@@ -114,29 +124,6 @@ func validateDOCXTemplates(content []byte, allowedRoots map[string]struct{}) err
 	}
 
 	return nil
-}
-
-func normalizeDOCXVar(templateVar string, allowedRoots map[string]struct{}) (string, error) {
-	if !strings.HasPrefix(templateVar, ".") {
-		return "", fmt.Errorf("variable references are not allowed")
-	}
-
-	segments := strings.Split(strings.TrimPrefix(templateVar, "."), ".")
-	if len(segments) < 2 {
-		return "", fmt.Errorf("field path must contain at least two segments")
-	}
-
-	if _, ok := allowedRoots[segments[0]]; !ok {
-		return "", fmt.Errorf("root namespace %q is not allowed", segments[0])
-	}
-
-	for _, segment := range segments {
-		if segment == "" {
-			return "", fmt.Errorf("field path contains an empty segment")
-		}
-	}
-
-	return strings.Join(segments, "."), nil
 }
 
 func isDOCXTemplatePart(name string) bool {

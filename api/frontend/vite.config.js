@@ -10,6 +10,7 @@ const apiRoutes = [
   '/message',
   '/landing',
   '/attachment',
+  '/max-account',
   '/campaign',
   '/target',
   '/vtarget',

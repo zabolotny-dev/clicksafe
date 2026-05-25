@@ -167,6 +167,8 @@ function targetStatusColor(status) {
       return tokens.value.danger
     case 'OPENED':
       return tokens.value.accentViolet
+    case 'REPLIED':
+      return tokens.value.info
     case 'CLICKED':
       return tokens.value.warning
     case 'SUBMITTED':

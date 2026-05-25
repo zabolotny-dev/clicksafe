@@ -33,6 +33,23 @@ async function readResponse(response) {
   return text
 }
 
+function formatFieldDetail(item) {
+  if (item.error) {
+    return `${item.field}: ${item.error}`
+  }
+
+  if (item.field === 'target_missing_vars' && item.value) {
+    const vars = Array.isArray(item.value.vars) ? item.value.vars.join(', ') : ''
+    return vars ? `${item.field}: [${vars}]` : item.field
+  }
+
+  if (item.value !== undefined && item.value !== null) {
+    return `${item.field}: ${typeof item.value === 'object' ? JSON.stringify(item.value) : item.value}`
+  }
+
+  return item.field
+}
+
 function formatApiError(status, payload) {
   if (!payload) {
     return `HTTP ${status}`
@@ -43,7 +60,7 @@ function formatApiError(status, payload) {
   }
 
   const details = Array.isArray(payload.details)
-    ? payload.details.map((item) => `${item.field}: ${item.error}`).join('; ')
+    ? payload.details.map(formatFieldDetail).join('; ')
     : ''
 
   return [payload.message, details].filter(Boolean).join(' | ') || `HTTP ${status}`

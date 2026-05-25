@@ -1,0 +1,1 @@
+"""ClickSafe Max adapter service."""

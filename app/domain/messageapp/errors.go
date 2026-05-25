@@ -22,6 +22,21 @@ func mapBusErr(err error, msg string) error {
 	case errors.Is(err, messagebus.ErrInvalidAttachment):
 		return errs.New(errs.InvalidArgument, err)
 
+	case errors.Is(err, messagebus.ErrMaxHTMLAttachment):
+		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, messagebus.ErrInvalidType):
+		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, messagebus.ErrFromEmailRequired):
+		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, messagebus.ErrTextBodyRequired):
+		return errs.New(errs.InvalidArgument, err)
+
+	case errors.Is(err, messagebus.ErrMaxAccountRequired):
+		return errs.New(errs.InvalidArgument, err)
+
 	case errors.Is(err, attachmentbus.ErrNotFound):
 		return errs.New(errs.NotFound, err)
 

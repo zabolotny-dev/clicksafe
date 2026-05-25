@@ -19,6 +19,8 @@ import (
 const (
 	uniqueLabelConstraint  = "messages_label_key"
 	attachmentFKConstraint = "messages_html_body_id_fkey"
+	textBodyFKConstraint   = "messages_text_body_id_fkey"
+	maxAccountFKConstraint = "messages_max_account_id_fkey"
 )
 
 type Store struct {
@@ -33,12 +35,15 @@ func (s *Store) Save(ctx context.Context, msg messagebus.Message) error {
 	dbMsg := toDBMessage(msg)
 
 	err := s.q.Save(ctx, sqlc.SaveParams{
-		ID:         dbMsg.ID,
-		Label:      dbMsg.Label,
-		FromEmail:  dbMsg.FromEmail,
-		FromName:   dbMsg.FromName,
-		Subject:    dbMsg.Subject,
-		HtmlBodyID: dbMsg.HtmlBodyID,
+		ID:           dbMsg.ID,
+		Type:         dbMsg.Type,
+		Label:        dbMsg.Label,
+		FromEmail:    dbMsg.FromEmail,
+		FromName:     dbMsg.FromName,
+		Subject:      dbMsg.Subject,
+		HtmlBodyID:   dbMsg.HtmlBodyID,
+		TextBodyID:   dbMsg.TextBodyID,
+		MaxAccountID: dbMsg.MaxAccountID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -50,6 +55,12 @@ func (s *Store) Save(ctx context.Context, msg messagebus.Message) error {
 		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
 			if pgErr.ConstraintName == attachmentFKConstraint {
 				return messagebus.ErrInvalidAttachment
+			}
+			if pgErr.ConstraintName == textBodyFKConstraint {
+				return messagebus.ErrInvalidAttachment
+			}
+			if pgErr.ConstraintName == maxAccountFKConstraint {
+				return messagebus.ErrMaxAccountRequired
 			}
 		}
 
@@ -71,12 +82,15 @@ func (s *Store) Update(ctx context.Context, msg messagebus.Message) error {
 	dbMsg := toDBMessage(msg)
 
 	err := s.q.Update(ctx, sqlc.UpdateParams{
-		ID:         dbMsg.ID,
-		Label:      dbMsg.Label,
-		FromEmail:  dbMsg.FromEmail,
-		FromName:   dbMsg.FromName,
-		Subject:    dbMsg.Subject,
-		HtmlBodyID: dbMsg.HtmlBodyID,
+		ID:           dbMsg.ID,
+		Type:         dbMsg.Type,
+		Label:        dbMsg.Label,
+		FromEmail:    dbMsg.FromEmail,
+		FromName:     dbMsg.FromName,
+		Subject:      dbMsg.Subject,
+		HtmlBodyID:   dbMsg.HtmlBodyID,
+		TextBodyID:   dbMsg.TextBodyID,
+		MaxAccountID: dbMsg.MaxAccountID,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -88,6 +102,12 @@ func (s *Store) Update(ctx context.Context, msg messagebus.Message) error {
 		if errors.As(err, &pgErr) && pgErr.Code == database.FKViolation {
 			if pgErr.ConstraintName == attachmentFKConstraint {
 				return messagebus.ErrInvalidAttachment
+			}
+			if pgErr.ConstraintName == textBodyFKConstraint {
+				return messagebus.ErrInvalidAttachment
+			}
+			if pgErr.ConstraintName == maxAccountFKConstraint {
+				return messagebus.ErrMaxAccountRequired
 			}
 		}
 
@@ -141,6 +161,7 @@ func (s *Store) Query(ctx context.Context, filter messagebus.QueryFilter, orderB
 
 	dbMessages, err := s.q.Query(ctx, sqlc.QueryParams{
 		ID:        filter.ID,
+		Type:      dbFilter.Type,
 		Label:     dbFilter.Label,
 		FromEmail: dbFilter.FromEmail,
 		FromName:  dbFilter.FromName,
@@ -181,6 +202,7 @@ func (s *Store) Count(ctx context.Context, filter messagebus.QueryFilter) (int, 
 
 	count, err := s.q.Count(ctx, sqlc.CountParams{
 		ID:        filter.ID,
+		Type:      dbFilter.Type,
 		Label:     dbFilter.Label,
 		FromEmail: dbFilter.FromEmail,
 		FromName:  dbFilter.FromName,

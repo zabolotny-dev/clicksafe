@@ -12,6 +12,10 @@ func TestParseAllowsRussianEnglishAndDigits(t *testing.T) {
 		"Отдел 42",
 		"Team 7",
 		"ООО Ромашка",
+		"MAX: Смена пароля (со ссылкой)",
+		"Отдел ИТ / Безопасность",
+		"Администраторы [Группа 1]",
+		"Email \"Важное сообщение\"",
 	}
 
 	for _, test := range tests {

@@ -78,6 +78,7 @@ const summaryCards = computed(() => {
     [translateTargetStatus('OPENED'), counts.OPENED || 0],
     [translateTargetStatus('CLICKED'), counts.CLICKED || 0],
     [translateTargetStatus('SUBMITTED'), counts.SUBMITTED || 0],
+    [translateTargetStatus('REPLIED'), counts.REPLIED || 0],
     [translateTargetStatus('FAILED'), counts.FAILED || 0],
   ]
 })

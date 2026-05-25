@@ -12,6 +12,7 @@ type queryParams struct {
 	Rows      string
 	OrderBy   string
 	ID        string
+	Type      string
 	Label     string
 	FromEmail string
 	FromName  string
@@ -26,6 +27,7 @@ func parseQueryParams(c *echo.Context) queryParams {
 		Rows:      values.Get("rows"),
 		OrderBy:   values.Get("orderBy"),
 		ID:        values.Get("id"),
+		Type:      values.Get("type"),
 		Label:     values.Get("label"),
 		FromEmail: values.Get("from_email"),
 		FromName:  values.Get("from_name"),
@@ -50,6 +52,15 @@ func parseFilter(qp queryParams) (messagebus.QueryFilter, error) {
 
 	if qp.Label != "" {
 		filter.Label = &qp.Label
+	}
+
+	if qp.Type != "" {
+		msgType, err := messagebus.ParseMessageType(qp.Type)
+		if err != nil {
+			fieldErrors.Add("type", err)
+		} else {
+			filter.Type = &msgType
+		}
 	}
 
 	if qp.FromEmail != "" {
