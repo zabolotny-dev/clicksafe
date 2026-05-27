@@ -15,6 +15,7 @@ import {
   Plus,
   RefreshCw,
   Upload,
+  Volume2,
 } from 'lucide-vue-next'
 import EmptyState from './EmptyState.vue'
 import IconButton from './IconButton.vue'
@@ -34,6 +35,7 @@ import {
   uploadAttachment,
 } from '../../resources/attachments'
 import {
+  isAudioAttachmentType,
   isHtmlAttachmentType,
   isImageAttachmentType,
   isTextPreviewAttachmentType,
@@ -258,7 +260,7 @@ function isPreviewable(attachment) {
 }
 
 function isMediaPreviewable(attachment) {
-  return isImageAttachmentType(attachment?.type)
+  return isImageAttachmentType(attachment?.type) || isAudioAttachmentType(attachment?.type)
 }
 
 function canPreview(attachment) {
@@ -283,7 +285,7 @@ function requiredVarsText(vars) {
 
 function attachmentIcon(attachment) {
   if (isMediaPreviewable(attachment)) {
-    return Image
+    return isAudioAttachmentType(attachment?.type) ? Volume2 : Image
   }
 
   return isHtmlLike(attachment) ? Code : FileText
@@ -739,6 +741,7 @@ defineExpose({
         <p>{{ t('common.resource.searchAttachments') }}</p>
       </div>
       <div class="attachment-picker-header-actions">
+        <slot name="actions" />
         <UiButton v-if="showCreateAction" variant="secondary" @click="emit('create')">
           <Plus :size="16" stroke-width="1.8" aria-hidden="true" />
           {{ createActionLabel || t('common.actions.create') }}

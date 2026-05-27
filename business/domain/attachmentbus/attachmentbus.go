@@ -46,12 +46,16 @@ func (b *Business) Save(ctx context.Context, atch NewAttachment) (Attachment, er
 		return Attachment{}, fmt.Errorf("save: %w", err)
 	}
 
-	if len(bytes.TrimSpace(content)) == 0 {
+	if len(content) == 0 {
 		return Attachment{}, ErrEmptyContent
 	}
 
 	var vars []string
 	if atch.Type.IsTemplate() {
+		if len(bytes.TrimSpace(content)) == 0 {
+			return Attachment{}, ErrEmptyContent
+		}
+
 		vars, err = validateAndExtractRequiredVars(content, atch.Type)
 		if err != nil {
 			return Attachment{}, fmt.Errorf("save: %w", err)

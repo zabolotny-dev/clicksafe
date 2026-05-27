@@ -52,7 +52,7 @@ func (b *Business) Save(ctx context.Context, organization NewOrganization) (Orga
 			return Organization{}, fmt.Errorf("save: %w", err)
 		}
 
-		if !atch.Type.IsMedia() {
+		if !atch.Type.IsImage() {
 			return Organization{}, fmt.Errorf("save: %w", ErrInvalidAttachment)
 		}
 
@@ -90,7 +90,7 @@ func (b *Business) Update(ctx context.Context, organization Organization, up Upd
 				return Organization{}, fmt.Errorf("update: %w", err)
 			}
 
-			if !atch.Type.IsMedia() {
+			if !atch.Type.IsImage() {
 				return Organization{}, fmt.Errorf("update: %w", ErrInvalidAttachment)
 			}
 		}

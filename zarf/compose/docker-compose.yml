@@ -67,8 +67,17 @@ services:
       - API_AUTH_LOGIN_REQUESTS_PER_MINUTE=${AUTH_LOGIN_REQUESTS_PER_MINUTE}
       - API_AUTH_LOGIN_BURST=${AUTH_LOGIN_BURST}
       - API_AUTH_LOGIN_EXPIRES_IN=${AUTH_LOGIN_EXPIRES_IN}
+      - API_WEB_READ_TIMEOUT=${API_WEB_READ_TIMEOUT:-60s}
+      - API_WEB_WRITE_TIMEOUT=${API_WEB_WRITE_TIMEOUT:-12m}
+      - API_WEB_IDLE_TIMEOUT=${API_WEB_IDLE_TIMEOUT:-120s}
       - API_MAX_ADAPTER_ADDR=max-adapter:9090
       - API_MAX_ADAPTER_TOKEN=${MAX_ADAPTER_GRPC_TOKEN}
+      - API_VOICE_ADAPTER_ADDR=${API_VOICE_ADAPTER_ADDR:-voice-adapter:9091}
+      - API_VOICE_ADAPTER_TOKEN=${VOICE_ADAPTER_GRPC_TOKEN:-}
+      - API_VOICE_CLONE_TIMEOUT=${API_VOICE_CLONE_TIMEOUT:-10m}
+      - API_VOICE_ASR_TIMEOUT=${API_VOICE_ASR_TIMEOUT:-5m}
+      - API_VOICE_HEALTH_TTL=${API_VOICE_HEALTH_TTL:-1200ms}
+      - API_VOICE_OUTPUT_CHUNK_SIZE=${API_VOICE_OUTPUT_CHUNK_SIZE:-65536}
       - API_STORAGE_ATTACHMENT_ROOT_DIR=/var/www/my-app/private/attachment
       - API_STORAGE_ATTACHMENT_PATH_PREFIX=/attachment
     env_file:
@@ -117,6 +126,47 @@ services:
     networks:
       - clicksafe
 
+  voice-adapter:
+    profiles: [ "voice" ]
+    build:
+      context: ../..
+      dockerfile: zarf/docker/Dockerfile.voice-adapter
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+        TORCH_PACKAGES: torch==2.8.0 torchaudio==2.8.0
+    image: clicksafe-voice-adapter:latest
+    container_name: clicksafe-voice-adapter
+    restart: always
+    environment:
+      - VOICE_ADAPTER_GRPC_BIND=0.0.0.0:9091
+      - VOICE_ADAPTER_GRPC_TOKEN=${VOICE_ADAPTER_GRPC_TOKEN:-}
+      - VOICE_ADAPTER_TEMP_DIR=/var/lib/clicksafe-voice-adapter/tmp
+      - VOICE_ADAPTER_MODEL_PROVIDER=${VOICE_ADAPTER_MODEL_PROVIDER:-omnivoice}
+      - VOICE_ADAPTER_MODEL_ID=${VOICE_ADAPTER_MODEL_ID:-k2-fsa/OmniVoice}
+      - VOICE_ADAPTER_DEVICE=${VOICE_ADAPTER_DEVICE:-auto}
+      - VOICE_ADAPTER_DTYPE=${VOICE_ADAPTER_DTYPE:-auto}
+      - VOICE_ADAPTER_LOAD_ASR=${VOICE_ADAPTER_LOAD_ASR:-true}
+      - VOICE_ADAPTER_ASR_PROVIDER=${VOICE_ADAPTER_ASR_PROVIDER:-gigaam_onnx}
+      - VOICE_ADAPTER_ASR_MODEL_ID=${VOICE_ADAPTER_ASR_MODEL_ID:-gigaam-v3-e2e-rnnt}
+      - VOICE_ADAPTER_ASR_REVISION=${VOICE_ADAPTER_ASR_REVISION:-}
+      - VOICE_ADAPTER_ASR_TRUST_REMOTE_CODE=${VOICE_ADAPTER_ASR_TRUST_REMOTE_CODE:-false}
+      - VOICE_ADAPTER_CONCURRENCY=${VOICE_ADAPTER_CONCURRENCY:-1}
+      - HF_HOME=/var/lib/clicksafe-voice-adapter/huggingface
+      - TORCH_HOME=/var/lib/clicksafe-voice-adapter/torch
+      - HF_TOKEN=${HF_TOKEN:-}
+    env_file:
+      - ../../.env
+    volumes:
+      - voice_adapter_data:/var/lib/clicksafe-voice-adapter
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import os,socket; port=int(os.environ.get('VOICE_ADAPTER_GRPC_BIND','0.0.0.0:9091').rsplit(':',1)[1]); socket.create_connection(('127.0.0.1', port), 1).close()" ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+    networks:
+      - clicksafe
+
   caddy:
     build:
       context: ../..
@@ -146,5 +196,6 @@ volumes:
   postgres_data:
   attachment_content_data:
   max_adapter_data:
+  voice_adapter_data:
   caddy_data:
   caddy_config:

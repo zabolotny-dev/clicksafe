@@ -17,3 +17,5 @@ pnpm-debug.log*
 
 # Local caches
 .DS_Store
+
+__pycache__

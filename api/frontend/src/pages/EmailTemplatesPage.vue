@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Plus,
   Trash2,
+  Volume2,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import AttachmentPickerPanel from '../components/ui/AttachmentPickerPanel.vue'
@@ -23,6 +24,7 @@ import SkeletonBlock from '../components/ui/SkeletonBlock.vue'
 import UiAlert from '../components/ui/UiAlert.vue'
 import UiButton from '../components/ui/UiButton.vue'
 import UiInput from '../components/ui/UiInput.vue'
+import VoiceCloneWorkspace from '../components/ui/VoiceCloneWorkspace.vue'
 import WizardStepper from '../components/ui/WizardStepper.vue'
 import { useNotifications } from '../composables/useNotifications'
 import { useResourceActions } from '../composables/useResourceActions'
@@ -41,6 +43,7 @@ import {
   updateMessage,
 } from '../resources/messages'
 import { listMaxAccounts } from '../resources/maxAccounts'
+import { getVoiceStatus } from '../resources/voice'
 import {
   isHtmlAttachmentType,
   isTextAttachmentType,
@@ -84,6 +87,7 @@ const deleteDialogOpen = ref(false)
 const deleteTarget = ref(null)
 const previewAttachment = ref(null)
 const htmlEditorOpen = ref(false)
+const voiceCloneOpen = ref(false)
 const htmlEditorMode = ref('create')
 const htmlEditorContentType = ref('html')
 const htmlEditorInitial = ref('')
@@ -96,6 +100,16 @@ const maxTextBodyPicker = ref(null)
 const templateAttachmentsPicker = ref(null)
 const contentEditAttachment = ref(null)
 const maxAttachmentTypes = SUPPORTED_ATTACHMENT_TYPES.filter((type) => type !== '.html')
+const voiceStatus = reactive({
+  checked: false,
+  available: false,
+  message: '',
+  status: '',
+  model_provider: '',
+  model_id: '',
+  device: '',
+})
+const isVoiceStatusLoading = ref(false)
 
 const filters = reactive({
   label: '',
@@ -176,6 +190,12 @@ const maxUnsupportedAttachments = computed(() => {
   ))
 })
 const hasMaxUnsupportedAttachments = computed(() => maxUnsupportedAttachments.value.length > 0)
+const voiceUnavailableMessage = computed(() => (
+  isVoiceStatusLoading.value
+    ? t('pages.emailTemplates.voiceClone.status.checking')
+    : voiceStatus.message || t('pages.emailTemplates.voiceClone.status.unavailable')
+))
+const canOpenVoiceClone = computed(() => isMaxForm.value && voiceStatus.available && !isVoiceStatusLoading.value)
 const messageTypeTabs = computed(() => [
   { value: 'EMAIL', label: t('pages.emailTemplates.tabs.email'), icon: Mail },
   { value: 'MAX', label: t('pages.emailTemplates.tabs.max'), icon: MessageCircle },
@@ -195,6 +215,7 @@ function clearForm() {
   formError.value = ''
   activeStep.value = 0
   htmlEditorOpen.value = false
+  voiceCloneOpen.value = false
   htmlEditorMode.value = 'create'
   htmlEditorContentType.value = 'html'
   htmlEditorInitial.value = ''
@@ -220,6 +241,7 @@ function fillForm(message) {
   formError.value = ''
   activeStep.value = 0
   htmlEditorOpen.value = false
+  voiceCloneOpen.value = false
   htmlEditorMode.value = 'create'
   htmlEditorContentType.value = 'html'
   contentEditAttachment.value = null
@@ -418,6 +440,44 @@ async function loadMaxAccounts() {
   selectedMaxAccount.value = maxAccountById.value[form.max_account_id] || selectedMaxAccount.value
 }
 
+function voiceStatusMessage(message) {
+  const text = String(message || '').trim()
+  if (!text || text === 'voice service is unavailable' || text === 'voice service is not configured') {
+    return t('pages.emailTemplates.voiceClone.status.unavailable')
+  }
+
+  return text
+}
+
+async function loadVoiceStatus() {
+  if (isVoiceStatusLoading.value) {
+    return
+  }
+
+  isVoiceStatusLoading.value = true
+
+  try {
+    const response = await getVoiceStatus()
+    voiceStatus.checked = true
+    voiceStatus.available = Boolean(response?.available)
+    voiceStatus.message = response?.available ? '' : voiceStatusMessage(response?.message)
+    voiceStatus.status = response?.status || ''
+    voiceStatus.model_provider = response?.model_provider || ''
+    voiceStatus.model_id = response?.model_id || ''
+    voiceStatus.device = response?.device || ''
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return
+    }
+
+    voiceStatus.checked = true
+    voiceStatus.available = false
+    voiceStatus.message = voiceStatusMessage(errorMessage(error, 'pages.emailTemplates.voiceClone.status.unavailable'))
+  } finally {
+    isVoiceStatusLoading.value = false
+  }
+}
+
 async function prepareEditorFromRoute() {
   if (!isEditorRoute.value) {
     return
@@ -457,6 +517,19 @@ function closeHtmlEditor() {
   contentEditAttachment.value = null
 }
 
+function openVoiceClone() {
+  if (!canOpenVoiceClone.value) {
+    return
+  }
+
+  formError.value = ''
+  voiceCloneOpen.value = true
+}
+
+function closeVoiceClone() {
+  voiceCloneOpen.value = false
+}
+
 function trackHtmlBodySelection(attachment) {
   selectedHtmlBodyAttachment.value = attachment
 }
@@ -467,6 +540,26 @@ function trackMaxAccountSelection(account) {
 
 function trackTemplateAttachmentsSelection(selected) {
   selectedTemplateAttachments.value = Array.isArray(selected) ? selected : []
+}
+
+async function handleVoiceCloneSaved(uploaded) {
+  const id = nullableId(uploaded?.id)
+  if (!id) {
+    return
+  }
+
+  if (!form.attachment_ids.includes(id)) {
+    form.attachment_ids = [...form.attachment_ids, id]
+  }
+
+  const byId = new Map(selectedTemplateAttachments.value.map((attachment) => [nullableId(attachment?.id), attachment]))
+  byId.set(id, uploaded)
+  selectedTemplateAttachments.value = form.attachment_ids
+    .map((attachmentID) => byId.get(nullableId(attachmentID)))
+    .filter(Boolean)
+
+  voiceCloneOpen.value = false
+  await refreshAttachmentPickers()
 }
 
 async function refreshAttachmentPickers() {
@@ -713,6 +806,18 @@ watch(() => route.fullPath, () => {
   loadData()
 })
 
+watch(() => [isEditorRoute.value, isMaxForm.value], ([editor, max]) => {
+  if (editor && max && !voiceStatus.checked) {
+    loadVoiceStatus()
+  }
+})
+
+watch(activeStep, (step) => {
+  if (step === 2 && isEditorRoute.value && isMaxForm.value) {
+    loadVoiceStatus()
+  }
+})
+
 onMounted(() => {
   loadData()
 })
@@ -848,7 +953,7 @@ onMounted(() => {
 
     <template v-else>
       <PageHeader
-        v-if="!htmlEditorOpen"
+        v-if="!htmlEditorOpen && !voiceCloneOpen"
         :eyebrow="t('sections.templates')"
         :title="pageTitle"
         :description="pageDescription"
@@ -885,6 +990,17 @@ onMounted(() => {
           :show-image-action="htmlWorkspaceIsHtml"
           @save="saveWorkspaceSource"
           @cancel="closeHtmlEditor"
+        />
+      </section>
+
+      <section v-else-if="voiceCloneOpen" class="resource-html-workspace">
+        <VoiceCloneWorkspace
+          :status="voiceStatus"
+          :status-loading="isVoiceStatusLoading"
+          :initial-label="form.label"
+          @cancel="closeVoiceClone"
+          @refresh-status="loadVoiceStatus"
+          @saved="handleVoiceCloneSaved"
         />
       </section>
 
@@ -1006,7 +1122,20 @@ onMounted(() => {
             @preview="openPreview"
             @edit-content="openContentEditor"
             @selection-change="trackTemplateAttachmentsSelection"
-          />
+          >
+            <template v-if="isMaxForm" #actions>
+              <span class="voice-clone-button-wrap" :title="canOpenVoiceClone ? '' : voiceUnavailableMessage">
+                <UiButton
+                  variant="secondary"
+                  :disabled="!canOpenVoiceClone"
+                  @click="openVoiceClone"
+                >
+                  <Volume2 :size="16" stroke-width="1.8" aria-hidden="true" />
+                  {{ t('pages.emailTemplates.voiceClone.button') }}
+                </UiButton>
+              </span>
+            </template>
+          </AttachmentPickerPanel>
         </section>
 
         <section v-else class="resource-editor-panel">

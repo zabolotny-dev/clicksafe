@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mime"
 	"path/filepath"
 	"strings"
 	"time"
@@ -431,14 +430,10 @@ func (b *Business) renderAttachments(ctx context.Context, ids []uuid.UUID, targe
 
 		ext := attachment.Type.String()
 		filename := attachment.Label.String() + ext
-		mimeType := mime.TypeByExtension(ext)
-		if mimeType == "" {
-			mimeType = "application/octet-stream"
-		}
 
 		attachments = append(attachments, maxadapter.MessageAttachment{
 			Filename:  filepath.Base(filename),
-			MimeType:  mimeType,
+			MimeType:  attachment.Type.MIMEType(),
 			Extension: strings.TrimPrefix(ext, "."),
 			Size:      int64(len(rendered)),
 			Kind:      attachmentKind(attachment.Type),
@@ -450,8 +445,11 @@ func (b *Business) renderAttachments(ctx context.Context, ids []uuid.UUID, targe
 }
 
 func attachmentKind(attachmentType attachmentbus.AttachmentType) maxadapter.AttachmentKind {
-	if attachmentType.IsMedia() {
+	if attachmentType.IsImage() {
 		return maxadapter.AttachmentKindPhoto
+	}
+	if attachmentType.IsAudio() {
+		return maxadapter.AttachmentKindAudio
 	}
 	return maxadapter.AttachmentKindFile
 }

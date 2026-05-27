@@ -6,6 +6,7 @@ import PreviewDrawer from './PreviewDrawer.vue'
 import SkeletonBlock from './SkeletonBlock.vue'
 import { getAttachmentContent, getAttachmentUrl } from '../../resources/attachments'
 import {
+  isAudioAttachmentType,
   isHtmlAttachmentType,
   isImageAttachmentType,
   isTextAttachmentType,
@@ -38,6 +39,7 @@ const attachmentType = computed(() => normalizeAttachmentType(props.attachment?.
 const title = computed(() => props.attachment?.label || t('common.preview.attachment'))
 const subtitle = computed(() => props.attachment?.type || '')
 const downloadUrl = computed(() => (attachmentId.value ? getAttachmentUrl(attachmentId.value) : ''))
+const isAudio = computed(() => isAudioAttachmentType(attachmentType.value))
 const isImage = computed(() => isImageAttachmentType(attachmentType.value))
 const isHtml = computed(() => isHtmlAttachmentType(attachmentType.value))
 const isText = computed(() => isTextAttachmentType(attachmentType.value))
@@ -45,6 +47,10 @@ const canLoadText = computed(() => isTextPreviewAttachmentType(attachmentType.va
 const previewLabel = computed(() => {
   if (isImage.value) {
     return t('common.preview.image')
+  }
+
+  if (isAudio.value) {
+    return t('common.preview.audio')
   }
 
   if (isText.value) {
@@ -75,7 +81,7 @@ async function loadContent() {
     return
   }
 
-  if (isImage.value) {
+  if (isImage.value || isAudio.value) {
     status.value = 'loaded'
     return
   }
@@ -151,6 +157,13 @@ onBeforeUnmount(() => {
         class="attachment-preview-image"
         :src="downloadUrl"
         :alt="t('common.preview.image')"
+      />
+
+      <audio
+        v-else-if="status === 'loaded' && isAudio"
+        class="attachment-preview-audio"
+        :src="downloadUrl"
+        controls
       />
 
       <template v-else-if="status === 'loaded' && isHtml">

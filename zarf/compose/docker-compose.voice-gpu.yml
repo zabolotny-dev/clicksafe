@@ -1,0 +1,18 @@
+services:
+  voice-adapter:
+    build:
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu128
+        TORCH_PACKAGES: torch==2.8.0+cu128 torchaudio==2.8.0+cu128
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    environment:
+      - VOICE_ADAPTER_DEVICE=cuda:0
+      - VOICE_ADAPTER_DTYPE=float16
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}

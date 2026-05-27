@@ -11,6 +11,7 @@ import {
   Image,
   Trash2,
   UploadCloud,
+  Volume2,
 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import AttachmentPreviewDrawer from '../components/ui/AttachmentPreviewDrawer.vue'
@@ -39,6 +40,7 @@ import {
   formatTechnicalId,
 } from '../utils/resourceFormat'
 import {
+  isAudioAttachmentType,
   isHtmlAttachmentType,
   isImageAttachmentType,
   isTextPreviewAttachmentType,
@@ -148,7 +150,7 @@ function canEditContent(attachment) {
 }
 
 function isMediaPreviewable(attachment) {
-  return isImageAttachmentType(attachment?.type)
+  return isImageAttachmentType(attachment?.type) || isAudioAttachmentType(attachment?.type)
 }
 
 function isHtmlLike(attachment) {
@@ -157,7 +159,7 @@ function isHtmlLike(attachment) {
 
 function attachmentIcon(attachment) {
   if (isMediaPreviewable(attachment)) {
-    return Image
+    return isAudioAttachmentType(attachment?.type) ? Volume2 : Image
   }
 
   return isHtmlLike(attachment) ? Code : FileText
@@ -542,7 +544,7 @@ onMounted(() => {
         <UploadCloud :size="28" stroke-width="1.6" aria-hidden="true" />
         <h3>{{ selectedFile ? selectedFile.name : t('common.resource.dropOneFile') }}</h3>
         <p>{{ t('common.resource.singleFileUpload') }}</p>
-        <input ref="fileInput" class="ui-file-input" type="file" @change="handleFileChange" />
+        <input ref="fileInput" class="ui-file-input" type="file" :accept="ATTACHMENT_TYPE_OPTIONS.join(',')" @change="handleFileChange" />
       </section>
 
       <div class="resource-form-grid resource-form-grid--single">

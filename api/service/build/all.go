@@ -13,6 +13,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/app/domain/organizationapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/targetapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/visitapp"
+	"github.com/zabolotny-dev/clicksafe/app/domain/voiceapp"
 	"github.com/zabolotny-dev/clicksafe/app/domain/vtargetapp"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/errs"
 	"github.com/zabolotny-dev/clicksafe/app/sdk/mid"
@@ -26,6 +27,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/voiceadapter"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/authbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/renderbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/visitbus"
@@ -46,12 +48,15 @@ type Config struct {
 	VisitBus        *visitbus.Business
 	AttachmentBus   *attachmentbus.Business
 	RenderBus       *renderbus.Business
+	VoiceAdapter    *voiceadapter.Client
+	VoiceRuntime    voiceapp.RuntimeConfig
 	SessionBus      *sessionbus.Business
 	AuthBus         *authbus.Business
 	LoginRateLimit  LoginRateLimitConfig
 }
 
 type LoginRateLimitConfig = mid.LoginRateLimitConfig
+type VoiceRuntimeConfig = voiceapp.RuntimeConfig
 
 func Add(e *echo.Echo, cfg Config) {
 	e.HTTPErrorHandler = errs.NewEchoHandler(cfg.Log)
@@ -107,6 +112,12 @@ func Add(e *echo.Echo, cfg Config) {
 		AttachmentBus: cfg.AttachmentBus,
 		RenderBus:     cfg.RenderBus,
 		SessionBus:    cfg.SessionBus,
+	})
+
+	voiceapp.Routes(e, voiceapp.Config{
+		VoiceAdapterClient: cfg.VoiceAdapter,
+		SessionBus:         cfg.SessionBus,
+		Runtime:            cfg.VoiceRuntime,
 	})
 
 	authapp.Routes(e, authapp.Config{

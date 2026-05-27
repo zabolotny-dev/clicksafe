@@ -230,6 +230,7 @@ class PyMaxManager:
         chat_id = await self._resolve_chat_id(client, recipient_kind, recipient_value)
         pymax_attachments = [(kind, self._build_attachment(kind, path)) for kind, path in attachments]
         attachment_batches = self._split_attachment_batches(pymax_attachments) or [[]]
+        send_text_before_audio = bool(text.strip()) and self._has_audio_attachments(pymax_attachments)
 
         if len(attachment_batches) > 1:
             logger.info(
@@ -238,12 +239,26 @@ class PyMaxManager:
             )
 
         first_message: Message | None = None
+        if send_text_before_audio:
+            logger.info("Sending text before audio attachment because MAX voice payloads ignore captions")
+            client, first_message = await self._send_message_batch(
+                account_id=account_id,
+                client=client,
+                chat_id=chat_id,
+                text=text,
+                notify=notify,
+                attachments=None,
+                reply_to=reply_to,
+            )
+            if first_message is None:
+                raise ValueError("PyMax returned no message")
+
         for index, batch in enumerate(attachment_batches):
             client, message = await self._send_message_batch(
                 account_id=account_id,
                 client=client,
                 chat_id=chat_id,
-                text=text if index == 0 else "",
+                text="" if send_text_before_audio else text if index == 0 else "",
                 notify=notify,
                 attachments=batch or None,
                 reply_to=reply_to,
@@ -494,6 +509,10 @@ class PyMaxManager:
         attachments: list[tuple[str, PyMaxAttachment]],
     ) -> list[list[PyMaxAttachment]]:
         return [[attachment] for _, attachment in attachments]
+
+    @staticmethod
+    def _has_audio_attachments(attachments: list[tuple[str, PyMaxAttachment]]) -> bool:
+        return any(kind == "AUDIO" for kind, _ in attachments)
 
     @staticmethod
     def _safe_json(data: dict[str, Any]) -> dict[str, Any]:

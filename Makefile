@@ -1,7 +1,8 @@
-COMPOSE_FILE := zarf/compose/docker-compose.yml
-ENV_FILE     := .env
+COMPOSE_FILE           := zarf/compose/docker-compose.yml
+VOICE_GPU_COMPOSE_FILE := zarf/compose/docker-compose.voice-gpu.yml
+ENV_FILE               := .env
 
-.PHONY: up up-d down down-v logs ps build rebuild migrate seed seed-minimal migrate-seed load-fixture cli
+.PHONY: up up-d down down-v logs ps build rebuild max-build max-rebuild max-up max-up-d max-logs max-ps voice-build voice-rebuild voice-up voice-up-d voice-logs voice-ps voice-gpu-build voice-gpu-rebuild voice-gpu-up voice-gpu-up-d voice-gpu-logs voice-gpu-ps migrate seed seed-minimal migrate-seed load-fixture cli
 
 ## Запуск всего стека
 up:
@@ -34,6 +35,78 @@ build:
 ## Пересборка без кэша
 rebuild:
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) build --no-cache
+
+## Сборка max-adapter
+max-build:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) build max-adapter
+
+## Пересборка max-adapter без кэша
+max-rebuild:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) build --no-cache max-adapter
+
+## Запуск max-adapter
+max-up:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up max-adapter
+
+## Запуск max-adapter в фоне
+max-up-d:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d max-adapter
+
+## Логи max-adapter
+max-logs:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f max-adapter
+
+## Статус max-adapter
+max-ps:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps max-adapter
+
+## Сборка voice-adapter для CPU
+voice-build:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice build voice-adapter
+
+## Пересборка voice-adapter для CPU без кэша
+voice-rebuild:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice build --no-cache voice-adapter
+
+## Запуск voice-adapter на CPU
+voice-up:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice up voice-adapter
+
+## Запуск voice-adapter на CPU в фоне
+voice-up-d:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice up -d voice-adapter
+
+## Логи voice-adapter
+voice-logs:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice logs -f voice-adapter
+
+## Статус voice-adapter
+voice-ps:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice ps voice-adapter
+
+## Сборка voice-adapter для NVIDIA GPU/CUDA
+voice-gpu-build:
+	docker compose -f $(COMPOSE_FILE) -f $(VOICE_GPU_COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice build voice-adapter
+
+## Пересборка voice-adapter для NVIDIA GPU/CUDA без кэша
+voice-gpu-rebuild:
+	docker compose -f $(COMPOSE_FILE) -f $(VOICE_GPU_COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice build --no-cache voice-adapter
+
+## Запуск voice-adapter на NVIDIA GPU/CUDA
+voice-gpu-up:
+	docker compose -f $(COMPOSE_FILE) -f $(VOICE_GPU_COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice up voice-adapter
+
+## Запуск voice-adapter на NVIDIA GPU/CUDA в фоне
+voice-gpu-up-d:
+	docker compose -f $(COMPOSE_FILE) -f $(VOICE_GPU_COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice up -d voice-adapter
+
+## Логи voice-adapter на NVIDIA GPU/CUDA
+voice-gpu-logs:
+	docker compose -f $(COMPOSE_FILE) -f $(VOICE_GPU_COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice logs -f voice-adapter
+
+## Статус voice-adapter на NVIDIA GPU/CUDA
+voice-gpu-ps:
+	docker compose -f $(COMPOSE_FILE) -f $(VOICE_GPU_COMPOSE_FILE) --env-file $(ENV_FILE) --profile voice ps voice-adapter
 
 ## Только миграции
 migrate:

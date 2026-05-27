@@ -319,6 +319,10 @@
   border-radius: var(--radius-md);
 }
 
+.attachment-preview-audio {
+  width: 100%;
+}
+
 .attachment-preview-note {
   margin: 0;
   color: var(--color-ink-muted);

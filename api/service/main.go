@@ -43,6 +43,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/filestore"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/maxadapter"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/voiceadapter"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/authbus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/deliverybus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/maxdeliverybus"
@@ -107,6 +108,16 @@ func run(ctx context.Context, log *logger.Logger) error {
 		MaxAdapter struct {
 			Addr  string `conf:"default:localhost:9090"`
 			Token string `conf:"noprint"`
+		}
+		VoiceAdapter struct {
+			Addr  string `conf:"default:localhost:9091"`
+			Token string `conf:"noprint"`
+		}
+		Voice struct {
+			CloneTimeout    time.Duration `conf:"default:10m,env:VOICE_CLONE_TIMEOUT"`
+			ASRTimeout      time.Duration `conf:"default:5m,env:VOICE_ASR_TIMEOUT"`
+			HealthTTL       time.Duration `conf:"default:1200ms,env:VOICE_HEALTH_TTL"`
+			OutputChunkSize int32         `conf:"default:65536,env:VOICE_OUTPUT_CHUNK_SIZE"`
 		}
 		Auth struct {
 			ArgonMemory            uint32        `conf:"default:65536"`
@@ -179,6 +190,22 @@ func run(ctx context.Context, log *logger.Logger) error {
 		return fmt.Errorf("creating max adapter client: %w", err)
 	}
 	defer maxAdapterClient.Close()
+
+	// -------------------------------------------------------------------------
+	// Voice Adapter Support
+
+	var voiceAdapterClient *voiceadapter.Client
+	if cfg.VoiceAdapter.Addr != "" {
+		voiceAdapterClient, err = voiceadapter.New(voiceadapter.Config{
+			Addr:  cfg.VoiceAdapter.Addr,
+			Token: cfg.VoiceAdapter.Token,
+		})
+		if err != nil {
+			log.Error(ctx, "voice adapter disabled", "err", err)
+		} else {
+			defer voiceAdapterClient.Close()
+		}
+	}
 
 	// -------------------------------------------------------------------------
 	// Crypto and Token Support
@@ -288,8 +315,15 @@ func run(ctx context.Context, log *logger.Logger) error {
 		VisitBus:        visitBus,
 		AttachmentBus:   attachmentBus,
 		RenderBus:       renderBus,
-		AuthBus:         authBus,
-		SessionBus:      sessionBus,
+		VoiceAdapter:    voiceAdapterClient,
+		VoiceRuntime: build.VoiceRuntimeConfig{
+			CloneTimeout:    cfg.Voice.CloneTimeout,
+			ASRTimeout:      cfg.Voice.ASRTimeout,
+			HealthTTL:       cfg.Voice.HealthTTL,
+			OutputChunkSize: cfg.Voice.OutputChunkSize,
+		},
+		AuthBus:    authBus,
+		SessionBus: sessionBus,
 		LoginRateLimit: build.LoginRateLimitConfig{
 			RequestsPerMinute: cfg.Auth.LoginRequestsPerMinute,
 			Burst:             cfg.Auth.LoginBurst,
