@@ -116,7 +116,7 @@ func (a *app) deleteByID(c *echo.Context) error {
 		return mapBusErr(err, "deletebyid")
 	}
 
-	return c.NoContent(http.StatusOK)
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (a *app) importCSV(c *echo.Context) error {
@@ -182,5 +182,5 @@ func (a *app) importCSV(c *echo.Context) error {
 		return mapBusErr(err, "importcsv")
 	}
 
-	return c.NoContent(http.StatusOK)
+	return c.NoContent(http.StatusNoContent)
 }

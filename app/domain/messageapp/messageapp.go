@@ -113,5 +113,5 @@ func (a *app) deleteByID(c *echo.Context) error {
 		return mapBusErr(err, "deletebyid")
 	}
 
-	return c.NoContent(http.StatusOK)
+	return c.NoContent(http.StatusNoContent)
 }

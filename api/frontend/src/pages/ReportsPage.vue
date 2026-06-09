@@ -792,7 +792,20 @@ function pdfFileDate(value) {
   return date.toISOString().slice(0, 10)
 }
 
-function addCanvasToPdf(pdf, canvas) {
+function getProtectedRegions(rootElement, scale) {
+  const rootRect = rootElement.getBoundingClientRect()
+  const elements = rootElement.querySelectorAll('.reports-pdf-chart-card, .reports-pdf-table-section')
+
+  return Array.from(elements).map((el) => {
+    const rect = el.getBoundingClientRect()
+    return {
+      top: (rect.top - rootRect.top) * scale,
+      bottom: (rect.bottom - rootRect.top) * scale,
+    }
+  })
+}
+
+function addCanvasToPdf(pdf, canvas, protectedRegions = []) {
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
   const pixelsPerMillimeter = canvas.width / pageWidth
@@ -801,7 +814,23 @@ function addCanvasToPdf(pdf, canvas) {
   let pageIndex = 0
 
   while (offsetY < canvas.height) {
-    const sliceHeight = Math.min(pageHeightPixels, canvas.height - offsetY)
+    const idealBreak = offsetY + pageHeightPixels
+    let pageEndY = idealBreak
+
+    if (idealBreak < canvas.height) {
+      for (const region of protectedRegions) {
+        // Region starts within this page but ends on the next — would be split
+        if (region.top > offsetY && region.top < idealBreak && region.bottom > idealBreak) {
+          const candidate = Math.floor(region.top)
+          if (candidate > offsetY) {
+            pageEndY = candidate
+          }
+          break
+        }
+      }
+    }
+
+    const sliceHeight = Math.min(pageEndY - offsetY, canvas.height - offsetY)
     const pageCanvas = document.createElement('canvas')
     pageCanvas.width = canvas.width
     pageCanvas.height = pageHeightPixels
@@ -854,10 +883,13 @@ async function exportReportPdf() {
       throw new Error(t('pages.reports.exportFailed'))
     }
 
+    const scale = 2
+    const protectedRegions = getProtectedRegions(pdfRoot, scale)
+
     const html2canvas = (await import('html2canvas')).default
     const { jsPDF } = await import('jspdf')
     const canvas = await html2canvas(pdfRoot, {
-      scale: 2,
+      scale,
       backgroundColor: '#ffffff',
       useCORS: true,
     })
@@ -866,7 +898,7 @@ async function exportReportPdf() {
     }
 
     const pdf = new jsPDF('p', 'mm', 'a4')
-    addCanvasToPdf(pdf, canvas)
+    addCanvasToPdf(pdf, canvas, protectedRegions)
     pdf.save(`clicksafe-report-${pdfFileDate(generatedAt.value)}.pdf`)
   } catch (error) {
     notifyError(t('pages.reports.exportFailed'), error?.message || t('errors.requestFailed'))

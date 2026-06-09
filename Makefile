@@ -2,7 +2,22 @@ COMPOSE_FILE           := zarf/compose/docker-compose.yml
 VOICE_GPU_COMPOSE_FILE := zarf/compose/docker-compose.voice-gpu.yml
 ENV_FILE               := .env
 
-.PHONY: up up-d down down-v logs ps build rebuild max-build max-rebuild max-up max-up-d max-logs max-ps voice-build voice-rebuild voice-up voice-up-d voice-logs voice-ps voice-gpu-build voice-gpu-rebuild voice-gpu-up voice-gpu-up-d voice-gpu-logs voice-gpu-ps migrate seed seed-minimal migrate-seed load-fixture cli
+.PHONY: up up-d down down-v logs ps build rebuild max-build max-rebuild max-up max-up-d max-logs max-ps voice-build voice-rebuild voice-up voice-up-d voice-logs voice-ps voice-gpu-build voice-gpu-rebuild voice-gpu-up voice-gpu-up-d voice-gpu-logs voice-gpu-ps migrate seed seed-minimal migrate-seed load-fixture cli test test-unit test-frontend test-integration
+
+## Все тесты: unit (Go + frontend)
+test: test-unit test-frontend
+
+## Unit-тесты Go (без Docker)
+test-unit:
+	go test ./business/... -count=1
+
+## Тесты фронтенда (Vitest)
+test-frontend:
+	cd api/frontend && npm test
+
+## Интеграционные тесты (нужен Docker, запускаются последовательно)
+test-integration:
+	go test ./api/service/tests/... -count=1 -p 1 -timeout 300s
 
 ## Запуск всего стека
 up:

@@ -5,6 +5,7 @@ go 1.25.9
 require (
 	github.com/JJJJJJack/go-template-docx v1.4.7
 	github.com/ardanlabs/conf/v3 v3.11.0
+	github.com/google/go-cmp v0.7.0
 	github.com/wneessen/go-mail v0.7.2
 	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/crypto v0.51.0
