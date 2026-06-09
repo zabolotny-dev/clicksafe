@@ -2,7 +2,8 @@ COMPOSE_FILE           := zarf/compose/docker-compose.yml
 VOICE_GPU_COMPOSE_FILE := zarf/compose/docker-compose.voice-gpu.yml
 ENV_FILE               := .env
 
-.PHONY: up up-d down down-v logs ps build rebuild max-build max-rebuild max-up max-up-d max-logs max-ps voice-build voice-rebuild voice-up voice-up-d voice-logs voice-ps voice-gpu-build voice-gpu-rebuild voice-gpu-up voice-gpu-up-d voice-gpu-logs voice-gpu-ps migrate seed seed-minimal migrate-seed load-fixture cli test test-unit test-frontend test-integration
+.PHONY: up up-d down down-v logs ps build rebuild max-build max-rebuild max-up max-up-d max-logs max-ps voice-build voice-rebuild voice-up voice-up-d voice-logs voice-ps voice-gpu-build voice-gpu-rebuild voice-gpu-up voice-gpu-up-d voice-gpu-logs voice-gpu-ps migrate seed seed-minimal migrate-seed load-fixture cli test test-unit test-frontend test-integration load-test
+
 
 ## Все тесты: unit (Go + frontend)
 test: test-unit test-frontend
@@ -15,9 +16,13 @@ test-unit:
 test-frontend:
 	cd api/frontend && npm test
 
-## Интеграционные тесты (нужен Docker, запускаются последовательно)
+## Интеграционные тесты (нужен Docker, запускаются последовательно; нагрузочный тест исключён)
 test-integration:
-	go test ./api/service/tests/... -count=1 -p 1 -timeout 300s
+	go test $(shell go list ./api/service/tests/... | grep -v loadtest) -count=1 -p 1 -timeout 300s
+
+## Нагрузочный тест: поднимает изолированный Postgres, сидает и тестирует (нужен Docker)
+load-test:
+	go test ./api/service/tests/loadtest/... -v -run TestLoadScenarios -count=1 -timeout 5m
 
 ## Запуск всего стека
 up:

@@ -19,6 +19,7 @@ import (
 type Database struct {
 	DB        *pgxpool.Pool
 	BusDomain BusDomain
+	TmpDir    string
 }
 
 // New creates a new test database inside a fresh Docker container, migrates it,
@@ -96,6 +97,7 @@ func New(t *testing.T, testName string) *Database {
 	return &Database{
 		DB:        pool,
 		BusDomain: newBusDomains(pool, tmpDir),
+		TmpDir:    tmpDir,
 	}
 }
 

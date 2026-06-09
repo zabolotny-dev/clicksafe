@@ -22,7 +22,7 @@ api.bebra.com {
 		reverse_proxy api:8080
 	}
 
-	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
+	@visit path_regexp visit "^/[A-Za-z0-9_-]{22}(?:\.gif)?$"
 	handle @visit {
 		reverse_proxy api:8080
 	}
@@ -39,7 +39,7 @@ api.bebra.com {
 		reverse_proxy api:8080
 	}
 
-	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
+	@visit path_regexp visit "^/[A-Za-z0-9_-]{22}(?:\.gif)?$"
 	handle @visit {
 		reverse_proxy api:8080
 	}
@@ -58,7 +58,7 @@ api.bebra.com {
 		reverse_proxy api:8080
 	}
 
-	@visit path_regexp visit "^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\.gif)?$"
+	@visit path_regexp visit "^/[A-Za-z0-9_-]{22}(?:\.gif)?$"
 	handle @visit {
 		reverse_proxy api:8080
 	}

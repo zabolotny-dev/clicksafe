@@ -2,6 +2,8 @@ package campaignbus
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -47,9 +49,14 @@ func (b *TargetBusiness) Save(ctx context.Context, tn NewTarget) (Target, error)
 		return Target{}, fmt.Errorf("save: %w: cannot add targets in %s status", ErrCampaignLocked, cmp.Status)
 	}
 
+	token, err := generateToken()
+	if err != nil {
+		return Target{}, fmt.Errorf("save: %w", err)
+	}
+
 	t := Target{
 		ID:          uuid.New(),
-		Token:       generateToken(),
+		Token:       token,
 		EmployeeID:  tn.EmployeeID,
 		CampaignID:  tn.CampaignID,
 		Status:      Pending,
@@ -233,8 +240,12 @@ func (b *TargetBusiness) PhishingURL(ctx context.Context, id uuid.UUID) (string,
 	return cmp.Domain.String() + "/" + t.Token, nil
 }
 
-func generateToken() string {
-	return uuid.New().String()
+func generateToken() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generatetoken: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func isValidTargetTransition(current, next TargetStatus) bool {

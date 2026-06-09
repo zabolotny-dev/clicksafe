@@ -543,9 +543,8 @@ async function loadAttachments() {
 }
 
 async function loadRestrictedAttachments(seq) {
-  const fetched = []
-
-  for (const type of typeOptions.value) {
+  async function fetchAllForType(type) {
+    const items = []
     let currentPage = 1
     let fetchedForType = 0
     let totalForType = 0
@@ -557,13 +556,18 @@ async function loadRestrictedAttachments(seq) {
         page: currentPage,
         rows: 100,
       })
-      const items = Array.isArray(response?.items) ? response.items : []
-      totalForType = Number.isFinite(response?.total) ? response.total : fetchedForType + items.length
-      fetchedForType += items.length
-      fetched.push(...items)
+      const pageItems = Array.isArray(response?.items) ? response.items : []
+      totalForType = Number.isFinite(response?.total) ? response.total : fetchedForType + pageItems.length
+      fetchedForType += pageItems.length
+      items.push(...pageItems)
       currentPage += 1
     } while (fetchedForType < totalForType && currentPage < 100)
+
+    return items
   }
+
+  const results = await Promise.all(typeOptions.value.map(fetchAllForType))
+  const fetched = results.flat()
 
   if (seq !== requestSeq) {
     return
