@@ -521,12 +521,9 @@ const funnelOption = computed(() => ({
       maxSize: '100%',
       sort: 'descending',
       gap: 2,
-      label: {
-        show: true,
-        position: 'inside',
-        color: chartTheme.value.tokens.surface,
-        fontWeight: 700,
-      },
+      label: { show: false },
+      labelLine: { show: false },
+      emphasis: { label: { show: false }, labelLine: { show: false } },
       itemStyle: {
         borderColor: chartTheme.value.tokens.surface,
         borderWidth: 1,
@@ -538,6 +535,50 @@ const funnelOption = computed(() => ({
       })),
     },
   ],
+}))
+
+const eventDistributionOptionPdf = computed(() => ({
+  ...eventDistributionOption.value,
+  series: eventDistributionOption.value.series.map((s) => ({
+    ...s,
+    label: {
+      show: true,
+      formatter: ({ name, value, percent }) => `${name}\n${value} (${percent}%)`,
+      fontSize: 11,
+      lineHeight: 16,
+    },
+    labelLine: { show: true },
+  })),
+}))
+
+const campaignComparisonOptionPdf = computed(() => ({
+  ...campaignComparisonOption.value,
+  series: campaignComparisonOption.value.series.map((s) => ({
+    ...s,
+    label: {
+      show: true,
+      position: 'inside',
+      formatter: (params) => params.value > 0 ? String(params.value) : '',
+      fontSize: 11,
+      color: '#fff',
+      fontWeight: 600,
+    },
+  })),
+}))
+
+const funnelOptionPdf = computed(() => ({
+  ...funnelOption.value,
+  series: funnelOption.value.series.map((s) => ({
+    ...s,
+    label: {
+      show: true,
+      position: 'inside',
+      formatter: ({ value }) => String(value),
+      color: '#fff',
+      fontWeight: 700,
+      fontSize: 13,
+    },
+  })),
 }))
 
 const trendOption = computed(() => ({
@@ -652,7 +693,7 @@ const pdfCharts = computed(() => [
     key: 'event-distribution',
     title: t('pages.reports.charts.eventDistributionTitle'),
     description: t('pages.reports.charts.eventDistributionDescription'),
-    option: eventDistributionOption.value,
+    option: eventDistributionOptionPdf.value,
     empty: !report.value.hasSupportedEvents,
     emptyText: t('charts.eventDistribution.empty'),
     height: '300px',
@@ -661,7 +702,7 @@ const pdfCharts = computed(() => [
     key: 'campaign-comparison',
     title: t('pages.reports.charts.campaignComparisonTitle'),
     description: t('pages.reports.charts.campaignComparisonDescription'),
-    option: campaignComparisonOption.value,
+    option: campaignComparisonOptionPdf.value,
     empty: !report.value.campaignRows.length || !report.value.hasSupportedEvents,
     emptyText: t('common.empty.noMatchingRecords'),
     height: '360px',
@@ -670,7 +711,7 @@ const pdfCharts = computed(() => [
     key: 'funnel',
     title: t('pages.reports.charts.funnelTitle'),
     description: t('pages.reports.charts.funnelDescription'),
-    option: funnelOption.value,
+    option: funnelOptionPdf.value,
     empty: !report.value.funnelStages.some((stage) => stage.count > 0),
     emptyText: t('charts.funnel.empty'),
     height: '320px',
@@ -691,15 +732,6 @@ const pdfCharts = computed(() => [
     option: departmentRiskOption.value,
     empty: !hasDepartmentJoin.value || !report.value.departmentRows.length,
     emptyText: t('charts.departments.empty'),
-    height: '330px',
-  },
-  {
-    key: 'employee-risk',
-    title: t('pages.reports.charts.employeeRiskTitle'),
-    description: t('pages.reports.charts.employeeRiskDescription'),
-    option: employeeScatterOption.value,
-    empty: !hasEmployeeJoin.value || !report.value.employeeRows.length,
-    emptyText: t('common.empty.noMatchingRecords'),
     height: '330px',
   },
 ])

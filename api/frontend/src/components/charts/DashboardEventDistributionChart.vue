@@ -78,13 +78,7 @@ const option = computed(() => ({
       emphasis: {
         scale: true,
         scaleSize: 4,
-        label: {
-          show: true,
-          color: tokens.value.ink,
-          fontSize: 13,
-          fontWeight: 700,
-          formatter: ({ value }) => value,
-        },
+        label: { show: false },
       },
       data: chartData.value,
       animationDuration: 360,
