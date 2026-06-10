@@ -147,10 +147,10 @@ func (b *Business) Stop(ctx context.Context, account Account) (Account, error) {
 }
 
 func (b *Business) Delete(ctx context.Context, account Account) error {
-	if err := b.adapter.DeleteAccount(ctx, account.AdapterID); err != nil {
+	if err := b.storer.Delete(ctx, account); err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
-	if err := b.storer.Delete(ctx, account); err != nil {
+	if err := b.adapter.DeleteAccount(ctx, account.AdapterID); err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
 	return nil
