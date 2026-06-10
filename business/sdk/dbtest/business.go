@@ -145,7 +145,7 @@ func newBusDomains(pool *pgxpool.Pool, tmpDir string) BusDomain {
 	landingStore := landingdbstore.NewStore(pool)
 	landingBus := landingbus.NewBusiness(landingStore, attachmentBus)
 
-	resolverBus := resolverbus.NewBusiness(targetBus, employeeBus, departmentBus, organizationBus)
+	resolverBus := resolverbus.NewBusiness(targetBus, employeeBus, departmentBus, organizationBus, attachmentBus)
 
 	renderBus := renderbus.NewBusiness(fs, resolverBus)
 

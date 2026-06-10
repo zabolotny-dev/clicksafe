@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import UiAlert from './UiAlert.vue'
 import UiButton from './UiButton.vue'
 import UiInput from './UiInput.vue'
+import WaveformPlayer from './WaveformPlayer.vue'
 import { useNotifications } from '../../composables/useNotifications'
 import { useResourceActions } from '../../composables/useResourceActions'
 import { uploadAttachment } from '../../resources/attachments'
@@ -366,7 +367,7 @@ onBeforeUnmount(() => {
             />
           </div>
 
-          <audio v-if="referenceUrl" class="voice-clone-audio" :src="referenceUrl" controls />
+          <WaveformPlayer v-if="referenceUrl" :src="referenceUrl" :blob="referenceFile" />
         </section>
 
         <section class="voice-clone-panel voice-clone-panel--details">
@@ -471,7 +472,7 @@ onBeforeUnmount(() => {
           </header>
 
           <div v-if="resultUrl" class="voice-clone-output-preview">
-            <audio class="voice-clone-audio" :src="resultUrl" controls />
+            <WaveformPlayer :src="resultUrl" :blob="result?.blob" />
             <dl>
               <div><dt>{{ t('pages.emailTemplates.voiceClone.duration') }}</dt><dd>{{ resultDurationText }}</dd></div>
               <div><dt>{{ t('common.labels.size') }}</dt><dd>{{ resultSizeText }}</dd></div>

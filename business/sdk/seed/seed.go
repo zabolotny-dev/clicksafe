@@ -25,7 +25,7 @@ type Config struct {
 	AttachmentRootDir string
 }
 
-//go:embed data/*.sql data/*.html data/*.txt
+//go:embed data/*.sql data/*.html data/*.txt data/*.png
 var seedFS embed.FS
 
 func Run(ctx context.Context, db *pgxpool.Pool, cfg Config) error {
@@ -126,4 +126,7 @@ var assets = map[string]string{
 	"email_hr_vacation.html":        "e5270921-2a1f-4bb0-8a19-482470eb0024.html",
 	"landing_hr_vacation.html":      "e5270921-2a1f-4bb0-8a19-482470eb0025.html",
 	"education_hr_vacation.html":    "e5270921-2a1f-4bb0-8a19-482470eb0026.html",
+	"landing_password.html":         "e5270921-2a1f-4bb0-8a19-482470eb0030.html",
+	"education_password.html":       "e5270921-2a1f-4bb0-8a19-482470eb0031.html",
+	"logo_metro.png":                "e5270921-2a1f-4bb0-8a19-482470eb0034.png",
 }

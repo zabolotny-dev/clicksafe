@@ -1,5 +1,19 @@
 -- Seed ClickSafe testing database
 
+-- 0. Update organization with Metro branding
+INSERT INTO attachments (id, label, type, content_path, required_vars, uploaded_at, is_public)
+VALUES ('e5270921-2a1f-4bb0-8a19-482470eb0034', 'Логотип Московского метрополитена', '.png', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0034.png', ARRAY[]::text[], NOW(), TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    label = EXCLUDED.label,
+    type = EXCLUDED.type,
+    content_path = EXCLUDED.content_path,
+    is_public = EXCLUDED.is_public;
+
+UPDATE organizations
+SET label = 'ГУП «Московский метрополитен»',
+    attachment_id = 'e5270921-2a1f-4bb0-8a19-482470eb0034'
+WHERE id = '00000000-0000-0000-0000-000000000001';
+
 -- 1. Insert Department
 INSERT INTO departments (id, label, attributes)
 VALUES ('e5270921-2a1f-4bb0-8a19-482470eb0001', 'ИТ-департамент', '{}'::jsonb)
@@ -33,8 +47,10 @@ VALUES
 ('e5270921-2a1f-4bb0-8a19-482470eb0022', 'MAX: График отпусков (без ссылки) - шаблон', '.txt', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0022.txt', ARRAY['Employee.FirstName'], NOW(), FALSE),
 ('e5270921-2a1f-4bb0-8a19-482470eb0023', 'MAX: Обучение (График отпусков)', '.txt', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0023.txt', ARRAY['Employee.FirstName'], NOW(), FALSE),
 ('e5270921-2a1f-4bb0-8a19-482470eb0024', 'EMAIL: График отпусков - шаблон', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0024.html', ARRAY['Employee.FirstName', 'Employee.LastName', 'Target.Link'], NOW(), FALSE),
-('e5270921-2a1f-4bb0-8a19-482470eb0025', 'LANDING: HR Портал (Отпуска) - шаблон', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0025.html', ARRAY['Target.Link'], NOW(), FALSE),
-('e5270921-2a1f-4bb0-8a19-482470eb0026', 'EDUCATION: Обучение (HR Фишинг)', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0026.html', ARRAY['Employee.FirstName'], NOW(), FALSE)
+('e5270921-2a1f-4bb0-8a19-482470eb0025', 'LANDING: HR Портал (Отпуска) - шаблон', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0025.html', ARRAY['Target.Link', 'Organization.Logo'], NOW(), FALSE),
+('e5270921-2a1f-4bb0-8a19-482470eb0026', 'EDUCATION: Обучение (HR Фишинг)', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0026.html', ARRAY['Employee.FirstName'], NOW(), FALSE),
+('e5270921-2a1f-4bb0-8a19-482470eb0030', 'LANDING: Портал самообслуживания (Смена пароля)', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0030.html', ARRAY['Target.Link', 'Organization.Logo'], NOW(), FALSE),
+('e5270921-2a1f-4bb0-8a19-482470eb0031', 'EDUCATION: Обучение (Безопасность паролей)', '.html', '/attachment/e5270921-2a1f-4bb0-8a19-482470eb0031.html', ARRAY['Employee.FirstName'], NOW(), FALSE)
 ON CONFLICT (id) DO UPDATE SET
     label = EXCLUDED.label,
     type = EXCLUDED.type,
@@ -50,7 +66,9 @@ VALUES
 ('e5270921-2a1f-4bb0-8a19-482470eb0007', 'Security Warning Education', 'e5270921-2a1f-4bb0-8a19-482470eb0005'),
 ('e5270921-2a1f-4bb0-8a19-482470eb0017', 'Авторизация ИСиР (ДИТ)', 'e5270921-2a1f-4bb0-8a19-482470eb0016'),
 ('e5270921-2a1f-4bb0-8a19-482470eb0027', 'HR Портал (График отпусков)', 'e5270921-2a1f-4bb0-8a19-482470eb0025'),
-('e5270921-2a1f-4bb0-8a19-482470eb0028', 'Обучение (График отпусков)', 'e5270921-2a1f-4bb0-8a19-482470eb0026')
+('e5270921-2a1f-4bb0-8a19-482470eb0028', 'Обучение (График отпусков)', 'e5270921-2a1f-4bb0-8a19-482470eb0026'),
+('e5270921-2a1f-4bb0-8a19-482470eb0032', 'Портал самообслуживания (Смена пароля)', 'e5270921-2a1f-4bb0-8a19-482470eb0030'),
+('e5270921-2a1f-4bb0-8a19-482470eb0033', 'Обучение (Безопасность паролей)', 'e5270921-2a1f-4bb0-8a19-482470eb0031')
 ON CONFLICT (id) DO UPDATE SET
     label = EXCLUDED.label,
     html_body_id = EXCLUDED.html_body_id;

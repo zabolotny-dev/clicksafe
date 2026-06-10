@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Download } from 'lucide-vue-next'
 import PreviewDrawer from './PreviewDrawer.vue'
 import SkeletonBlock from './SkeletonBlock.vue'
+import WaveformPlayer from './WaveformPlayer.vue'
 import { getAttachmentContent, getAttachmentUrl } from '../../resources/attachments'
 import {
   isAudioAttachmentType,
@@ -159,11 +160,9 @@ onBeforeUnmount(() => {
         :alt="t('common.preview.image')"
       />
 
-      <audio
+      <WaveformPlayer
         v-else-if="status === 'loaded' && isAudio"
-        class="attachment-preview-audio"
         :src="downloadUrl"
-        controls
       />
 
       <template v-else-if="status === 'loaded' && isHtml">

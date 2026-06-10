@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -41,19 +42,25 @@ type organizationGetter interface {
 	Get(ctx context.Context) (organizationbus.Organization, error)
 }
 
+type attachmentQuerier interface {
+	QueryByID(ctx context.Context, id uuid.UUID) (attachmentbus.Attachment, error)
+}
+
 type Business struct {
 	targetQuerier   targetQuerier
 	employeeBus     employeeQuerier
 	departmentBus   departmentQuerier
 	organizationBus organizationGetter
+	attachmentBus   attachmentQuerier
 }
 
-func NewBusiness(targetQuerier targetQuerier, employeeBus employeeQuerier, departmentBus departmentQuerier, organizationBus organizationGetter) *Business {
+func NewBusiness(targetQuerier targetQuerier, employeeBus employeeQuerier, departmentBus departmentQuerier, organizationBus organizationGetter, attachmentBus attachmentQuerier) *Business {
 	return &Business{
 		targetQuerier:   targetQuerier,
 		employeeBus:     employeeBus,
 		departmentBus:   departmentBus,
 		organizationBus: organizationBus,
+		attachmentBus:   attachmentBus,
 	}
 }
 
@@ -80,6 +87,7 @@ func (b *Business) Resolve(ctx context.Context, targerID uuid.UUID, paths []stri
 		employeeBus:     b.employeeBus,
 		departmentBus:   b.departmentBus,
 		organizationBus: b.organizationBus,
+		attachmentBus:   b.attachmentBus,
 		targetQuerier:   b.targetQuerier,
 	}
 	data = make(map[string]any)

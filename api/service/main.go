@@ -262,7 +262,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 	organizationStore := organizationdb.NewStore(db)
 	organizationBus := organizationbus.NewBusiness(organizationStore, attachmentBus)
 
-	resolverBus := resolverbus.NewBusiness(targetBus, employeeBus, departmentBus, organizationBus)
+	resolverBus := resolverbus.NewBusiness(targetBus, employeeBus, departmentBus, organizationBus, attachmentBus)
 
 	messageStore := messagedb.NewStore(db)
 	messageBus := messagebus.NewBusiness(messageStore, attachmentBus)

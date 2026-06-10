@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"reflect"
 
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
@@ -25,7 +26,8 @@ type resolveState struct {
 	depLoaded     bool
 
 	organizationBus organizationGetter
-	organization    organizationbus.Organization
+	attachmentBus   attachmentQuerier
+	organization    organizationData
 	orgLoaded       bool
 
 	targetQuerier targetQuerier
@@ -85,12 +87,12 @@ func (s *resolveState) rootValue(ctx context.Context, segments []string) (reflec
 		return reflect.ValueOf(department), false, nil
 
 	case rootOrganization:
-		organization, err := s.loadOrganization(ctx)
+		org, err := s.loadOrganization(ctx)
 		if err != nil {
 			return reflect.Value{}, false, err
 		}
 
-		return reflect.ValueOf(organization), false, nil
+		return reflect.ValueOf(org), false, nil
 
 	case rootTarget:
 		if segments[1] != "Link" {
@@ -173,23 +175,37 @@ func (s *resolveState) loadDepartment(ctx context.Context) (departmentbus.Depart
 	return s.department, false, nil
 }
 
-func (s *resolveState) loadOrganization(ctx context.Context) (organizationbus.Organization, error) {
+type organizationData struct {
+	organizationbus.Organization
+	Logo string
+}
+
+func (s *resolveState) loadOrganization(ctx context.Context) (organizationData, error) {
 	if s.orgLoaded {
 		return s.organization, nil
 	}
 
 	s.orgLoaded = true
 
-	organization, err := s.organizationBus.Get(ctx)
+	org, err := s.organizationBus.Get(ctx)
 	if err != nil {
 		if errors.Is(err, organizationbus.ErrNotFound) {
-			return organizationbus.Organization{}, fmt.Errorf("resolve organization: %w", ErrOrganizationNotFound)
+			return organizationData{}, fmt.Errorf("resolve organization: %w", ErrOrganizationNotFound)
 		}
 
-		return organizationbus.Organization{}, fmt.Errorf("resolve organization: %w", err)
+		return organizationData{}, fmt.Errorf("resolve organization: %w", err)
 	}
 
-	s.organization = organization
+	data := organizationData{Organization: org}
+	if org.AttachmentID.Valid {
+		attachment, err := s.attachmentBus.QueryByID(ctx, org.AttachmentID.UUID)
+		if err == nil {
+			p := attachment.ContentPath.String()
+			data.Logo = p[:len(p)-len(path.Ext(p))]
+		}
+	}
+
+	s.organization = data
 
 	return s.organization, nil
 }

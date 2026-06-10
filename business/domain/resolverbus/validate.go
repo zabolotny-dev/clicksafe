@@ -36,6 +36,7 @@ func (b *Business) Validate(ctx context.Context, campaign campaignbus.Campaign, 
 			employeeBus:     b.employeeBus,
 			departmentBus:   departmentBus,
 			organizationBus: organizationBus,
+			attachmentBus:   b.attachmentBus,
 			targetQuerier:   b.targetQuerier,
 		}
 

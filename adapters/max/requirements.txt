@@ -5,4 +5,4 @@ grpcio>=1.67.0
 grpcio-tools>=1.67.0
 protobuf>=5.28.0
 requests>=2.32.0
-maxapi-python @ git+https://github.com/pesos228/PyMax.git@69c76d4b3e7038f6f29e1b7310c5687ce13958d9
+maxapi-python @ git+https://github.com/pesos228/PyMax.git@c816084b0a29837d7f8d937c45880d6962232226

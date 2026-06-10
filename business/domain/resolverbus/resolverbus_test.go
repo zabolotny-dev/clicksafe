@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
@@ -30,7 +31,7 @@ func TestResolve(t *testing.T) {
 	organizationBus := &organizationGetterStub{organization: testOrganization()}
 	targetQBus := &targetQuerierStub{target: testTarget(targetID, employeeID)}
 
-	business := NewBusiness(targetQBus, employeeBus, departmentBus, organizationBus)
+	business := NewBusiness(targetQBus, employeeBus, departmentBus, organizationBus, &attachmentQuerierStub{})
 
 	data, missing, err := business.Resolve(context.Background(), targetID, []string{
 		"Employee.FirstName",
@@ -93,7 +94,7 @@ func TestResolveMissingPathsPreserveOrderAndDedupe(t *testing.T) {
 	employeeBus := &employeeQuerierStub{employee: testEmployee(employeeID, nil)}
 	targetQBus := &targetQuerierStub{target: testTarget(targetID, employeeID)}
 
-	business := NewBusiness(targetQBus, employeeBus, &departmentQuerierStub{}, &organizationGetterStub{})
+	business := NewBusiness(targetQBus, employeeBus, &departmentQuerierStub{}, &organizationGetterStub{}, &attachmentQuerierStub{})
 
 	data, missing, err := business.Resolve(context.Background(), targetID, []string{
 		"Employee.Name",
@@ -124,7 +125,7 @@ func TestResolveEmptyPathsDoesNotRequireTarget(t *testing.T) {
 	t.Parallel()
 
 	targetQBus := &targetQuerierStub{err: errors.New("should not be called")}
-	business := NewBusiness(targetQBus, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{})
+	business := NewBusiness(targetQBus, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{}, &attachmentQuerierStub{})
 
 	data, missing, err := business.Resolve(context.Background(), uuid.Nil, nil)
 	if err != nil {
@@ -147,7 +148,7 @@ func TestResolveEmptyPathsDoesNotRequireTarget(t *testing.T) {
 func TestResolveRequiresTargetID(t *testing.T) {
 	t.Parallel()
 
-	business := NewBusiness(&targetQuerierStub{}, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{})
+	business := NewBusiness(&targetQuerierStub{}, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{}, &attachmentQuerierStub{})
 
 	_, _, err := business.Resolve(context.Background(), uuid.Nil, []string{"Employee.FirstName"})
 	if !errors.Is(err, ErrTargetIDRequired) {
@@ -163,6 +164,7 @@ func TestResolveMapsTargetNotFound(t *testing.T) {
 		&employeeQuerierStub{},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	_, _, err := business.Resolve(context.Background(), uuid.New(), []string{"Employee.FirstName"})
@@ -180,6 +182,7 @@ func TestResolveMapsEmployeeNotFound(t *testing.T) {
 		&employeeQuerierStub{err: employeebus.ErrNotFound},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	_, _, err := business.Resolve(context.Background(), targetID, []string{"Employee.FirstName"})
@@ -203,6 +206,7 @@ func TestResolveRejectsInvalidPaths(t *testing.T) {
 				&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
 				&departmentQuerierStub{},
 				&organizationGetterStub{},
+				&attachmentQuerierStub{},
 			)
 
 			_, _, err := business.Resolve(context.Background(), targetID, []string{path})
@@ -224,6 +228,7 @@ func TestResolveRejectsUnsupportedRoot(t *testing.T) {
 		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	_, _, err := business.Resolve(context.Background(), targetID, []string{"Banana.Label"})
@@ -244,6 +249,7 @@ func TestResolveReturnsDepartmentLookupError(t *testing.T) {
 		&employeeQuerierStub{employee: testEmployee(employeeID, &departmentID)},
 		&departmentQuerierStub{err: departmentbus.ErrNotFound},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	_, _, err := business.Resolve(context.Background(), targetID, []string{"Department.Label"})
@@ -271,6 +277,7 @@ func TestResolveReturnsOrganizationLookupError(t *testing.T) {
 		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
 		&departmentQuerierStub{},
 		&organizationGetterStub{err: organizationbus.ErrNotFound},
+		&attachmentQuerierStub{},
 	)
 
 	_, _, err := business.Resolve(context.Background(), targetID, []string{"Organization.Label"})
@@ -300,6 +307,7 @@ func TestResolveTreatsNullOptionalLeafAsMissing(t *testing.T) {
 		&employeeQuerierStub{employee: employee},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	data, missing, err := business.Resolve(context.Background(), targetID, []string{"Employee.Phone"})
@@ -329,6 +337,7 @@ func TestResolveTargetLink(t *testing.T) {
 		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	data, missing, err := business.Resolve(context.Background(), targetID, []string{
@@ -368,6 +377,7 @@ func TestResolveTargetLinkCachesResult(t *testing.T) {
 		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	// Resolve Target.Link twice in same call — should only call PhishingURL once
@@ -421,7 +431,7 @@ func TestValidateReturnsMissingVarsForTargets(t *testing.T) {
 	departmentBus := &departmentQuerierStub{department: testDepartment(departmentID)}
 	organizationBus := &organizationGetterStub{organization: testOrganization()}
 
-	business := NewBusiness(targetQuerier, employeeBus, departmentBus, organizationBus)
+	business := NewBusiness(targetQuerier, employeeBus, departmentBus, organizationBus, &attachmentQuerierStub{})
 
 	targets := []campaignbus.Target{
 		{
@@ -493,6 +503,7 @@ func TestValidateRequiresDomainForTargetLink(t *testing.T) {
 		&employeeQuerierStub{},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	_, err := business.Validate(context.Background(), campaignbus.Campaign{}, []campaignbus.Target{
@@ -514,6 +525,7 @@ func TestValidateUnknownTargetPathDoesNotRequireDomain(t *testing.T) {
 		&employeeQuerierStub{},
 		&departmentQuerierStub{},
 		&organizationGetterStub{},
+		&attachmentQuerierStub{},
 	)
 
 	missing, err := business.Validate(context.Background(), campaignbus.Campaign{}, []campaignbus.Target{
@@ -682,6 +694,18 @@ func (s *departmentQuerierStub) QueryByID(ctx context.Context, id uuid.UUID) (de
 	return s.department, nil
 }
 
+type attachmentQuerierStub struct {
+	attachment attachmentbus.Attachment
+	err        error
+}
+
+func (s *attachmentQuerierStub) QueryByID(_ context.Context, _ uuid.UUID) (attachmentbus.Attachment, error) {
+	if s.err != nil {
+		return attachmentbus.Attachment{}, s.err
+	}
+	return s.attachment, nil
+}
+
 type organizationGetterStub struct {
 	organization organizationbus.Organization
 	err          error
@@ -697,3 +721,4 @@ func (s *organizationGetterStub) Get(ctx context.Context) (organizationbus.Organ
 
 	return s.organization, nil
 }
+

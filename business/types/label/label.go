@@ -30,7 +30,7 @@ func (l Label) MarshalText() ([]byte, error) {
 
 // =============================================================================
 
-var labelRegEx = regexp.MustCompile(`^[\p{Latin}\p{Cyrillic}][\p{Latin}\p{Cyrillic}0-9' "()\[\]_.,:;!?\\/-]{2,254}$`)
+var labelRegEx = regexp.MustCompile(`^[\p{Latin}\p{Cyrillic}][\p{Latin}\p{Cyrillic}0-9' "()\[\]_.,:;!?\\«»/-]{2,254}$`)
 
 // Parse parses the string value and returns a label if the value complies
 // with the rules for a label.
