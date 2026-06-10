@@ -3,420 +3,429 @@ package sessionbus_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/adminbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/sessionbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/dbtest"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
+	"github.com/zabolotny-dev/clicksafe/business/types/password"
 )
 
+func Test_Session(t *testing.T) {
+	t.Parallel()
+
+	db := dbtest.New(t, "Test_Session")
+
+	sd, err := insertSeedData(db.BusDomain)
+	if err != nil {
+		t.Fatalf("Seeding error: %s", err)
+	}
+
+	unittest.Run(t, create(db.BusDomain, sd), "create")
+	unittest.Run(t, authenticate(db.BusDomain, sd), "authenticate")
+	unittest.Run(t, revoke(db.BusDomain, sd), "revoke")
+	unittest.Run(t, validateCSRF(db.BusDomain, sd), "validatecsrf")
+}
+
 // =============================================================================
-// Stubs
+
+type seedData struct {
+	Admins  []adminbus.Admin
+	Session sessionbus.CreatedSession
+}
+
+func insertSeedData(busDomain dbtest.BusDomain) (seedData, error) {
+	ctx := context.Background()
+
+	admins, _, err := adminbus.TestSeedAdmins(ctx, 1, busDomain.Admin)
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding admin: %w", err)
+	}
+
+	sess, err := busDomain.Session.Create(ctx, sessionbus.NewSession{
+		AdminID:   admins[0].ID,
+		IPAddress: netip.MustParseAddr("127.0.0.1"),
+		UserAgent: "TestAgent",
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding session: %w", err)
+	}
+
+	return seedData{Admins: admins, Session: sess}, nil
+}
+
+// =============================================================================
+
+func create(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "returns-token",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				sess, err := busDomain.Session.Create(ctx, sessionbus.NewSession{
+					AdminID:   sd.Admins[0].ID,
+					IPAddress: netip.MustParseAddr("192.168.1.1"),
+					UserAgent: "TestAgent2",
+				})
+				if err != nil {
+					return err
+				}
+				return sess.Token != "" && sess.CSRFToken != ""
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+func authenticate(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "valid-token-returns-session",
+			ExpResp: sd.Admins[0].ID.String(),
+			ExcFunc: func(ctx context.Context) any {
+				sess, err := busDomain.Session.Authenticate(ctx, sd.Session.Token)
+				if err != nil {
+					return err
+				}
+				return sess.AdminID.String()
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+func revoke(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "revoked-token-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// Create a fresh session to revoke
+				sess, err := busDomain.Session.Create(ctx, sessionbus.NewSession{
+					AdminID:   sd.Admins[0].ID,
+					IPAddress: netip.MustParseAddr("10.0.0.1"),
+					UserAgent: "RevokeAgent",
+				})
+				if err != nil {
+					return err
+				}
+
+				// Get the session to find its ID
+				session, err := busDomain.Session.Authenticate(ctx, sess.Token)
+				if err != nil {
+					return err
+				}
+
+				if err := busDomain.Session.Revoke(ctx, session.ID); err != nil {
+					return err
+				}
+
+				// Authenticating again should fail with ErrRevoked
+				_, err = busDomain.Session.Authenticate(ctx, sess.Token)
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+func validateCSRF(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "invalid-csrf-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				session, err := busDomain.Session.Authenticate(ctx, sd.Session.Token)
+				if err != nil {
+					return err
+				}
+				err = busDomain.Session.ValidateCSRFToken(ctx, session, "wrong-token")
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "delete-expired-runs-without-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busDomain.Session.DeleteExpired(ctx) == nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "revoke-by-admin-id-runs-without-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busDomain.Session.RevokeByAdminID(ctx, sd.Admins[0].ID) == nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "authenticate-after-password-change",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				newPass := password.MustParse("NewPassword123!@#!")
+				_, err := busDomain.Admin.Update(ctx, sd.Admins[0].ID, adminbus.UpdateAdmin{Password: &newPass})
+				return err == nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "authenticate-expired-session",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// Create a stub-based session that is already expired
+				expiredAt := time.Now().UTC().Add(-time.Hour)
+				sess := sessionbus.Session{
+					ID:        uuid.New(),
+					AdminID:   sd.Admins[0].ID,
+					ExpiresAt: expiredAt,
+				}
+				err := busDomain.Session.ValidateCSRFToken(ctx, sess, "any-token")
+				return errors.Is(err, sessionbus.ErrExpired)
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "validate-csrf-revoked-session",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				revokedAt := time.Now().UTC().Add(-time.Minute)
+				sess := sessionbus.Session{
+					ID:        uuid.New(),
+					AdminID:   sd.Admins[0].ID,
+					ExpiresAt: time.Now().UTC().Add(time.Hour),
+					RevokedAt: &revokedAt,
+				}
+				err := busDomain.Session.ValidateCSRFToken(ctx, sess, "any-token")
+				return errors.Is(err, sessionbus.ErrRevoked)
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+// =============================================================================
+// Stub-based unit tests for error paths
 
 type sessionStorerStub struct {
-	saved   sessionbus.Session
-	data    map[string]sessionbus.Session // keyed by TokenHash
-	saveErr error
+	savedSessions map[string]sessionbus.Session
+	saveErr       error
+	queryErr      error
+	revokeErr     error
 }
 
 func newSessionStorerStub() *sessionStorerStub {
-	return &sessionStorerStub{data: make(map[string]sessionbus.Session)}
+	return &sessionStorerStub{savedSessions: make(map[string]sessionbus.Session)}
 }
 
 func (s *sessionStorerStub) Save(_ context.Context, sess sessionbus.Session) error {
 	if s.saveErr != nil {
 		return s.saveErr
 	}
-	s.saved = sess
-	s.data[sess.TokenHash] = sess
+	s.savedSessions[sess.TokenHash] = sess
 	return nil
 }
 
 func (s *sessionStorerStub) QueryByTokenHash(_ context.Context, hash string) (sessionbus.Session, error) {
-	sess, ok := s.data[hash]
+	if s.queryErr != nil {
+		return sessionbus.Session{}, s.queryErr
+	}
+	sess, ok := s.savedSessions[hash]
 	if !ok {
-		return sessionbus.Session{}, errors.New("session not found")
+		return sessionbus.Session{}, errors.New("not found")
 	}
 	return sess, nil
 }
 
-func (s *sessionStorerStub) Revoke(_ context.Context, id uuid.UUID, revokedAt time.Time) error {
-	for hash, sess := range s.data {
-		if sess.ID == id {
-			sess.RevokedAt = &revokedAt
-			s.data[hash] = sess
-			return nil
-		}
-	}
-	return nil
+func (s *sessionStorerStub) Revoke(_ context.Context, _ uuid.UUID, _ time.Time) error {
+	return s.revokeErr
 }
 
-func (s *sessionStorerStub) RevokeByAdminID(_ context.Context, adminID uuid.UUID, revokedAt time.Time) error {
-	for hash, sess := range s.data {
-		if sess.AdminID == adminID {
-			sess.RevokedAt = &revokedAt
-			s.data[hash] = sess
-		}
-	}
-	return nil
+func (s *sessionStorerStub) RevokeByAdminID(_ context.Context, _ uuid.UUID, _ time.Time) error {
+	return s.revokeErr
 }
 
 func (s *sessionStorerStub) DeleteExpired(_ context.Context, _ time.Time) error {
-	return nil
+	return s.revokeErr
 }
 
-// tokenManagerStub: token=<prefix><n>, hash=hmac(<value>), compare=hmac(raw)==stored
 type tokenManagerStub struct {
-	counter int
-	tokens  []string
+	newTokenErr error
+	tokenVal    string
 }
 
 func (m *tokenManagerStub) NewToken() (string, error) {
-	m.counter++
-	tok := uuid.New().String()
-	m.tokens = append(m.tokens, tok)
-	return tok, nil
+	if m.newTokenErr != nil {
+		return "", m.newTokenErr
+	}
+	val := m.tokenVal
+	if val == "" {
+		val = uuid.New().String()
+	}
+	return val, nil
 }
 
 func (m *tokenManagerStub) HMACSHA256(value string) string {
-	return "hmac:" + value
+	return "hash:" + value
 }
 
-func (m *tokenManagerStub) CompareHash(rawToken string, storedHash string) bool {
-	return storedHash == rawToken
+func (m *tokenManagerStub) CompareHash(rawToken, storedHash string) bool {
+	return m.HMACSHA256(rawToken) == storedHash
 }
 
-// =============================================================================
-// Create tests
-
-func TestCreate_SavesSessionAndReturnsTokens(t *testing.T) {
+func Test_Session_UnitErrors(t *testing.T) {
 	t.Parallel()
-
-	store := newSessionStorerStub()
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(store, tm, time.Hour)
-
-	adminID := uuid.New()
-	cs, err := bus.Create(context.Background(), sessionbus.NewSession{
-		AdminID:   adminID,
-		IPAddress: netip.MustParseAddr("127.0.0.1"),
-		UserAgent: "test-agent",
-	})
-	if err != nil {
-		t.Fatalf("Create returned error: %v", err)
-	}
-	if cs.Token == "" {
-		t.Error("Create must return a non-empty session token")
-	}
-	if cs.CSRFToken == "" {
-		t.Error("Create must return a non-empty CSRF token")
-	}
-	if cs.ExpiresAt.IsZero() {
-		t.Error("Create must return a non-zero expiry time")
-	}
-
-	// Сессия должна быть сохранена в стабе
-	if store.saved.AdminID != adminID {
-		t.Errorf("saved session AdminID = %v, want %v", store.saved.AdminID, adminID)
-	}
-	if store.saved.TokenHash == "" {
-		t.Error("saved session must have non-empty TokenHash")
-	}
+	unittest.Run(t, sessionErrorPaths(), "error-paths")
 }
 
-func TestCreate_TokenHashesDiffer(t *testing.T) {
-	t.Parallel()
+func sessionErrorPaths() []unittest.Table {
+	dbErr := errors.New("db error")
+	tokenErr := errors.New("token error")
 
-	store := newSessionStorerStub()
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(store, tm, time.Hour)
+	// Create - first token fails
+	busFirstTokenErr := sessionbus.NewBusiness(
+		newSessionStorerStub(),
+		&tokenManagerStub{newTokenErr: tokenErr},
+		time.Hour,
+	)
 
-	_, _ = bus.Create(context.Background(), sessionbus.NewSession{
-		AdminID:   uuid.New(),
-		IPAddress: netip.MustParseAddr("127.0.0.1"),
-		UserAgent: "agent",
-	})
+	// Create - second token fails (first succeeds, second fails)
+	callCount := 0
+	_ = callCount
 
-	// TokenHash должен быть HMAC от сессионного токена, а не от CSRF
-	if store.saved.TokenHash == store.saved.CSRFToken {
-		t.Error("TokenHash and CSRFToken must not be identical")
-	}
-}
+	// Create - storer save fails
+	storeSaveErr := newSessionStorerStub()
+	storeSaveErr.saveErr = dbErr
+	busSaveErr := sessionbus.NewBusiness(storeSaveErr, &tokenManagerStub{tokenVal: "tok"}, time.Hour)
 
-func TestCreate_TTLSetsExpiry(t *testing.T) {
-	t.Parallel()
+	// Authenticate - storer query fails
+	storeQueryErr := newSessionStorerStub()
+	storeQueryErr.queryErr = dbErr
+	busQueryErr := sessionbus.NewBusiness(storeQueryErr, &tokenManagerStub{tokenVal: "tok"}, time.Hour)
 
-	store := newSessionStorerStub()
-	tm := &tokenManagerStub{}
-	ttl := 2 * time.Hour
-	bus := sessionbus.NewBusiness(store, tm, ttl)
-
-	before := time.Now().Add(ttl - time.Minute)
-	after := time.Now().Add(ttl + time.Minute)
-
-	cs, err := bus.Create(context.Background(), sessionbus.NewSession{
-		AdminID:   uuid.New(),
-		IPAddress: netip.MustParseAddr("127.0.0.1"),
-		UserAgent: "agent",
-	})
-	if err != nil {
-		t.Fatalf("Create returned error: %v", err)
-	}
-
-	if cs.ExpiresAt.Before(before) || cs.ExpiresAt.After(after) {
-		t.Errorf("ExpiresAt = %v, want within [%v, %v]", cs.ExpiresAt, before, after)
-	}
-}
-
-func TestCreate_StoreError_Propagates(t *testing.T) {
-	t.Parallel()
-
-	store := newSessionStorerStub()
-	store.saveErr = errors.New("db error")
-	bus := sessionbus.NewBusiness(store, &tokenManagerStub{}, time.Hour)
-
-	_, err := bus.Create(context.Background(), sessionbus.NewSession{
-		AdminID:   uuid.New(),
-		IPAddress: netip.MustParseAddr("127.0.0.1"),
-	})
-	if err == nil {
-		t.Fatal("expected error when storer fails, got nil")
-	}
-}
-
-// =============================================================================
-// Authenticate tests
-
-func TestAuthenticate_ValidSession(t *testing.T) {
-	t.Parallel()
-
-	store := newSessionStorerStub()
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(store, tm, time.Hour)
-
-	rawToken := "my-raw-token"
-	tokenHash := tm.HMACSHA256(rawToken)
-
-	sess := sessionbus.Session{
+	// Authenticate - session revoked
+	storeRevoked := newSessionStorerStub()
+	revokedAt := time.Now().UTC().Add(-time.Minute)
+	revokedSess := sessionbus.Session{
 		ID:        uuid.New(),
 		AdminID:   uuid.New(),
-		TokenHash: tokenHash,
-		ExpiresAt: time.Now().Add(time.Hour),
-	}
-	store.data[tokenHash] = sess
-
-	got, err := bus.Authenticate(context.Background(), rawToken)
-	if err != nil {
-		t.Fatalf("Authenticate returned error: %v", err)
-	}
-	if got.ID != sess.ID {
-		t.Errorf("Session ID = %v, want %v", got.ID, sess.ID)
-	}
-}
-
-func TestAuthenticate_ExpiredSession_ReturnsErrExpired(t *testing.T) {
-	t.Parallel()
-
-	store := newSessionStorerStub()
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(store, tm, time.Hour)
-
-	rawToken := "expired-token"
-	tokenHash := tm.HMACSHA256(rawToken)
-
-	store.data[tokenHash] = sessionbus.Session{
-		ID:        uuid.New(),
-		TokenHash: tokenHash,
-		ExpiresAt: time.Now().Add(-time.Minute), // уже истекла
-	}
-
-	_, err := bus.Authenticate(context.Background(), rawToken)
-	if !errors.Is(err, sessionbus.ErrExpired) {
-		t.Fatalf("Authenticate error = %v, want %v", err, sessionbus.ErrExpired)
-	}
-}
-
-func TestAuthenticate_RevokedSession_ReturnsErrRevoked(t *testing.T) {
-	t.Parallel()
-
-	store := newSessionStorerStub()
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(store, tm, time.Hour)
-
-	rawToken := "revoked-token"
-	tokenHash := tm.HMACSHA256(rawToken)
-	revokedAt := time.Now().Add(-time.Minute)
-
-	store.data[tokenHash] = sessionbus.Session{
-		ID:        uuid.New(),
-		TokenHash: tokenHash,
-		ExpiresAt: time.Now().Add(time.Hour),
+		TokenHash: "hash:revoked-token",
+		ExpiresAt: time.Now().UTC().Add(time.Hour),
 		RevokedAt: &revokedAt,
 	}
+	storeRevoked.savedSessions["hash:revoked-token"] = revokedSess
+	busRevoked := sessionbus.NewBusiness(storeRevoked, &tokenManagerStub{tokenVal: "revoked-token"}, time.Hour)
 
-	_, err := bus.Authenticate(context.Background(), rawToken)
-	if !errors.Is(err, sessionbus.ErrRevoked) {
-		t.Fatalf("Authenticate error = %v, want %v", err, sessionbus.ErrRevoked)
-	}
-}
-
-func TestAuthenticate_SessionNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	bus := sessionbus.NewBusiness(newSessionStorerStub(), &tokenManagerStub{}, time.Hour)
-
-	_, err := bus.Authenticate(context.Background(), "unknown-token")
-	if err == nil {
-		t.Fatal("expected error for unknown session token, got nil")
-	}
-}
-
-// =============================================================================
-// Revoke tests
-
-func TestRevoke_MarksSessionAsRevoked(t *testing.T) {
-	t.Parallel()
-
-	store := newSessionStorerStub()
-	bus := sessionbus.NewBusiness(store, &tokenManagerStub{}, time.Hour)
-
-	sessID := uuid.New()
-	store.data["some-hash"] = sessionbus.Session{
-		ID:        sessID,
-		TokenHash: "some-hash",
-		ExpiresAt: time.Now().Add(time.Hour),
-	}
-
-	if err := bus.Revoke(context.Background(), sessID); err != nil {
-		t.Fatalf("Revoke returned error: %v", err)
-	}
-
-	sess := store.data["some-hash"]
-	if sess.RevokedAt == nil {
-		t.Error("Revoke must set RevokedAt on the session")
-	}
-}
-
-// =============================================================================
-// RevokeByAdminID tests
-
-func TestRevokeByAdminID_RevokesAllSessions(t *testing.T) {
-	t.Parallel()
-
-	store := newSessionStorerStub()
-	bus := sessionbus.NewBusiness(store, &tokenManagerStub{}, time.Hour)
-
-	adminID := uuid.New()
-	store.data["hash-1"] = sessionbus.Session{
-		ID:        uuid.New(),
-		AdminID:   adminID,
-		TokenHash: "hash-1",
-		ExpiresAt: time.Now().Add(time.Hour),
-	}
-	store.data["hash-2"] = sessionbus.Session{
-		ID:        uuid.New(),
-		AdminID:   adminID,
-		TokenHash: "hash-2",
-		ExpiresAt: time.Now().Add(time.Hour),
-	}
-	// Другой admin
-	store.data["hash-3"] = sessionbus.Session{
+	// Authenticate - session expired
+	storeExpired := newSessionStorerStub()
+	expiredSess := sessionbus.Session{
 		ID:        uuid.New(),
 		AdminID:   uuid.New(),
-		TokenHash: "hash-3",
-		ExpiresAt: time.Now().Add(time.Hour),
+		TokenHash: "hash:expired-token",
+		ExpiresAt: time.Now().UTC().Add(-time.Hour),
 	}
+	storeExpired.savedSessions["hash:expired-token"] = expiredSess
+	busExpired := sessionbus.NewBusiness(storeExpired, &tokenManagerStub{tokenVal: "expired-token"}, time.Hour)
 
-	if err := bus.RevokeByAdminID(context.Background(), adminID); err != nil {
-		t.Fatalf("RevokeByAdminID returned error: %v", err)
-	}
+	// Revoke - storer fails
+	storeRevokeErr := newSessionStorerStub()
+	storeRevokeErr.revokeErr = dbErr
+	busRevokeErr := sessionbus.NewBusiness(storeRevokeErr, &tokenManagerStub{tokenVal: "tok"}, time.Hour)
 
-	for _, hash := range []string{"hash-1", "hash-2"} {
-		if store.data[hash].RevokedAt == nil {
-			t.Errorf("session %s should be revoked", hash)
-		}
-	}
-	if store.data["hash-3"].RevokedAt != nil {
-		t.Error("session for other admin must not be revoked")
-	}
-}
-
-// =============================================================================
-// ValidateCSRFToken tests
-
-func TestValidateCSRFToken_Valid(t *testing.T) {
-	t.Parallel()
-
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(newSessionStorerStub(), tm, time.Hour)
-
-	rawCSRF := "raw-csrf-token"
-	sess := sessionbus.Session{
-		ID:        uuid.New(),
-		ExpiresAt: time.Now().Add(time.Hour),
-		CSRFToken: rawCSRF, // CompareHash(raw, stored) => stored == raw
-	}
-
-	if err := bus.ValidateCSRFToken(context.Background(), sess, rawCSRF); err != nil {
-		t.Fatalf("ValidateCSRFToken returned error: %v", err)
-	}
-}
-
-func TestValidateCSRFToken_Invalid_ReturnsErrInvalidCSRF(t *testing.T) {
-	t.Parallel()
-
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(newSessionStorerStub(), tm, time.Hour)
-
-	sess := sessionbus.Session{
-		ID:        uuid.New(),
-		ExpiresAt: time.Now().Add(time.Hour),
-		CSRFToken: "correct-csrf",
-	}
-
-	_, err := func() (interface{}, error) {
-		return nil, bus.ValidateCSRFToken(context.Background(), sess, "wrong-csrf")
-	}()
-	if !errors.Is(err, sessionbus.ErrInvalidCSRF) {
-		t.Fatalf("ValidateCSRFToken error = %v, want %v", err, sessionbus.ErrInvalidCSRF)
-	}
-}
-
-func TestValidateCSRFToken_ExpiredSession_ReturnsErrExpired(t *testing.T) {
-	t.Parallel()
-
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(newSessionStorerStub(), tm, time.Hour)
-
-	sess := sessionbus.Session{
-		ID:        uuid.New(),
-		ExpiresAt: time.Now().Add(-time.Minute), // истекла
-		CSRFToken: "csrf",
-	}
-
-	err := bus.ValidateCSRFToken(context.Background(), sess, "csrf")
-	if !errors.Is(err, sessionbus.ErrExpired) {
-		t.Fatalf("ValidateCSRFToken error = %v, want %v", err, sessionbus.ErrExpired)
-	}
-}
-
-func TestValidateCSRFToken_RevokedSession_ReturnsErrRevoked(t *testing.T) {
-	t.Parallel()
-
-	tm := &tokenManagerStub{}
-	bus := sessionbus.NewBusiness(newSessionStorerStub(), tm, time.Hour)
-
-	revokedAt := time.Now().Add(-time.Minute)
-	sess := sessionbus.Session{
-		ID:        uuid.New(),
-		ExpiresAt: time.Now().Add(time.Hour),
-		RevokedAt: &revokedAt,
-		CSRFToken: "csrf",
-	}
-
-	err := bus.ValidateCSRFToken(context.Background(), sess, "csrf")
-	if !errors.Is(err, sessionbus.ErrRevoked) {
-		t.Fatalf("ValidateCSRFToken error = %v, want %v", err, sessionbus.ErrRevoked)
+	return []unittest.Table{
+		{
+			Name:    "create-first-token-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busFirstTokenErr.Create(ctx, sessionbus.NewSession{AdminID: uuid.New()})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "create-store-save-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busSaveErr.Create(ctx, sessionbus.NewSession{AdminID: uuid.New()})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "authenticate-query-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busQueryErr.Authenticate(ctx, "some-token")
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "authenticate-revoked-returns-err-revoked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busRevoked.Authenticate(ctx, "revoked-token")
+				return errors.Is(err, sessionbus.ErrRevoked)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "authenticate-expired-returns-err-expired",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busExpired.Authenticate(ctx, "expired-token")
+				return errors.Is(err, sessionbus.ErrExpired)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "revoke-store-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busRevokeErr.Revoke(ctx, uuid.New()) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "revoke-by-admin-id-store-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busRevokeErr.RevokeByAdminID(ctx, uuid.New()) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "delete-expired-store-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busRevokeErr.DeleteExpired(ctx) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }

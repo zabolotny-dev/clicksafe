@@ -1,178 +1,159 @@
-package vtargetbus
+package vtargetbus_test
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
-	"github.com/google/uuid"
+	"github.com/google/go-cmp/cmp"
+	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/domain/vtargetbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/dbtest"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 )
 
-// =============================================================================
-// Stubs
-
+// vtargetStorerStub implements Storer for error-path unit tests.
 type vtargetStorerStub struct {
-	targets  []Target
-	count    int
 	queryErr error
 	countErr error
 }
 
-func (s *vtargetStorerStub) Query(_ context.Context, _ Filter, _ order.By, _ page.Page) ([]Target, error) {
-	if s.queryErr != nil {
-		return nil, s.queryErr
-	}
-	return s.targets, nil
+func (s *vtargetStorerStub) Query(_ context.Context, _ vtargetbus.Filter, _ order.By, _ page.Page) ([]vtargetbus.Target, error) {
+	return nil, s.queryErr
 }
 
-func (s *vtargetStorerStub) Count(_ context.Context, _ Filter) (int, error) {
-	if s.countErr != nil {
-		return 0, s.countErr
+func (s *vtargetStorerStub) Count(_ context.Context, _ vtargetbus.Filter) (int, error) {
+	return 0, s.countErr
+}
+
+func Test_VTarget_ErrorPaths(t *testing.T) {
+	t.Parallel()
+	unittest.Run(t, vtargetErrorPaths(), "error-paths")
+}
+
+func vtargetErrorPaths() []unittest.Table {
+	dbErr := errors.New("db error")
+
+	busQueryErr := vtargetbus.NewBusiness(&vtargetStorerStub{queryErr: dbErr})
+	busCountErr := vtargetbus.NewBusiness(&vtargetStorerStub{countErr: dbErr})
+
+	return []unittest.Table{
+		{
+			Name:    "query-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busQueryErr.Query(ctx, vtargetbus.Filter{}, vtargetbus.DefaultOrderBy, page.MustParse("1", "10"))
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "count-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busCountErr.Count(ctx, vtargetbus.Filter{})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
-	return s.count, nil
+}
+
+func Test_VTarget(t *testing.T) {
+	t.Parallel()
+
+	db := dbtest.New(t, "Test_VTarget")
+
+	sd, err := insertSeedData(db.BusDomain)
+	if err != nil {
+		t.Fatalf("Seeding error: %s", err)
+	}
+
+	unittest.Run(t, query(db.BusDomain, sd), "query")
 }
 
 // =============================================================================
-// Query tests
 
-func TestQuery_ReturnsTargets(t *testing.T) {
-	t.Parallel()
-
-	targets := []Target{
-		{ID: uuid.New(), FirstName: "Ivan", LastName: "Ivanov", Status: "sent"},
-		{ID: uuid.New(), FirstName: "Petr", LastName: "Petrov", Status: "pending"},
-	}
-	stub := &vtargetStorerStub{targets: targets, count: len(targets)}
-	bus := NewBusiness(stub)
-
-	got, err := bus.Query(context.Background(), Filter{}, DefaultOrderBy, page.Page{})
-	if err != nil {
-		t.Fatalf("Query returned error: %v", err)
-	}
-	if len(got) != len(targets) {
-		t.Fatalf("Query returned %d targets, want %d", len(got), len(targets))
-	}
+type seedData struct {
+	Campaign  campaignbus.Campaign
+	Employees []employeebus.Employee
+	Targets   []campaignbus.Target
 }
 
-func TestQuery_EmptyResult(t *testing.T) {
-	t.Parallel()
+func insertSeedData(busDomain dbtest.BusDomain) (seedData, error) {
+	ctx := context.Background()
 
-	stub := &vtargetStorerStub{targets: nil, count: 0}
-	bus := NewBusiness(stub)
-
-	got, err := bus.Query(context.Background(), Filter{}, DefaultOrderBy, page.Page{})
+	deps, err := departmentbus.TestSeedDepartments(ctx, 1, busDomain.Department)
 	if err != nil {
-		t.Fatalf("Query returned error: %v", err)
-	}
-	if len(got) != 0 {
-		t.Fatalf("Query returned %d targets, want 0", len(got))
-	}
-}
-
-func TestQuery_PropagatesStorerError(t *testing.T) {
-	t.Parallel()
-
-	stub := &vtargetStorerStub{queryErr: errors.New("db failure")}
-	bus := NewBusiness(stub)
-
-	_, err := bus.Query(context.Background(), Filter{}, DefaultOrderBy, page.Page{})
-	if err == nil {
-		t.Fatal("Query expected error, got nil")
-	}
-}
-
-func TestQuery_WithFilter_PassesThrough(t *testing.T) {
-	t.Parallel()
-
-	campaignID := uuid.New()
-	employeeID := uuid.New()
-	status := "sent"
-	fullName := "Ivan"
-
-	expected := []Target{
-		{ID: uuid.New(), CampaignID: campaignID, EmployeeID: employeeID, Status: status},
-	}
-	stub := &vtargetStorerStub{targets: expected}
-	bus := NewBusiness(stub)
-
-	filter := Filter{
-		CampaignID: &campaignID,
-		EmployeeID: &employeeID,
-		Status:     &status,
-		FullName:   &fullName,
+		return seedData{}, fmt.Errorf("seeding department: %w", err)
 	}
 
-	got, err := bus.Query(context.Background(), filter, DefaultOrderBy, page.Page{})
+	emps, err := employeebus.TestSeedEmployees(ctx, 2, &deps[0].ID, busDomain.Employee)
 	if err != nil {
-		t.Fatalf("Query returned error: %v", err)
+		return seedData{}, fmt.Errorf("seeding employees: %w", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("Query returned %d targets, want 1", len(got))
+
+	camps, err := campaignbus.TestSeedCampaigns(ctx, 1, busDomain.Campaign)
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding campaign: %w", err)
 	}
-	if got[0].CampaignID != campaignID {
-		t.Errorf("CampaignID = %v, want %v", got[0].CampaignID, campaignID)
+	camp := camps[0]
+
+	targets := make([]campaignbus.Target, 0, len(emps))
+	for _, emp := range emps {
+		t2, err := busDomain.Target.Save(ctx, campaignbus.NewTarget{
+			CampaignID: camp.ID,
+			EmployeeID: emp.ID,
+		})
+		if err != nil {
+			return seedData{}, fmt.Errorf("seeding target for employee %s: %w", emp.ID, err)
+		}
+		targets = append(targets, t2)
 	}
+
+	return seedData{Campaign: camp, Employees: emps, Targets: targets}, nil
 }
 
 // =============================================================================
-// Count tests
 
-func TestCount_ReturnsCount(t *testing.T) {
-	t.Parallel()
-
-	stub := &vtargetStorerStub{count: 42}
-	bus := NewBusiness(stub)
-
-	n, err := bus.Count(context.Background(), Filter{})
-	if err != nil {
-		t.Fatalf("Count returned error: %v", err)
-	}
-	if n != 42 {
-		t.Errorf("Count = %d, want 42", n)
-	}
-}
-
-func TestCount_ZeroWhenEmpty(t *testing.T) {
-	t.Parallel()
-
-	stub := &vtargetStorerStub{count: 0}
-	bus := NewBusiness(stub)
-
-	n, err := bus.Count(context.Background(), Filter{})
-	if err != nil {
-		t.Fatalf("Count returned error: %v", err)
-	}
-	if n != 0 {
-		t.Errorf("Count = %d, want 0", n)
-	}
-}
-
-func TestCount_PropagatesStorerError(t *testing.T) {
-	t.Parallel()
-
-	stub := &vtargetStorerStub{countErr: errors.New("db failure")}
-	bus := NewBusiness(stub)
-
-	_, err := bus.Count(context.Background(), Filter{})
-	if err == nil {
-		t.Fatal("Count expected error, got nil")
-	}
-}
-
-func TestCount_WithCampaignIDFilter(t *testing.T) {
-	t.Parallel()
-
-	campaignID := uuid.New()
-	stub := &vtargetStorerStub{count: 5}
-	bus := NewBusiness(stub)
-
-	n, err := bus.Count(context.Background(), Filter{CampaignID: &campaignID})
-	if err != nil {
-		t.Fatalf("Count returned error: %v", err)
-	}
-	if n != 5 {
-		t.Errorf("Count = %d, want 5", n)
+func query(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "bycampaign-returns-targets",
+			ExpResp: len(sd.Targets),
+			ExcFunc: func(ctx context.Context) any {
+				resp, err := busDomain.VTarget.Query(ctx,
+					vtargetbus.Filter{CampaignID: &sd.Campaign.ID},
+					vtargetbus.DefaultOrderBy,
+					page.MustParse("1", "10"),
+				)
+				if err != nil {
+					return err
+				}
+				return len(resp)
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "count-bycampaign",
+			ExpResp: len(sd.Targets),
+			ExcFunc: func(ctx context.Context) any {
+				count, err := busDomain.VTarget.Count(ctx, vtargetbus.Filter{CampaignID: &sd.Campaign.ID})
+				if err != nil {
+					return err
+				}
+				return count
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
 	}
 }

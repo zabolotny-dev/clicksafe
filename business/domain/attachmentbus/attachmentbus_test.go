@@ -21,11 +21,13 @@ import (
 // Stubs
 
 type attachmentStorerStub struct {
-	saved    attachmentbus.Attachment
-	data     map[uuid.UUID]attachmentbus.Attachment
-	saveErr  error
-	queryErr error
-	deleted  []uuid.UUID
+	saved     attachmentbus.Attachment
+	data      map[uuid.UUID]attachmentbus.Attachment
+	saveErr   error
+	queryErr  error
+	deleteErr error
+	countErr  error
+	deleted   []uuid.UUID
 }
 
 func newAttachmentStorerStub() *attachmentStorerStub {
@@ -51,6 +53,9 @@ func (s *attachmentStorerStub) Update(_ context.Context, a attachmentbus.Attachm
 }
 
 func (s *attachmentStorerStub) Delete(_ context.Context, a attachmentbus.Attachment) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
 	s.deleted = append(s.deleted, a.ID)
 	delete(s.data, a.ID)
 	return nil
@@ -68,17 +73,25 @@ func (s *attachmentStorerStub) QueryByID(_ context.Context, id uuid.UUID) (attac
 }
 
 func (s *attachmentStorerStub) Query(_ context.Context, _ attachmentbus.QueryFilter, _ order.By, _ page.Page) ([]attachmentbus.Attachment, error) {
+	if s.queryErr != nil {
+		return nil, s.queryErr
+	}
 	return nil, nil
 }
 
 func (s *attachmentStorerStub) Count(_ context.Context, _ attachmentbus.QueryFilter) (int, error) {
+	if s.countErr != nil {
+		return 0, s.countErr
+	}
 	return len(s.data), nil
 }
 
 // fileStorageStub сохраняет данные в памяти.
 type fileStorageStub struct {
-	files      map[string][]byte
-	saveErr    error
+	files        map[string][]byte
+	saveErr      error
+	deleteErr    error
+	openErr      error
 	deletedPaths []string
 }
 
@@ -105,6 +118,9 @@ func (s *fileStorageStub) Read(_ context.Context, p file.Path) ([]byte, error) {
 }
 
 func (s *fileStorageStub) Open(_ context.Context, p file.Path) (io.ReadCloser, error) {
+	if s.openErr != nil {
+		return nil, s.openErr
+	}
 	data, ok := s.files[p.String()]
 	if !ok {
 		return nil, filestore.ErrNotFound
@@ -113,6 +129,9 @@ func (s *fileStorageStub) Open(_ context.Context, p file.Path) (io.ReadCloser, e
 }
 
 func (s *fileStorageStub) Delete(_ context.Context, p file.Path) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
 	s.deletedPaths = append(s.deletedPaths, p.String())
 	delete(s.files, p.String())
 	return nil
@@ -582,3 +601,235 @@ func TestAttachmentType_IsAudio(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Testutil tests
+
+func TestSeedHTMLAttachments_CreatesN(t *testing.T) {
+	t.Parallel()
+
+	fs := newFileStorageStub()
+	bus := attachmentbus.NewBusiness(fs, newAttachmentStorerStub())
+
+	atches, err := attachmentbus.TestSeedHTMLAttachments(context.Background(), 2, bus)
+	if err != nil {
+		t.Fatalf("TestSeedHTMLAttachments returned error: %v", err)
+	}
+	if len(atches) != 2 {
+		t.Errorf("expected 2 attachments, got %d", len(atches))
+	}
+	for _, a := range atches {
+		if a.Type != attachmentbus.Html {
+			t.Errorf("type = %v, want Html", a.Type)
+		}
+	}
+}
+
+func TestSeedTxtAttachments_CreatesN(t *testing.T) {
+	t.Parallel()
+
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), newAttachmentStorerStub())
+
+	atches, err := attachmentbus.TestSeedTxtAttachments(context.Background(), 2, bus)
+	if err != nil {
+		t.Fatalf("TestSeedTxtAttachments returned error: %v", err)
+	}
+	if len(atches) != 2 {
+		t.Errorf("expected 2 attachments, got %d", len(atches))
+	}
+}
+
+func TestSeedImageAttachments_CreatesN(t *testing.T) {
+	t.Parallel()
+
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), newAttachmentStorerStub())
+
+	atches, err := attachmentbus.TestSeedImageAttachments(context.Background(), 2, bus)
+	if err != nil {
+		t.Fatalf("TestSeedImageAttachments returned error: %v", err)
+	}
+	if len(atches) != 2 {
+		t.Errorf("expected 2 attachments, got %d", len(atches))
+	}
+}
+
+
+// =============================================================================
+// Additional error path tests
+
+func TestQuery_Error_Propagates(t *testing.T) {
+	t.Parallel()
+
+	store := newAttachmentStorerStub()
+	store.queryErr = errors.New("db error")
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), store)
+
+	_, err := bus.Query(context.Background(), attachmentbus.QueryFilter{}, order.By{}, page.MustParse("1", "10"))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCount_Error_Propagates(t *testing.T) {
+	t.Parallel()
+
+	store := newAttachmentStorerStub()
+	store.countErr = errors.New("db error")
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), store)
+
+	_, err := bus.Count(context.Background(), attachmentbus.QueryFilter{})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDelete_StorerError_Propagates(t *testing.T) {
+	t.Parallel()
+
+	store := newAttachmentStorerStub()
+	store.deleteErr = errors.New("db error")
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), store)
+
+	a := attachmentbus.Attachment{ID: uuid.New(), ContentPath: file.MustParse("/test.html")}
+	if err := bus.Delete(context.Background(), a); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDelete_FileStorageError_Propagates(t *testing.T) {
+	t.Parallel()
+
+	store := newAttachmentStorerStub()
+	fs := newFileStorageStub()
+	fs.deleteErr = errors.New("fs error")
+	bus := attachmentbus.NewBusiness(fs, store)
+
+	p := file.MustParse("/test.html")
+	a := attachmentbus.Attachment{ID: uuid.New(), ContentPath: p}
+	store.data[a.ID] = a
+
+	if err := bus.Delete(context.Background(), a); err == nil {
+		t.Fatal("expected error from file storage, got nil")
+	}
+}
+
+func TestOpenContent_OtherError_Propagates(t *testing.T) {
+	t.Parallel()
+
+	fs := newFileStorageStub()
+	fs.openErr = errors.New("unexpected fs error")
+	bus := attachmentbus.NewBusiness(fs, newAttachmentStorerStub())
+
+	a := attachmentbus.Attachment{
+		ID:          uuid.New(),
+		ContentPath: file.MustParse("/test.html"),
+	}
+	_, err := bus.OpenContent(context.Background(), a)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, attachmentbus.ErrContentNotFound) {
+		t.Fatal("expected non-ErrContentNotFound error")
+	}
+}
+
+func TestUpdate_StorerError_Propagates(t *testing.T) {
+	t.Parallel()
+
+	store := newAttachmentStorerStub()
+	store.saveErr = errors.New("db update error")
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), store)
+
+	a := attachmentbus.Attachment{ID: uuid.New(), Type: attachmentbus.Png}
+	newLabel := label.MustParse("New Label")
+	_, err := bus.Update(context.Background(), a, attachmentbus.UpdateAttachment{Label: &newLabel})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestSave_TxtTemplate_ExtractsVars(t *testing.T) {
+	t.Parallel()
+
+	fs := newFileStorageStub()
+	store := newAttachmentStorerStub()
+	bus := attachmentbus.NewBusiness(fs, store)
+
+	content := "Hello {{.Employee.FirstName}}, your dept is {{.Department.Label}}"
+	a, err := bus.Save(context.Background(), attachmentbus.NewAttachment{
+		Label:   label.MustParse("Text template"),
+		Type:    attachmentbus.Txt,
+		Content: strings.NewReader(content),
+	})
+	if err != nil {
+		t.Fatalf("Save returned error: %v", err)
+	}
+	if a.Type != attachmentbus.Txt {
+		t.Errorf("Type = %v, want Txt", a.Type)
+	}
+}
+
+func TestSave_InvalidTemplateSyntax_ReturnsUnsupportedSyntaxError(t *testing.T) {
+	t.Parallel()
+
+	bus := attachmentbus.NewBusiness(newFileStorageStub(), newAttachmentStorerStub())
+
+	// Unclosed action → invalid Go template syntax → ErrUnsupportedTemplateSyntax
+	_, err := bus.Save(context.Background(), attachmentbus.NewAttachment{
+		Label:   label.MustParse("Bad template"),
+		Type:    attachmentbus.Txt,
+		Content: strings.NewReader("Hello {{.Employee.FirstName"),
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid template syntax, got nil")
+	}
+	if !errors.Is(err, attachmentbus.ErrUnsupportedTemplateSyntax) {
+		t.Errorf("error = %v, want ErrUnsupportedTemplateSyntax", err)
+	}
+}
+
+func TestUpdateContent_StorerUpdateError_CleansUpNewFile(t *testing.T) {
+	t.Parallel()
+
+	store := newAttachmentStorerStub()
+	store.saveErr = errors.New("db update error")
+	fs := newFileStorageStub()
+	bus := attachmentbus.NewBusiness(fs, store)
+
+	p := file.MustParse("/old-content.html")
+	fs.files[p.String()] = []byte("<p>old</p>")
+
+	a := attachmentbus.Attachment{
+		ID:          uuid.New(),
+		Type:        attachmentbus.Html,
+		ContentPath: p,
+	}
+	store.data[a.ID] = a
+
+	_, err := bus.UpdateContent(context.Background(), a, attachmentbus.UpdateAttachmentContent{
+		Content: strings.NewReader("<p>new {{.Employee.FirstName}}</p>"),
+	})
+	if err == nil {
+		t.Fatal("expected error when storer fails, got nil")
+	}
+	// new file should have been deleted on rollback
+	if len(fs.deletedPaths) == 0 {
+		t.Error("expected new file to be deleted on rollback")
+	}
+}
+
+func TestSave_FileStorageError_Propagates(t *testing.T) {
+	t.Parallel()
+
+	fs := newFileStorageStub()
+	fs.saveErr = errors.New("fs error")
+	bus := attachmentbus.NewBusiness(fs, newAttachmentStorerStub())
+
+	_, err := bus.Save(context.Background(), attachmentbus.NewAttachment{
+		Label:   label.MustParse("Logo"),
+		Type:    attachmentbus.Png,
+		Content: bytes.NewReader([]byte{1, 2, 3}),
+	})
+	if err == nil {
+		t.Fatal("expected error from file storage, got nil")
+	}
+}

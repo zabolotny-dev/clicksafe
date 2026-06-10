@@ -6,752 +6,661 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/date"
 	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
-// Используем стабы из campaign_test.go (тот же пакет).
-
 func newTargetBus(cs *campaignStorerStub, ts *targetStorerStub) *campaignbus.TargetBusiness {
 	return campaignbus.NewTargetBusiness(cs, ts)
 }
 
-// =============================================================================
-// Target Save tests
-
-func TestTargetSave_InDraftCampaign_Success(t *testing.T) {
+func Test_Target(t *testing.T) {
 	t.Parallel()
 
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	cmp := campaignbus.Campaign{
-		ID:     uuid.New(),
-		Status: campaignbus.Draft,
-		Label:  label.MustParse("Draft campaign"),
-	}
-	cs.data[cmp.ID] = cmp
-
-	target, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: cmp.ID,
-		EmployeeID: uuid.New(),
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if target.ID == (uuid.UUID{}) {
-		t.Error("Save must assign a non-zero UUID")
-	}
-	if target.Token == "" {
-		t.Error("Save must assign a non-empty token")
-	}
-	if target.Status != campaignbus.Pending {
-		t.Errorf("Status = %v, want %v", target.Status, campaignbus.Pending)
-	}
-	if _, exists := ts.data[target.ID]; !exists {
-		t.Error("Target was not persisted to storer")
-	}
-}
-
-func TestTargetSave_InPausedCampaign_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	cmp := campaignbus.Campaign{
-		ID:     uuid.New(),
-		Status: campaignbus.Paused,
-	}
-	cs.data[cmp.ID] = cmp
-
-	_, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: cmp.ID,
-		EmployeeID: uuid.New(),
-	})
-	if err != nil {
-		t.Fatalf("Save in Paused campaign returned error: %v", err)
-	}
-}
-
-func TestTargetSave_InActiveCampaign_ReturnsErrCampaignLocked(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	cmp := campaignbus.Campaign{
-		ID:     uuid.New(),
-		Status: campaignbus.Active,
-	}
-	cs.data[cmp.ID] = cmp
-
-	_, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: cmp.ID,
-		EmployeeID: uuid.New(),
-	})
-	if !errors.Is(err, campaignbus.ErrCampaignLocked) {
-		t.Fatalf("Save error = %v, want %v", err, campaignbus.ErrCampaignLocked)
-	}
-}
-
-func TestTargetSave_CampaignNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	_, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: uuid.New(), // не существует
-		EmployeeID: uuid.New(),
-	})
-	if err == nil {
-		t.Fatal("expected error for non-existent campaign, got nil")
-	}
+	unittest.Run(t, testTargetSave(), "save")
+	unittest.Run(t, testTargetDelete(), "delete")
+	unittest.Run(t, testTargetChangeStatus(), "changestatus")
+	unittest.Run(t, testTargetUpdateSchedule(), "updateschedule")
+	unittest.Run(t, testTargetAutoDistribute(), "autodistribute")
+	unittest.Run(t, testTargetPhishingURL(), "phishingurl")
+	unittest.Run(t, testTargetQueryByID(), "querybyid")
+	unittest.Run(t, testTargetDeleteByCampaignID(), "deletebycampaignid")
+	unittest.Run(t, testTargetQueryDue(), "querydue")
+	unittest.Run(t, testTargetQueryCampaignByID(), "querycampaignbyid")
 }
 
 // =============================================================================
-// Target Delete tests
 
-func TestTargetDelete_RemovesFromStorer(t *testing.T) {
-	t.Parallel()
+func testTargetSave() []unittest.Table {
+	csDraft := newCampaignStorerStub()
+	csDraft.data[uuid.Nil] = campaignbus.Campaign{} // placeholder
+	draftCmp := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Draft, Label: label.MustParse("Draft campaign")}
+	pausedCmp := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Paused, Label: label.MustParse("Paused")}
+	activeCmp := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Active, Label: label.MustParse("Active")}
 
 	cs := newCampaignStorerStub()
+	cs.data[draftCmp.ID] = draftCmp
+	cs.data[pausedCmp.ID] = pausedCmp
+	cs.data[activeCmp.ID] = activeCmp
+
 	ts := newTargetStorerStub()
 	bus := newTargetBus(cs, ts)
 
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: uuid.New(),
-		Status:     campaignbus.Pending,
-	}
-	ts.data[target.ID] = target
+	tsEmpErr := newTargetStorerStub()
+	tsEmpErr.saveErr = campaignbus.ErrEmployeeNotFound
+	busEmpErr := newTargetBus(cs, tsEmpErr)
 
-	if err := bus.Delete(context.Background(), target); err != nil {
-		t.Fatalf("Delete returned error: %v", err)
-	}
-	if _, exists := ts.data[target.ID]; exists {
-		t.Error("Target still exists in storer after Delete")
+	tsExistsErr := newTargetStorerStub()
+	tsExistsErr.saveErr = campaignbus.ErrTargetAlreadyExists
+	busExistsErr := newTargetBus(cs, tsExistsErr)
+
+	tsGenErr := newTargetStorerStub()
+	tsGenErr.saveErr = errors.New("db connection lost")
+	busGenErr := newTargetBus(cs, tsGenErr)
+
+	csEmpty := newCampaignStorerStub()
+	busNotFound := newTargetBus(csEmpty, newTargetStorerStub())
+
+	return []unittest.Table{
+		{
+			Name:    "in-draft-campaign-success",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				t2, err := bus.Save(ctx, campaignbus.NewTarget{CampaignID: draftCmp.ID, EmployeeID: uuid.New()})
+				if err != nil {
+					return err
+				}
+				return t2.ID != (uuid.UUID{}) && t2.Token != "" && t2.Status == campaignbus.Pending
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "in-paused-campaign-success",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := bus.Save(ctx, campaignbus.NewTarget{CampaignID: pausedCmp.ID, EmployeeID: uuid.New()})
+				return err == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "in-active-campaign-returns-locked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := bus.Save(ctx, campaignbus.NewTarget{CampaignID: activeCmp.ID, EmployeeID: uuid.New()})
+				return errors.Is(err, campaignbus.ErrCampaignLocked)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "campaign-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNotFound.Save(ctx, campaignbus.NewTarget{CampaignID: uuid.New(), EmployeeID: uuid.New()})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "employee-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busEmpErr.Save(ctx, campaignbus.NewTarget{CampaignID: draftCmp.ID, EmployeeID: uuid.New()})
+				return errors.Is(err, campaignbus.ErrEmployeeNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-already-exists-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busExistsErr.Save(ctx, campaignbus.NewTarget{CampaignID: draftCmp.ID, EmployeeID: uuid.New()})
+				return errors.Is(err, campaignbus.ErrTargetAlreadyExists)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "generic-store-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busGenErr.Save(ctx, campaignbus.NewTarget{CampaignID: draftCmp.ID, EmployeeID: uuid.New()})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-// =============================================================================
-// Target ChangeStatus tests
-
-func TestTargetChangeStatus_PendingToSent_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
+func testTargetDelete() []unittest.Table {
+	target := campaignbus.Target{ID: uuid.New(), CampaignID: uuid.New(), Status: campaignbus.Pending}
 	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{
-		ID:     uuid.New(),
-		Status: campaignbus.Pending,
-	}
 	ts.data[target.ID] = target
+	bus := newTargetBus(newCampaignStorerStub(), ts)
 
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Sent); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-	if ts.data[target.ID].Status != campaignbus.Sent {
-		t.Errorf("Status = %v, want %v", ts.data[target.ID].Status, campaignbus.Sent)
+	tsErr := newTargetStorerStub()
+	tsErr.deleteErr = errors.New("db error")
+	busErr := newTargetBus(newCampaignStorerStub(), tsErr)
+
+	return []unittest.Table{
+		{
+			Name:    "removes-from-storer",
+			ExpResp: false,
+			ExcFunc: func(ctx context.Context) any {
+				if err := bus.Delete(ctx, target); err != nil {
+					return err
+				}
+				_, exists := ts.data[target.ID]
+				return exists
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busErr.Delete(ctx, target) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestTargetChangeStatus_PendingToFailed_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{
-		ID:     uuid.New(),
-		Status: campaignbus.Pending,
+func testTargetChangeStatus() []unittest.Table {
+	makeTarget := func(status campaignbus.TargetStatus) campaignbus.Target {
+		return campaignbus.Target{ID: uuid.New(), Status: status}
 	}
-	ts.data[target.ID] = target
 
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Failed); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
+	buildBus := func(t campaignbus.Target) (*targetStorerStub, *campaignbus.TargetBusiness) {
+		ts := newTargetStorerStub()
+		ts.data[t.ID] = t
+		return ts, newTargetBus(newCampaignStorerStub(), ts)
+	}
+
+	pendingTarget := makeTarget(campaignbus.Pending)
+	pendingSent := makeTarget(campaignbus.Pending)
+	pendingFailed := makeTarget(campaignbus.Pending)
+	pendingClicked := makeTarget(campaignbus.Pending)
+	sentTarget := makeTarget(campaignbus.Sent)
+	sentOpened := makeTarget(campaignbus.Sent)
+	sentClicked := makeTarget(campaignbus.Sent)
+	sentReplied := makeTarget(campaignbus.Sent)
+	openedClicked := makeTarget(campaignbus.Opened)
+	openedReplied := makeTarget(campaignbus.Opened)
+	clickedSubmitted := makeTarget(campaignbus.Clicked)
+	clickedReplied := makeTarget(campaignbus.Clicked)
+	failedTarget := makeTarget(campaignbus.Failed)
+	pendingInvalid := makeTarget(campaignbus.Pending)
+
+	tsPendingSent, busPendingSent := buildBus(pendingSent)
+	_, busPendingFailed := buildBus(pendingFailed)
+	_, busPendingClicked := buildBus(pendingClicked)
+	_, busSentOpened := buildBus(sentOpened)
+	_, busSentClicked := buildBus(sentClicked)
+	_, busSentReplied := buildBus(sentReplied)
+	_, busOpenedClicked := buildBus(openedClicked)
+	_, busOpenedReplied := buildBus(openedReplied)
+	_, busClickedSubmitted := buildBus(clickedSubmitted)
+	_, busClickedReplied := buildBus(clickedReplied)
+	_, busFailedTarget := buildBus(failedTarget)
+	_, busPendingInvalid := buildBus(pendingInvalid)
+
+	_ = tsPendingSent
+	_ = pendingTarget
+	_ = sentTarget
+
+	return []unittest.Table{
+		{
+			Name:    "pending-to-sent",
+			ExpResp: campaignbus.Sent.String(),
+			ExcFunc: func(ctx context.Context) any {
+				if err := busPendingSent.ChangeStatus(ctx, pendingSent, campaignbus.Sent); err != nil {
+					return err
+				}
+				return tsPendingSent.data[pendingSent.ID].Status.String()
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "pending-to-failed",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busPendingFailed.ChangeStatus(ctx, pendingFailed, campaignbus.Failed) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "pending-to-clicked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busPendingClicked.ChangeStatus(ctx, pendingClicked, campaignbus.Clicked) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "sent-to-opened",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busSentOpened.ChangeStatus(ctx, sentOpened, campaignbus.Opened) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "sent-to-clicked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busSentClicked.ChangeStatus(ctx, sentClicked, campaignbus.Clicked) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "sent-to-replied",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busSentReplied.ChangeStatus(ctx, sentReplied, campaignbus.Replied) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "opened-to-clicked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busOpenedClicked.ChangeStatus(ctx, openedClicked, campaignbus.Clicked) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "opened-to-replied",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busOpenedReplied.ChangeStatus(ctx, openedReplied, campaignbus.Replied) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "clicked-to-submitted",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busClickedSubmitted.ChangeStatus(ctx, clickedSubmitted, campaignbus.Submitted) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "clicked-to-replied",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busClickedReplied.ChangeStatus(ctx, clickedReplied, campaignbus.Replied) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "invalid-transition-from-failed",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busFailedTarget.ChangeStatus(ctx, failedTarget, campaignbus.Sent) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "pending-to-submitted-invalid",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				err := busPendingInvalid.ChangeStatus(ctx, pendingInvalid, campaignbus.Submitted)
+				return errors.Is(err, campaignbus.ErrInvalidStatusTransition)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-update-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				tsUpErr := newTargetStorerStub()
+				target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Pending}
+				tsUpErr.data[target.ID] = target
+				tsUpErr.updateErr = errors.New("db error")
+				busUpErr := newTargetBus(newCampaignStorerStub(), tsUpErr)
+				return busUpErr.ChangeStatus(ctx, target, campaignbus.Sent) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestTargetChangeStatus_SentToOpened_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{
-		ID:     uuid.New(),
-		Status: campaignbus.Sent,
-	}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Opened); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-func TestTargetChangeStatus_PendingToCompleted_InvalidTransition(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{
-		ID:     uuid.New(),
-		Status: campaignbus.Pending,
-	}
-	ts.data[target.ID] = target
-
-	err := bus.ChangeStatus(context.Background(), target, campaignbus.Submitted)
-	if !errors.Is(err, campaignbus.ErrInvalidStatusTransition) {
-		t.Fatalf("ChangeStatus error = %v, want %v", err, campaignbus.ErrInvalidStatusTransition)
-	}
-}
-
-func TestTargetChangeStatus_ClickedToSubmitted_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{
-		ID:     uuid.New(),
-		Status: campaignbus.Clicked,
-	}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Submitted); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-// =============================================================================
-// Target UpdateSchedule tests
-
-func TestTargetUpdateSchedule_WithinRange_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
+func testTargetUpdateSchedule() []unittest.Table {
 	now := time.Now().UTC()
 	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(48*time.Hour))
 
-	cmp := campaignbus.Campaign{
-		ID:        uuid.New(),
-		Status:    campaignbus.Draft,
-		DateRange: dr,
-	}
-	cs.data[cmp.ID] = cmp
+	draftCmp := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Draft, DateRange: dr}
+	activeCmp := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Active, DateRange: dr}
 
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: cmp.ID,
-		Status:     campaignbus.Pending,
-	}
-	ts.data[target.ID] = target
-
-	scheduledAt := now.Add(2 * time.Hour)
-	updated, err := bus.UpdateSchedule(context.Background(), target, scheduledAt)
-	if err != nil {
-		t.Fatalf("UpdateSchedule returned error: %v", err)
-	}
-	if updated.ScheduledAt == nil {
-		t.Fatal("ScheduledAt should be set")
-	}
-	if !updated.ScheduledAt.UTC().Equal(scheduledAt.UTC()) {
-		t.Errorf("ScheduledAt = %v, want %v", updated.ScheduledAt, scheduledAt)
-	}
-}
-
-func TestTargetUpdateSchedule_OutOfRange_ReturnsError(t *testing.T) {
-	t.Parallel()
+	pendingTarget := campaignbus.Target{ID: uuid.New(), CampaignID: draftCmp.ID, Status: campaignbus.Pending}
+	sentTarget := campaignbus.Target{ID: uuid.New(), CampaignID: draftCmp.ID, Status: campaignbus.Sent}
+	pendingActiveTarget := campaignbus.Target{ID: uuid.New(), CampaignID: activeCmp.ID, Status: campaignbus.Pending}
 
 	cs := newCampaignStorerStub()
+	cs.data[draftCmp.ID] = draftCmp
+	cs.data[activeCmp.ID] = activeCmp
+
 	ts := newTargetStorerStub()
+	ts.data[pendingTarget.ID] = pendingTarget
+	ts.data[sentTarget.ID] = sentTarget
+	ts.data[pendingActiveTarget.ID] = pendingActiveTarget
+
 	bus := newTargetBus(cs, ts)
 
-	now := time.Now().UTC()
-	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(48*time.Hour))
-
-	cmp := campaignbus.Campaign{
-		ID:        uuid.New(),
-		Status:    campaignbus.Draft,
-		DateRange: dr,
-	}
-	cs.data[cmp.ID] = cmp
-
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: cmp.ID,
-		Status:     campaignbus.Pending,
-	}
-	ts.data[target.ID] = target
-
-	// Дата за пределами DateRange
+	withinRange := now.Add(2 * time.Hour)
 	outOfRange := now.Add(72 * time.Hour)
-	_, err := bus.UpdateSchedule(context.Background(), target, outOfRange)
-	if !errors.Is(err, campaignbus.ErrInvalidScheduleWindow) {
-		t.Fatalf("UpdateSchedule error = %v, want %v", err, campaignbus.ErrInvalidScheduleWindow)
+
+	return []unittest.Table{
+		{
+			Name:    "within-range-success",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := bus.UpdateSchedule(ctx, pendingTarget, withinRange)
+				if err != nil {
+					return err
+				}
+				return updated.ScheduledAt != nil && updated.ScheduledAt.UTC().Equal(withinRange.UTC())
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "out-of-range-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := bus.UpdateSchedule(ctx, pendingTarget, outOfRange)
+				return errors.Is(err, campaignbus.ErrInvalidScheduleWindow)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "active-campaign-returns-target-locked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := bus.UpdateSchedule(ctx, pendingActiveTarget, withinRange)
+				return errors.Is(err, campaignbus.ErrTargetLocked)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "non-pending-target-returns-target-locked",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := bus.UpdateSchedule(ctx, sentTarget, withinRange)
+				return errors.Is(err, campaignbus.ErrTargetLocked)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-update-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				tsUpErr := newTargetStorerStub()
+				tsUpErr.data[pendingTarget.ID] = pendingTarget
+				tsUpErr.updateErr = errors.New("db error")
+				busUpErr := newTargetBus(cs, tsUpErr)
+				_, err := busUpErr.UpdateSchedule(ctx, pendingTarget, withinRange)
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestTargetUpdateSchedule_ActiveCampaign_ReturnsErrTargetLocked(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
+func testTargetAutoDistribute() []unittest.Table {
 	now := time.Now().UTC()
-	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(48*time.Hour))
-
-	cmp := campaignbus.Campaign{
-		ID:        uuid.New(),
-		Status:    campaignbus.Active, // Активная — нельзя менять расписание
-		DateRange: dr,
-	}
-	cs.data[cmp.ID] = cmp
-
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: cmp.ID,
-		Status:     campaignbus.Pending,
-	}
-	ts.data[target.ID] = target
-
-	_, err := bus.UpdateSchedule(context.Background(), target, now.Add(2*time.Hour))
-	if !errors.Is(err, campaignbus.ErrTargetLocked) {
-		t.Fatalf("UpdateSchedule error = %v, want %v", err, campaignbus.ErrTargetLocked)
-	}
-}
-
-func TestTargetUpdateSchedule_NonPendingTarget_ReturnsErrTargetLocked(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	now := time.Now().UTC()
-	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(48*time.Hour))
-
-	cmp := campaignbus.Campaign{
-		ID:        uuid.New(),
-		Status:    campaignbus.Draft,
-		DateRange: dr,
-	}
-	cs.data[cmp.ID] = cmp
-
-	// Таргет уже отправлен — нельзя менять расписание
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: cmp.ID,
-		Status:     campaignbus.Sent,
-	}
-	ts.data[target.ID] = target
-
-	_, err := bus.UpdateSchedule(context.Background(), target, now.Add(2*time.Hour))
-	if !errors.Is(err, campaignbus.ErrTargetLocked) {
-		t.Fatalf("UpdateSchedule error = %v, want %v", err, campaignbus.ErrTargetLocked)
-	}
-}
-
-// =============================================================================
-// Target AutoDistribute tests
-
-func TestTargetAutoDistribute_EvenDistribution(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	now := time.Now().UTC()
-	start := now.Add(time.Hour)
-	end := now.Add(5 * time.Hour)
-	dr, _ := date.ParseNull(start, end)
+	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(5*time.Hour))
 
 	cmpID := uuid.New()
-	cmp := campaignbus.Campaign{
-		ID:        cmpID,
-		Status:    campaignbus.Draft,
-		DateRange: dr,
-	}
-	cs.data[cmpID] = cmp
+	activeCmpID := uuid.New()
 
-	// 4 таргета без расписания
-	for i := 0; i < 4; i++ {
+	cs := newCampaignStorerStub()
+	cs.data[cmpID] = campaignbus.Campaign{ID: cmpID, Status: campaignbus.Draft, DateRange: dr}
+	cs.data[activeCmpID] = campaignbus.Campaign{ID: activeCmpID, Status: campaignbus.Active, DateRange: dr}
+
+	ts := newTargetStorerStub()
+	for range 4 {
 		id := uuid.New()
-		ts.data[id] = campaignbus.Target{
-			ID:         id,
-			CampaignID: cmpID,
-			Status:     campaignbus.Pending,
-		}
+		ts.data[id] = campaignbus.Target{ID: id, CampaignID: cmpID, Status: campaignbus.Pending}
 	}
 
-	if err := bus.AutoDistribute(context.Background(), cmpID); err != nil {
-		t.Fatalf("AutoDistribute returned error: %v", err)
-	}
+	bus := newTargetBus(cs, ts)
 
-	// Все таргеты должны получить ScheduledAt
-	for _, target := range ts.data {
-		if target.CampaignID != cmpID {
-			continue
-		}
-		if target.ScheduledAt == nil {
-			t.Errorf("target %v has no ScheduledAt after AutoDistribute", target.ID)
-		}
+	return []unittest.Table{
+		{
+			Name:    "even-distribution",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				if err := bus.AutoDistribute(ctx, cmpID); err != nil {
+					return err
+				}
+				for _, t := range ts.data {
+					if t.CampaignID != cmpID {
+						continue
+					}
+					if t.ScheduledAt == nil {
+						return false
+					}
+				}
+				return true
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "active-campaign-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				err := bus.AutoDistribute(ctx, activeCmpID)
+				return errors.Is(err, campaignbus.ErrTargetLocked)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "no-pending-targets-noop",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				emptyID := uuid.New()
+				cs.data[emptyID] = campaignbus.Campaign{ID: emptyID, Status: campaignbus.Draft, DateRange: dr}
+				return bus.AutoDistribute(ctx, emptyID) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestTargetAutoDistribute_NoPendingTargets_NoOp(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	now := time.Now().UTC()
-	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(5*time.Hour))
-
-	cmpID := uuid.New()
-	cs.data[cmpID] = campaignbus.Campaign{
-		ID:        cmpID,
-		Status:    campaignbus.Draft,
-		DateRange: dr,
-	}
-	// Таргетов нет
-
-	if err := bus.AutoDistribute(context.Background(), cmpID); err != nil {
-		t.Fatalf("AutoDistribute returned error for empty targets: %v", err)
-	}
-}
-
-func TestTargetAutoDistribute_ActiveCampaign_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	now := time.Now().UTC()
-	dr, _ := date.ParseNull(now.Add(time.Hour), now.Add(5*time.Hour))
-
-	cmpID := uuid.New()
-	cs.data[cmpID] = campaignbus.Campaign{
-		ID:        cmpID,
-		Status:    campaignbus.Active,
-		DateRange: dr,
-	}
-
-	err := bus.AutoDistribute(context.Background(), cmpID)
-	if !errors.Is(err, campaignbus.ErrTargetLocked) {
-		t.Fatalf("AutoDistribute error = %v, want %v", err, campaignbus.ErrTargetLocked)
-	}
-}
-
-// =============================================================================
-// Target PhishingURL tests
-
-func TestPhishingURL_ReturnsCorrectURL(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
+func testTargetPhishingURL() []unittest.Table {
 	d := domain.MustParse("https://phishing.example.com")
-	cmp := campaignbus.Campaign{
-		ID:     uuid.New(),
-		Status: campaignbus.Active,
-		Domain: d,
-	}
-	cs.data[cmp.ID] = cmp
+	cmpWithDomain := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Active, Domain: d}
+	cmpNoDomain := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Draft}
 
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: cmp.ID,
-		Token:      "abc-token-123",
-		Status:     campaignbus.Pending,
-	}
+	target := campaignbus.Target{ID: uuid.New(), CampaignID: cmpWithDomain.ID, Token: "abc-token-123", Status: campaignbus.Pending}
+	targetNoDomain := campaignbus.Target{ID: uuid.New(), CampaignID: cmpNoDomain.ID, Token: "some-token", Status: campaignbus.Pending}
+
+	cs := newCampaignStorerStub()
+	cs.data[cmpWithDomain.ID] = cmpWithDomain
+	cs.data[cmpNoDomain.ID] = cmpNoDomain
+
+	ts := newTargetStorerStub()
 	ts.data[target.ID] = target
+	ts.data[targetNoDomain.ID] = targetNoDomain
 
-	url, err := bus.PhishingURL(context.Background(), target.ID)
-	if err != nil {
-		t.Fatalf("PhishingURL returned error: %v", err)
-	}
+	bus := newTargetBus(cs, ts)
+	busEmpty := newTargetBus(newCampaignStorerStub(), newTargetStorerStub())
 
-	expected := "https://phishing.example.com/abc-token-123"
-	if url != expected {
-		t.Errorf("URL = %q, want %q", url, expected)
+	return []unittest.Table{
+		{
+			Name:    "returns-correct-url",
+			ExpResp: "https://phishing.example.com/abc-token-123",
+			ExcFunc: func(ctx context.Context) any {
+				url, err := bus.PhishingURL(ctx, target.ID)
+				if err != nil {
+					return err
+				}
+				return url
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "no-domain-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := bus.PhishingURL(ctx, targetNoDomain.ID)
+				return errors.Is(err, campaignbus.ErrDomainRequired)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busEmpty.PhishingURL(ctx, uuid.New())
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestPhishingURL_NoDomain_ReturnsError(t *testing.T) {
-	t.Parallel()
+func testTargetQueryByID() []unittest.Table {
+	target := campaignbus.Target{ID: uuid.New(), Token: "some-token", Status: campaignbus.Pending}
 
-	cs := newCampaignStorerStub()
 	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	// Кампания без домена
-	cmp := campaignbus.Campaign{
-		ID:     uuid.New(),
-		Status: campaignbus.Draft,
-	}
-	cs.data[cmp.ID] = cmp
-
-	target := campaignbus.Target{
-		ID:         uuid.New(),
-		CampaignID: cmp.ID,
-		Token:      "some-token",
-		Status:     campaignbus.Pending,
-	}
 	ts.data[target.ID] = target
+	busFound := newTargetBus(newCampaignStorerStub(), ts)
+	busNotFound := newTargetBus(newCampaignStorerStub(), newTargetStorerStub())
 
-	_, err := bus.PhishingURL(context.Background(), target.ID)
-	if !errors.Is(err, campaignbus.ErrDomainRequired) {
-		t.Fatalf("PhishingURL error = %v, want %v", err, campaignbus.ErrDomainRequired)
+	return []unittest.Table{
+		{
+			Name:    "returns-target",
+			ExpResp: target.ID,
+			ExcFunc: func(ctx context.Context) any {
+				got, err := busFound.QueryByID(ctx, target.ID)
+				if err != nil {
+					return err
+				}
+				return got.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNotFound.QueryByID(ctx, uuid.New())
+				return errors.Is(err, campaignbus.ErrTargetNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestPhishingURL_TargetNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	_, err := bus.PhishingURL(context.Background(), uuid.New())
-	if err == nil {
-		t.Fatal("expected error for non-existent target, got nil")
-	}
-}
-
-// =============================================================================
-// Target QueryByID tests
-
-func TestTargetQueryByID_ReturnsTarget(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{
-		ID:     uuid.New(),
-		Token:  "some-token",
-		Status: campaignbus.Pending,
-	}
-	ts.data[target.ID] = target
-
-	got, err := bus.QueryByID(context.Background(), target.ID)
-	if err != nil {
-		t.Fatalf("QueryByID returned error: %v", err)
-	}
-	if got.ID != target.ID {
-		t.Errorf("ID = %v, want %v", got.ID, target.ID)
-	}
-}
-
-func TestTargetQueryByID_NotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	_, err := bus.QueryByID(context.Background(), uuid.New())
-	if !errors.Is(err, campaignbus.ErrTargetNotFound) {
-		t.Fatalf("QueryByID error = %v, want %v", err, campaignbus.ErrTargetNotFound)
-	}
-}
-
-// =============================================================================
-// TargetBusiness.Save — непокрытые ветки store ошибок
-
-func TestTargetSave_EmployeeNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
+func testTargetDeleteByCampaignID() []unittest.Table {
 	cmpID := uuid.New()
+
+	cs := newCampaignStorerStub()
 	cs.data[cmpID] = campaignbus.Campaign{ID: cmpID, Status: campaignbus.Draft}
-	ts.saveErr = campaignbus.ErrEmployeeNotFound
+	bus := newTargetBus(cs, newTargetStorerStub())
 
-	_, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: cmpID,
-		EmployeeID: uuid.New(),
-	})
-	if !errors.Is(err, campaignbus.ErrEmployeeNotFound) {
-		t.Fatalf("Save error = %v, want %v", err, campaignbus.ErrEmployeeNotFound)
+	busEmpty := newTargetBus(newCampaignStorerStub(), newTargetStorerStub())
+
+	tsDeleteErr := newTargetStorerStub()
+	tsDeleteErr.deleteByCampaignIDErr = errors.New("db error")
+	busDeleteErr := newTargetBus(cs, tsDeleteErr)
+
+	return []unittest.Table{
+		{
+			Name:    "campaign-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				err := busEmpty.DeleteByCampaignID(ctx, uuid.New())
+				return errors.Is(err, campaignbus.ErrCampaignNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "existing-campaign-success",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return bus.DeleteByCampaignID(ctx, cmpID) == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-delete-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busDeleteErr.DeleteByCampaignID(ctx, cmpID) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestTargetSave_AlreadyExists_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
+func testTargetQueryDue() []unittest.Table {
 	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
+	busOK := newTargetBus(newCampaignStorerStub(), ts)
 
-	cmpID := uuid.New()
-	cs.data[cmpID] = campaignbus.Campaign{ID: cmpID, Status: campaignbus.Draft}
-	ts.saveErr = campaignbus.ErrTargetAlreadyExists
+	tsErr := newTargetStorerStub()
+	tsErr.queryDueErr = errors.New("db error")
+	busErr := newTargetBus(newCampaignStorerStub(), tsErr)
 
-	_, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: cmpID,
-		EmployeeID: uuid.New(),
-	})
-	if !errors.Is(err, campaignbus.ErrTargetAlreadyExists) {
-		t.Fatalf("Save error = %v, want %v", err, campaignbus.ErrTargetAlreadyExists)
+	return []unittest.Table{
+		{
+			Name:    "empty-returns-nil",
+			ExpResp: 0,
+			ExcFunc: func(ctx context.Context) any {
+				targets, err := busOK.QueryDue(ctx)
+				if err != nil {
+					return err
+				}
+				return len(targets)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busErr.QueryDue(ctx)
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestTargetSave_GenericStoreError_ReturnsError(t *testing.T) {
-	t.Parallel()
-
+func testTargetQueryCampaignByID() []unittest.Table {
+	c := campaignbus.Campaign{ID: uuid.New(), Status: campaignbus.Draft}
 	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
+	cs.data[c.ID] = c
+	bus := newTargetBus(cs, newTargetStorerStub())
+	busEmpty := newTargetBus(newCampaignStorerStub(), newTargetStorerStub())
 
-	cmpID := uuid.New()
-	cs.data[cmpID] = campaignbus.Campaign{ID: cmpID, Status: campaignbus.Draft}
-	ts.saveErr = errors.New("db connection lost")
-
-	_, err := bus.Save(context.Background(), campaignbus.NewTarget{
-		CampaignID: cmpID,
-		EmployeeID: uuid.New(),
-	})
-	if err == nil {
-		t.Fatal("expected error from store, got nil")
-	}
-}
-
-// =============================================================================
-// TargetBusiness.DeleteByCampaignID — непокрытые ветки
-
-func TestTargetDeleteByCampaignID_CampaignNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	err := bus.DeleteByCampaignID(context.Background(), uuid.New())
-	if !errors.Is(err, campaignbus.ErrCampaignNotFound) {
-		t.Fatalf("DeleteByCampaignID error = %v, want %v", err, campaignbus.ErrCampaignNotFound)
-	}
-}
-
-// =============================================================================
-// isValidTargetTransition — непокрытые переходы
-
-func TestTargetChangeStatus_PendingToClicked_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Pending}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Clicked); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-func TestTargetChangeStatus_SentToReplied_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Sent}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Replied); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-func TestTargetChangeStatus_SentToClicked_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Sent}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Clicked); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-func TestTargetChangeStatus_OpenedToClicked_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Opened}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Clicked); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-func TestTargetChangeStatus_OpenedToReplied_Success(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Opened}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Replied); err != nil {
-		t.Fatalf("ChangeStatus returned error: %v", err)
-	}
-}
-
-func TestTargetChangeStatus_FromTerminalState_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	cs := newCampaignStorerStub()
-	ts := newTargetStorerStub()
-	bus := newTargetBus(cs, ts)
-
-	// Failed — терминальный статус, никакой переход невалиден
-	target := campaignbus.Target{ID: uuid.New(), Status: campaignbus.Failed}
-	ts.data[target.ID] = target
-
-	if err := bus.ChangeStatus(context.Background(), target, campaignbus.Sent); err == nil {
-		t.Fatal("expected error for transition from terminal state, got nil")
+	return []unittest.Table{
+		{
+			Name:    "found-returns-campaign",
+			ExpResp: c.ID,
+			ExcFunc: func(ctx context.Context) any {
+				got, err := bus.QueryCampaignByID(ctx, c.ID)
+				if err != nil {
+					return err
+				}
+				return got.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busEmpty.QueryCampaignByID(ctx, uuid.New())
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }

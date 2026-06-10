@@ -5,9 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
@@ -64,267 +66,237 @@ func (s *orgAttachmentQuerierStub) QueryByID(_ context.Context, id uuid.UUID) (a
 }
 
 // =============================================================================
-// Save tests
 
-func TestSave_WithoutAttachment_UsesGlobalID(t *testing.T) {
+func Test_Organization(t *testing.T) {
 	t.Parallel()
 
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, newOrgAttachmentQuerierStub())
-
-	org, err := bus.Save(context.Background(), organizationbus.NewOrganization{
-		Label: label.MustParse("ClickSafe"),
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if org.ID != organizationbus.GlobalID {
-		t.Errorf("ID = %v, want GlobalID = %v", org.ID, organizationbus.GlobalID)
-	}
-	if _, exists := store.data[org.ID]; !exists {
-		t.Error("Organization was not persisted to storer")
-	}
+	unittest.Run(t, testSave(), "save")
+	unittest.Run(t, testGet(), "get")
+	unittest.Run(t, testUpdate(), "update")
 }
 
-func TestSave_WithImageAttachment_Success(t *testing.T) {
-	t.Parallel()
+// =============================================================================
 
-	aq := newOrgAttachmentQuerierStub()
+func testSave() []unittest.Table {
+	storeOK := newOrgStorerStub()
+	busOK := organizationbus.NewBusiness(storeOK, newOrgAttachmentQuerierStub())
+
+	aqImage := newOrgAttachmentQuerierStub()
 	imgID := uuid.New()
-	aq.data[imgID] = attachmentbus.Attachment{
-		ID:   imgID,
-		Type: attachmentbus.Png,
-	}
+	aqImage.data[imgID] = attachmentbus.Attachment{ID: imgID, Type: attachmentbus.Png}
+	storeImg := newOrgStorerStub()
+	busImg := organizationbus.NewBusiness(storeImg, aqImage)
 
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, aq)
-
-	org, err := bus.Save(context.Background(), organizationbus.NewOrganization{
-		Label:        label.MustParse("ClickSafe"),
-		AttachmentID: uuid.NullUUID{UUID: imgID, Valid: true},
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if !org.AttachmentID.Valid || org.AttachmentID.UUID != imgID {
-		t.Errorf("AttachmentID = %v, want %v", org.AttachmentID, imgID)
-	}
-}
-
-func TestSave_WithNonImageAttachment_ReturnsErrInvalidAttachment(t *testing.T) {
-	t.Parallel()
-
-	aq := newOrgAttachmentQuerierStub()
+	aqNonImage := newOrgAttachmentQuerierStub()
 	htmlID := uuid.New()
-	aq.data[htmlID] = attachmentbus.Attachment{
-		ID:   htmlID,
-		Type: attachmentbus.Html,
-	}
+	aqNonImage.data[htmlID] = attachmentbus.Attachment{ID: htmlID, Type: attachmentbus.Html}
+	busNonImage := organizationbus.NewBusiness(newOrgStorerStub(), aqNonImage)
 
-	bus := organizationbus.NewBusiness(newOrgStorerStub(), aq)
+	busAttNotFound := organizationbus.NewBusiness(newOrgStorerStub(), newOrgAttachmentQuerierStub())
 
-	_, err := bus.Save(context.Background(), organizationbus.NewOrganization{
-		Label:        label.MustParse("ClickSafe"),
-		AttachmentID: uuid.NullUUID{UUID: htmlID, Valid: true},
-	})
-	if !errors.Is(err, organizationbus.ErrInvalidAttachment) {
-		t.Fatalf("Save error = %v, want %v", err, organizationbus.ErrInvalidAttachment)
+	storeDBErr := newOrgStorerStub()
+	storeDBErr.saveErr = errors.New("db error")
+	busDBErr := organizationbus.NewBusiness(storeDBErr, newOrgAttachmentQuerierStub())
+
+	return []unittest.Table{
+		{
+			Name:    "without-attachment-uses-global-id",
+			ExpResp: organizationbus.GlobalID,
+			ExcFunc: func(ctx context.Context) any {
+				org, err := busOK.Save(ctx, organizationbus.NewOrganization{
+					Label: label.MustParse("ClickSafe"),
+				})
+				if err != nil {
+					return err
+				}
+				return org.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "with-image-attachment-success",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				org, err := busImg.Save(ctx, organizationbus.NewOrganization{
+					Label:        label.MustParse("ClickSafe"),
+					AttachmentID: uuid.NullUUID{UUID: imgID, Valid: true},
+				})
+				if err != nil {
+					return err
+				}
+				return org.AttachmentID.Valid && org.AttachmentID.UUID == imgID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "with-non-image-attachment-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNonImage.Save(ctx, organizationbus.NewOrganization{
+					Label:        label.MustParse("ClickSafe"),
+					AttachmentID: uuid.NullUUID{UUID: htmlID, Valid: true},
+				})
+				return errors.Is(err, organizationbus.ErrInvalidAttachment)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "attachment-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busAttNotFound.Save(ctx, organizationbus.NewOrganization{
+					Label:        label.MustParse("ClickSafe"),
+					AttachmentID: uuid.NullUUID{UUID: uuid.New(), Valid: true},
+				})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "with-attributes-persists",
+			ExpResp: "support@clicksafe.test",
+			ExcFunc: func(ctx context.Context) any {
+				org, err := busOK.Save(ctx, organizationbus.NewOrganization{
+					Label:      label.MustParse("ClickSafe org"),
+					Attributes: map[string]string{"SupportEmail": "support@clicksafe.test"},
+				})
+				if err != nil {
+					return err
+				}
+				return org.Attributes["SupportEmail"]
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busDBErr.Save(ctx, organizationbus.NewOrganization{
+					Label: label.MustParse("ClickSafe"),
+				})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestSave_AttachmentNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
+func testGet() []unittest.Table {
+	orgLabel := label.MustParse("ClickSafe")
 
-	bus := organizationbus.NewBusiness(newOrgStorerStub(), newOrgAttachmentQuerierStub())
-
-	_, err := bus.Save(context.Background(), organizationbus.NewOrganization{
-		Label:        label.MustParse("ClickSafe"),
-		AttachmentID: uuid.NullUUID{UUID: uuid.New(), Valid: true},
-	})
-	if err == nil {
-		t.Fatal("expected error for missing attachment, got nil")
-	}
-}
-
-func TestSave_WithAttributes_Persists(t *testing.T) {
-	t.Parallel()
-
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, newOrgAttachmentQuerierStub())
-
-	attrs := map[string]string{"SupportEmail": "support@clicksafe.test"}
-	org, err := bus.Save(context.Background(), organizationbus.NewOrganization{
-		Label:      label.MustParse("ClickSafe"),
-		Attributes: attrs,
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if org.Attributes["SupportEmail"] != "support@clicksafe.test" {
-		t.Errorf("Attributes[SupportEmail] = %q, want support@clicksafe.test", org.Attributes["SupportEmail"])
-	}
-}
-
-func TestSave_StoreError_Propagates(t *testing.T) {
-	t.Parallel()
-
-	store := newOrgStorerStub()
-	store.saveErr = errors.New("db error")
-	bus := organizationbus.NewBusiness(store, newOrgAttachmentQuerierStub())
-
-	_, err := bus.Save(context.Background(), organizationbus.NewOrganization{
-		Label: label.MustParse("ClickSafe"),
-	})
-	if err == nil {
-		t.Fatal("expected error when storer fails, got nil")
-	}
-}
-
-// =============================================================================
-// Get tests
-
-func TestGet_ReturnsOrganization(t *testing.T) {
-	t.Parallel()
-
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, newOrgAttachmentQuerierStub())
-
-	org := organizationbus.Organization{
+	storeFound := newOrgStorerStub()
+	storeFound.data[organizationbus.GlobalID] = organizationbus.Organization{
 		ID:    organizationbus.GlobalID,
-		Label: label.MustParse("ClickSafe"),
+		Label: orgLabel,
 	}
-	store.data[org.ID] = org
+	busFound := organizationbus.NewBusiness(storeFound, newOrgAttachmentQuerierStub())
 
-	got, err := bus.Get(context.Background())
-	if err != nil {
-		t.Fatalf("Get returned error: %v", err)
-	}
-	if got.ID != org.ID {
-		t.Errorf("ID = %v, want %v", got.ID, org.ID)
-	}
-	if got.Label != org.Label {
-		t.Errorf("Label = %v, want %v", got.Label, org.Label)
-	}
-}
+	busNotFound := organizationbus.NewBusiness(newOrgStorerStub(), newOrgAttachmentQuerierStub())
 
-func TestGet_NotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	bus := organizationbus.NewBusiness(newOrgStorerStub(), newOrgAttachmentQuerierStub())
-
-	_, err := bus.Get(context.Background())
-	if !errors.Is(err, organizationbus.ErrNotFound) {
-		t.Fatalf("Get error = %v, want %v", err, organizationbus.ErrNotFound)
-	}
-}
-
-// =============================================================================
-// Update tests
-
-func TestUpdate_ChangesLabel(t *testing.T) {
-	t.Parallel()
-
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, newOrgAttachmentQuerierStub())
-
-	original := organizationbus.Organization{
-		ID:    organizationbus.GlobalID,
-		Label: label.MustParse("OldLabel"),
-	}
-	store.data[original.ID] = original
-
-	newLabel := label.MustParse("NewLabel")
-	updated, err := bus.Update(context.Background(), original, organizationbus.UpdateOrganization{
-		Label: &newLabel,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.Label != newLabel {
-		t.Errorf("Label = %v, want %v", updated.Label, newLabel)
+	return []unittest.Table{
+		{
+			Name:    "returns-organization",
+			ExpResp: organizationbus.GlobalID,
+			ExcFunc: func(ctx context.Context) any {
+				got, err := busFound.Get(ctx)
+				if err != nil {
+					return err
+				}
+				return got.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNotFound.Get(ctx)
+				return errors.Is(err, organizationbus.ErrNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestUpdate_ChangesAttributes(t *testing.T) {
-	t.Parallel()
-
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, newOrgAttachmentQuerierStub())
-
+func testUpdate() []unittest.Table {
 	original := organizationbus.Organization{
 		ID:         organizationbus.GlobalID,
-		Label:      label.MustParse("ClickSafe"),
+		Label:      label.MustParse("OldLabel"),
 		Attributes: map[string]string{"OldKey": "OldVal"},
 	}
-	store.data[original.ID] = original
 
-	newAttrs := map[string]string{"NewKey": "NewVal"}
-	updated, err := bus.Update(context.Background(), original, organizationbus.UpdateOrganization{
-		Attributes: &newAttrs,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.Attributes["NewKey"] != "NewVal" {
-		t.Errorf("Attributes[NewKey] = %q, want NewVal", updated.Attributes["NewKey"])
-	}
-}
+	storeLabel := newOrgStorerStub()
+	storeLabel.data[original.ID] = original
+	busLabel := organizationbus.NewBusiness(storeLabel, newOrgAttachmentQuerierStub())
 
-func TestUpdate_SetsImageAttachment(t *testing.T) {
-	t.Parallel()
+	storeAttrs := newOrgStorerStub()
+	storeAttrs.data[original.ID] = original
+	busAttrs := organizationbus.NewBusiness(storeAttrs, newOrgAttachmentQuerierStub())
 
-	aq := newOrgAttachmentQuerierStub()
+	aqImage := newOrgAttachmentQuerierStub()
 	imgID := uuid.New()
-	aq.data[imgID] = attachmentbus.Attachment{
-		ID:   imgID,
-		Type: attachmentbus.Jpeg,
-	}
+	aqImage.data[imgID] = attachmentbus.Attachment{ID: imgID, Type: attachmentbus.Jpeg}
+	storeImg := newOrgStorerStub()
+	storeImg.data[original.ID] = original
+	busImg := organizationbus.NewBusiness(storeImg, aqImage)
 
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, aq)
+	aqNonImage := newOrgAttachmentQuerierStub()
+	htmlID2 := uuid.New()
+	aqNonImage.data[htmlID2] = attachmentbus.Attachment{ID: htmlID2, Type: attachmentbus.Html}
+	storeNonImg := newOrgStorerStub()
+	storeNonImg.data[original.ID] = original
+	busNonImg := organizationbus.NewBusiness(storeNonImg, aqNonImage)
 
-	original := organizationbus.Organization{
-		ID:    organizationbus.GlobalID,
-		Label: label.MustParse("ClickSafe"),
-	}
-	store.data[original.ID] = original
+	newLabel := label.MustParse("NewLabel")
+	newAttrs := map[string]string{"NewKey": "NewVal"}
+	imgAttID := uuid.NullUUID{UUID: imgID, Valid: true}
+	nonImgAttID := uuid.NullUUID{UUID: htmlID2, Valid: true}
 
-	att := uuid.NullUUID{UUID: imgID, Valid: true}
-	updated, err := bus.Update(context.Background(), original, organizationbus.UpdateOrganization{
-		AttachmentID: &att,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if !updated.AttachmentID.Valid || updated.AttachmentID.UUID != imgID {
-		t.Errorf("AttachmentID = %v, want %v", updated.AttachmentID, imgID)
-	}
-}
-
-func TestUpdate_WithNonImageAttachment_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	aq := newOrgAttachmentQuerierStub()
-	htmlID := uuid.New()
-	aq.data[htmlID] = attachmentbus.Attachment{
-		ID:   htmlID,
-		Type: attachmentbus.Html,
-	}
-
-	store := newOrgStorerStub()
-	bus := organizationbus.NewBusiness(store, aq)
-
-	original := organizationbus.Organization{
-		ID:    organizationbus.GlobalID,
-		Label: label.MustParse("ClickSafe"),
-	}
-	store.data[original.ID] = original
-
-	att := uuid.NullUUID{UUID: htmlID, Valid: true}
-	_, err := bus.Update(context.Background(), original, organizationbus.UpdateOrganization{
-		AttachmentID: &att,
-	})
-	if !errors.Is(err, organizationbus.ErrInvalidAttachment) {
-		t.Fatalf("Update error = %v, want %v", err, organizationbus.ErrInvalidAttachment)
+	return []unittest.Table{
+		{
+			Name:    "changes-label",
+			ExpResp: newLabel,
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := busLabel.Update(ctx, original, organizationbus.UpdateOrganization{Label: &newLabel})
+				if err != nil {
+					return err
+				}
+				return updated.Label
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "changes-attributes",
+			ExpResp: "NewVal",
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := busAttrs.Update(ctx, original, organizationbus.UpdateOrganization{Attributes: &newAttrs})
+				if err != nil {
+					return err
+				}
+				return updated.Attributes["NewKey"]
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "sets-image-attachment",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := busImg.Update(ctx, original, organizationbus.UpdateOrganization{AttachmentID: &imgAttID})
+				if err != nil {
+					return err
+				}
+				return updated.AttachmentID.Valid && updated.AttachmentID.UUID == imgID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "non-image-attachment-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNonImg.Update(ctx, original, organizationbus.UpdateOrganization{AttachmentID: &nonImgAttID})
+				return errors.Is(err, organizationbus.ErrInvalidAttachment)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }

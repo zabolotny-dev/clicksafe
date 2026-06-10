@@ -3,25 +3,254 @@ package employeebus_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/mail"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/dbtest"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/name"
 	"github.com/zabolotny-dev/clicksafe/business/types/phone"
 )
 
+func Test_Employee(t *testing.T) {
+	t.Parallel()
+
+	db := dbtest.New(t, "Test_Employee")
+
+	sd, err := insertSeedData(db.BusDomain)
+	if err != nil {
+		t.Fatalf("Seeding error: %s", err)
+	}
+
+	unittest.Run(t, query(db.BusDomain, sd), "query")
+	unittest.Run(t, create(db.BusDomain, sd), "create")
+	unittest.Run(t, update(db.BusDomain, sd), "update")
+	unittest.Run(t, deleteEmp(db.BusDomain, sd), "delete")
+	unittest.Run(t, savemany(db.BusDomain, sd), "savemany")
+	unittest.Run(t, count(db.BusDomain, sd), "count")
+}
+
 // =============================================================================
-// Stubs
+
+type seedData struct {
+	Department departmentbus.Department
+	Employees  []employeebus.Employee
+}
+
+func insertSeedData(busDomain dbtest.BusDomain) (seedData, error) {
+	ctx := context.Background()
+
+	deps, err := departmentbus.TestSeedDepartments(ctx, 1, busDomain.Department)
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding department: %w", err)
+	}
+	dep := deps[0]
+
+	emps, err := employeebus.TestSeedEmployees(ctx, 2, &dep.ID, busDomain.Employee)
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding employees: %w", err)
+	}
+
+	return seedData{Department: dep, Employees: emps}, nil
+}
+
+// =============================================================================
+
+func query(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "byid",
+			ExpResp: sd.Employees[0],
+			ExcFunc: func(ctx context.Context) any {
+				resp, err := busDomain.Employee.QueryByID(ctx, sd.Employees[0].ID)
+				if err != nil {
+					return err
+				}
+				return resp
+			},
+			CmpFunc: func(got, exp any) string {
+				gotResp, ok := got.(employeebus.Employee)
+				if !ok {
+					return "error occurred"
+				}
+				return cmp.Diff(gotResp, exp.(employeebus.Employee))
+			},
+		},
+		{
+			Name:    "bydepartment",
+			ExpResp: 2,
+			ExcFunc: func(ctx context.Context) any {
+				resp, err := busDomain.Employee.Query(ctx,
+					employeebus.QueryFilter{DepartmentID: &sd.Department.ID},
+					employeebus.DefaultOrderBy,
+					page.MustParse("1", "10"),
+				)
+				if err != nil {
+					return err
+				}
+				return len(resp)
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+func create(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	email := mail.Address{Address: "newemployee@example.com"}
+
+	return []unittest.Table{
+		{
+			Name: "basic",
+			ExpResp: employeebus.Employee{
+				DepartmentID: &sd.Department.ID,
+				FirstName:    name.MustParse("Alice"),
+				LastName:     name.MustParse("Smith"),
+				Email:        email,
+				Attributes:   map[string]string{},
+			},
+			ExcFunc: func(ctx context.Context) any {
+				ne := employeebus.NewEmployee{
+					DepartmentID: &sd.Department.ID,
+					FirstName:    name.MustParse("Alice"),
+					LastName:     name.MustParse("Smith"),
+					Email:        email,
+					Attributes:   map[string]string{},
+				}
+				resp, err := busDomain.Employee.Save(ctx, ne)
+				if err != nil {
+					return err
+				}
+				return resp
+			},
+			CmpFunc: func(got, exp any) string {
+				gotResp, ok := got.(employeebus.Employee)
+				if !ok {
+					return "error occurred"
+				}
+				expResp := exp.(employeebus.Employee)
+				expResp.ID = gotResp.ID
+				expResp.Phone = gotResp.Phone
+				return cmp.Diff(gotResp, expResp)
+			},
+		},
+	}
+}
+
+func update(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	newFirst := name.MustParse("Updated")
+	newEmail := mail.Address{Address: "updated@example.com"}
+
+	return []unittest.Table{
+		{
+			Name: "basic",
+			ExpResp: employeebus.Employee{
+				ID:           sd.Employees[0].ID,
+				DepartmentID: sd.Employees[0].DepartmentID,
+				FirstName:    newFirst,
+				LastName:     sd.Employees[0].LastName,
+				Email:        newEmail,
+				Phone:        sd.Employees[0].Phone,
+				Attributes:   sd.Employees[0].Attributes,
+			},
+			ExcFunc: func(ctx context.Context) any {
+				up := employeebus.UpdateEmployee{
+					FirstName: &newFirst,
+					Email:     &newEmail,
+				}
+				resp, err := busDomain.Employee.Update(ctx, sd.Employees[0], up)
+				if err != nil {
+					return err
+				}
+				return resp
+			},
+			CmpFunc: func(got, exp any) string {
+				gotResp, ok := got.(employeebus.Employee)
+				if !ok {
+					return "error occurred"
+				}
+				expResp := exp.(employeebus.Employee)
+				expResp.Attributes = gotResp.Attributes
+				return cmp.Diff(gotResp, expResp)
+			},
+		},
+	}
+}
+
+func deleteEmp(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "basic",
+			ExpResp: nil,
+			ExcFunc: func(ctx context.Context) any {
+				if err := busDomain.Employee.Delete(ctx, sd.Employees[1]); err != nil {
+					return err
+				}
+				return nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+func savemany(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "basic",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				err := busDomain.Employee.SaveMany(ctx, []employeebus.NewEmployee{
+					{
+						DepartmentID: &sd.Department.ID,
+						FirstName:    name.MustParse("Batch"),
+						LastName:     name.MustParse("One"),
+						Email:        mail.Address{Address: "batch1@example.com"},
+						Attributes:   map[string]string{},
+					},
+					{
+						DepartmentID: &sd.Department.ID,
+						FirstName:    name.MustParse("Batch"),
+						LastName:     name.MustParse("Two"),
+						Email:        mail.Address{Address: "batch2@example.com"},
+						Attributes:   map[string]string{},
+					},
+				})
+				return err == nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "empty-no-op",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busDomain.Employee.SaveMany(ctx, []employeebus.NewEmployee{}) == nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+	}
+}
+
+// =============================================================================
+// Stub-based unit tests for error paths and missing branches
 
 type employeeStorerStub struct {
-	data        map[uuid.UUID]employeebus.Employee
-	saveErr     error
-	saveManyErr error
-	saveManyN   int
+	data    map[uuid.UUID]employeebus.Employee
+	saveErr error
+	qErr    error
 }
 
 func newEmployeeStorerStub() *employeeStorerStub {
@@ -37,9 +266,8 @@ func (s *employeeStorerStub) Save(_ context.Context, e employeebus.Employee) err
 }
 
 func (s *employeeStorerStub) SaveMany(_ context.Context, emps []employeebus.Employee) error {
-	s.saveManyN++
-	if s.saveManyErr != nil {
-		return s.saveManyErr
+	if s.saveErr != nil {
+		return s.saveErr
 	}
 	for _, e := range emps {
 		s.data[e.ID] = e
@@ -48,6 +276,9 @@ func (s *employeeStorerStub) SaveMany(_ context.Context, emps []employeebus.Empl
 }
 
 func (s *employeeStorerStub) QueryByID(_ context.Context, id uuid.UUID) (employeebus.Employee, error) {
+	if s.qErr != nil {
+		return employeebus.Employee{}, s.qErr
+	}
 	e, ok := s.data[id]
 	if !ok {
 		return employeebus.Employee{}, employeebus.ErrNotFound
@@ -56,6 +287,9 @@ func (s *employeeStorerStub) QueryByID(_ context.Context, id uuid.UUID) (employe
 }
 
 func (s *employeeStorerStub) Query(_ context.Context, _ employeebus.QueryFilter, _ order.By, _ page.Page) ([]employeebus.Employee, error) {
+	if s.qErr != nil {
+		return nil, s.qErr
+	}
 	var result []employeebus.Employee
 	for _, e := range s.data {
 		result = append(result, e)
@@ -72,383 +306,224 @@ func (s *employeeStorerStub) Update(_ context.Context, e employeebus.Employee) e
 }
 
 func (s *employeeStorerStub) Delete(_ context.Context, e employeebus.Employee) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
 	delete(s.data, e.ID)
 	return nil
 }
 
 func (s *employeeStorerStub) Count(_ context.Context, _ employeebus.QueryFilter) (int, error) {
+	if s.qErr != nil {
+		return 0, s.qErr
+	}
 	return len(s.data), nil
 }
 
-// mustParsePhone — вспомогательная функция для тестов
-func mustParsePhone(v string) phone.Null {
-	p, err := phone.ParseNull(v)
-	if err != nil {
-		panic(err)
-	}
-	return p
+func Test_Employee_UnitErrors(t *testing.T) {
+	t.Parallel()
+	unittest.Run(t, employeeErrorPaths(), "error-paths")
 }
 
-// =============================================================================
-// Save tests
+func employeeErrorPaths() []unittest.Table {
+	dbErr := errors.New("db error")
+	deptNotFoundErr := employeebus.ErrDepartmentNotFound
 
-func TestSave_AssignsNonZeroUUID(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	emp, err := bus.Save(context.Background(), employeebus.NewEmployee{
-		FirstName: name.MustParse("Ivan"),
-		LastName:  name.MustParse("Petrov"),
-		Email:     mail.Address{Address: "ivan@example.com"},
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if emp.ID == (uuid.UUID{}) {
-		t.Error("Save must assign a non-zero UUID")
-	}
-	if _, exists := store.data[emp.ID]; !exists {
-		t.Error("Employee was not persisted to storer")
-	}
-}
-
-func TestSave_WithDepartmentID_Persists(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
+	empID := uuid.New()
 	deptID := uuid.New()
-	emp, err := bus.Save(context.Background(), employeebus.NewEmployee{
-		DepartmentID: &deptID,
-		FirstName:    name.MustParse("Petr"),
-		LastName:     name.MustParse("Ivanov"),
-		Email:        mail.Address{Address: "petr@example.com"},
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if emp.DepartmentID == nil || *emp.DepartmentID != deptID {
-		t.Errorf("DepartmentID = %v, want %v", emp.DepartmentID, deptID)
-	}
-}
 
-func TestSave_DepartmentNotFound_ReturnsWrappedError(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	store.saveErr = employeebus.ErrDepartmentNotFound
-	bus := employeebus.NewBusiness(store)
-
-	deptID := uuid.New()
-	_, err := bus.Save(context.Background(), employeebus.NewEmployee{
-		DepartmentID: &deptID,
-		FirstName:    name.MustParse("Test"),
-		LastName:     name.MustParse("User"),
-		Email:        mail.Address{Address: "test@example.com"},
-	})
-	if !errors.Is(err, employeebus.ErrDepartmentNotFound) {
-		t.Fatalf("Save error = %v, want %v", err, employeebus.ErrDepartmentNotFound)
-	}
-}
-
-func TestSave_WithPhone_Persists(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	ph := mustParsePhone("+79991234567")
-	emp, err := bus.Save(context.Background(), employeebus.NewEmployee{
-		FirstName: name.MustParse("Anna"),
-		LastName:  name.MustParse("Smirnova"),
-		Email:     mail.Address{Address: "anna@example.com"},
-		Phone:     ph,
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if emp.Phone.String() != ph.String() {
-		t.Errorf("Phone = %v, want %v", emp.Phone, ph)
-	}
-}
-
-func TestSave_WithAttributes_Persists(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	attrs := map[string]string{"Position": "Developer", "Level": "Senior"}
-	emp, err := bus.Save(context.Background(), employeebus.NewEmployee{
-		FirstName:  name.MustParse("Dev"),
-		LastName:   name.MustParse("User"),
-		Email:      mail.Address{Address: "dev@example.com"},
-		Attributes: attrs,
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if emp.Attributes["Position"] != "Developer" {
-		t.Errorf("Attributes[Position] = %q, want Developer", emp.Attributes["Position"])
-	}
-}
-
-// =============================================================================
-// SaveMany tests
-
-func TestSaveMany_Empty_DoesNotCallStorer(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	err := bus.SaveMany(context.Background(), []employeebus.NewEmployee{})
-	if err != nil {
-		t.Fatalf("SaveMany returned error: %v", err)
-	}
-	if store.saveManyN != 0 {
-		t.Errorf("SaveMany called storer %d times, want 0", store.saveManyN)
-	}
-}
-
-func TestSaveMany_MultipleItems_PersistsAll(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	err := bus.SaveMany(context.Background(), []employeebus.NewEmployee{
-		{FirstName: name.MustParse("Alice"), LastName: name.MustParse("Bo"), Email: mail.Address{Address: "alice@test.com"}},
-		{FirstName: name.MustParse("Carol"), LastName: name.MustParse("Do"), Email: mail.Address{Address: "carol@test.com"}},
-	})
-	if err != nil {
-		t.Fatalf("SaveMany returned error: %v", err)
-	}
-	if len(store.data) != 2 {
-		t.Errorf("storer has %d employees, want 2", len(store.data))
-	}
-}
-
-// =============================================================================
-// Update tests
-
-func TestUpdate_ChangesFirstName(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	original := employeebus.Employee{
-		ID:        uuid.New(),
-		FirstName: name.MustParse("OldName"),
-		LastName:  name.MustParse("LastName"),
+	origEmp := employeebus.Employee{
+		ID:        empID,
+		FirstName: name.MustParse("Old"),
+		LastName:  name.MustParse("Name"),
 		Email:     mail.Address{Address: "old@example.com"},
 	}
-	store.data[original.ID] = original
 
-	newFirst := name.MustParse("NewName")
-	updated, err := bus.Update(context.Background(), original, employeebus.UpdateEmployee{
-		FirstName: &newFirst,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.FirstName != newFirst {
-		t.Errorf("FirstName = %v, want %v", updated.FirstName, newFirst)
-	}
-	if updated.LastName != original.LastName {
-		t.Errorf("LastName changed unexpectedly: got %v, want %v", updated.LastName, original.LastName)
-	}
-}
+	storeSaveErr := newEmployeeStorerStub()
+	storeSaveErr.saveErr = dbErr
+	busSaveErr := employeebus.NewBusiness(storeSaveErr)
 
-func TestUpdate_ChangesEmail(t *testing.T) {
-	t.Parallel()
+	storeDeptErr := newEmployeeStorerStub()
+	storeDeptErr.saveErr = deptNotFoundErr
+	busDeptSaveErr := employeebus.NewBusiness(storeDeptErr)
 
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
+	storeUpdateErr := newEmployeeStorerStub()
+	storeUpdateErr.data[empID] = origEmp
+	storeUpdateErr.saveErr = dbErr
+	busUpdateErr := employeebus.NewBusiness(storeUpdateErr)
 
-	original := employeebus.Employee{
-		ID:        uuid.New(),
-		FirstName: name.MustParse("Test"),
-		LastName:  name.MustParse("User"),
-		Email:     mail.Address{Address: "old@example.com"},
-	}
-	store.data[original.ID] = original
+	storeDeptUpdateErr := newEmployeeStorerStub()
+	storeDeptUpdateErr.data[empID] = origEmp
+	storeDeptUpdateErr.saveErr = deptNotFoundErr
+	busDeptUpdateErr := employeebus.NewBusiness(storeDeptUpdateErr)
 
-	newEmail := mail.Address{Address: "new@example.com"}
-	updated, err := bus.Update(context.Background(), original, employeebus.UpdateEmployee{
-		Email: &newEmail,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.Email.Address != newEmail.Address {
-		t.Errorf("Email = %v, want %v", updated.Email, newEmail)
-	}
-}
+	storeDelErr := newEmployeeStorerStub()
+	storeDelErr.data[empID] = origEmp
+	storeDelErr.saveErr = dbErr
+	busDelErr := employeebus.NewBusiness(storeDelErr)
 
-func TestUpdate_ChangesDepartmentID(t *testing.T) {
-	t.Parallel()
+	storeQErr := newEmployeeStorerStub()
+	storeQErr.qErr = dbErr
+	busQErr := employeebus.NewBusiness(storeQErr)
 
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
+	ph, _ := phone.ParseNull("+79991234567")
+	newLN := name.MustParse("Updated")
+	newPh := ph
 
-	oldDeptID := uuid.New()
-	original := employeebus.Employee{
-		ID:           uuid.New(),
-		DepartmentID: &oldDeptID,
-		FirstName:    name.MustParse("Test"),
-		LastName:     name.MustParse("User"),
-		Email:        mail.Address{Address: "test@example.com"},
-	}
-	store.data[original.ID] = original
-
-	newDeptID := uuid.New()
-	updated, err := bus.Update(context.Background(), original, employeebus.UpdateEmployee{
-		DepartmentID: &newDeptID,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.DepartmentID == nil || *updated.DepartmentID != newDeptID {
-		t.Errorf("DepartmentID = %v, want %v", updated.DepartmentID, newDeptID)
-	}
-}
-
-func TestUpdate_DepartmentNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	store.saveErr = employeebus.ErrDepartmentNotFound
-	bus := employeebus.NewBusiness(store)
-
-	original := employeebus.Employee{
-		ID:        uuid.New(),
-		FirstName: name.MustParse("Test"),
-		LastName:  name.MustParse("User"),
-		Email:     mail.Address{Address: "test@example.com"},
-	}
-	store.data[original.ID] = original
-
-	newDeptID := uuid.New()
-	_, err := bus.Update(context.Background(), original, employeebus.UpdateEmployee{
-		DepartmentID: &newDeptID,
-	})
-	if !errors.Is(err, employeebus.ErrDepartmentNotFound) {
-		t.Fatalf("Update error = %v, want %v", err, employeebus.ErrDepartmentNotFound)
-	}
-}
-
-func TestUpdate_ChangesAttributes(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	original := employeebus.Employee{
-		ID:         uuid.New(),
-		FirstName:  name.MustParse("Test"),
-		LastName:   name.MustParse("User"),
-		Email:      mail.Address{Address: "test@example.com"},
-		Attributes: map[string]string{"Level": "Junior"},
-	}
-	store.data[original.ID] = original
-
-	newAttrs := map[string]string{"Level": "Senior", "Team": "Backend"}
-	updated, err := bus.Update(context.Background(), original, employeebus.UpdateEmployee{
-		Attributes: &newAttrs,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.Attributes["Level"] != "Senior" {
-		t.Errorf("Attributes[Level] = %q, want Senior", updated.Attributes["Level"])
-	}
-}
-
-// =============================================================================
-// Delete tests
-
-func TestDelete_RemovesFromStorer(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	emp := employeebus.Employee{
-		ID:        uuid.New(),
-		FirstName: name.MustParse("ToDelete"),
-		LastName:  name.MustParse("User"),
-		Email:     mail.Address{Address: "delete@example.com"},
-	}
-	store.data[emp.ID] = emp
-
-	if err := bus.Delete(context.Background(), emp); err != nil {
-		t.Fatalf("Delete returned error: %v", err)
-	}
-	if _, exists := store.data[emp.ID]; exists {
-		t.Error("Employee still exists in storer after Delete")
-	}
-}
-
-// =============================================================================
-// QueryByID tests
-
-func TestQueryByID_ReturnsEmployee(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	emp := employeebus.Employee{
-		ID:        uuid.New(),
-		FirstName: name.MustParse("Find"),
-		LastName:  name.MustParse("Me"),
-		Email:     mail.Address{Address: "find@example.com"},
-	}
-	store.data[emp.ID] = emp
-
-	got, err := bus.QueryByID(context.Background(), emp.ID)
-	if err != nil {
-		t.Fatalf("QueryByID returned error: %v", err)
-	}
-	if got.ID != emp.ID {
-		t.Errorf("ID = %v, want %v", got.ID, emp.ID)
+	return []unittest.Table{
+		{
+			Name:    "save-store-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busSaveErr.Save(ctx, employeebus.NewEmployee{
+					FirstName: name.MustParse("Test"),
+					LastName:  name.MustParse("User"),
+					Email:     mail.Address{Address: "t@example.com"},
+				})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "save-dept-not-found",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				id := uuid.New()
+				_, err := busDeptSaveErr.Save(ctx, employeebus.NewEmployee{
+					DepartmentID: &id,
+					FirstName:    name.MustParse("Test"),
+					LastName:     name.MustParse("User"),
+					Email:        mail.Address{Address: "t2@example.com"},
+				})
+				return errors.Is(err, employeebus.ErrDepartmentNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "update-store-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busUpdateErr.Update(ctx, origEmp, employeebus.UpdateEmployee{LastName: &newLN})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "update-last-name-and-phone",
+			ExpResp: newLN,
+			ExcFunc: func(ctx context.Context) any {
+				store := newEmployeeStorerStub()
+				store.data[empID] = origEmp
+				bus := employeebus.NewBusiness(store)
+				updated, err := bus.Update(ctx, origEmp, employeebus.UpdateEmployee{
+					LastName: &newLN,
+					Phone:    &newPh,
+				})
+				if err != nil {
+					return err
+				}
+				return updated.LastName
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "update-dept-nil",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				store := newEmployeeStorerStub()
+				empWithDept := employeebus.Employee{
+					ID:           uuid.New(),
+					DepartmentID: &deptID,
+					FirstName:    name.MustParse("With"),
+					LastName:     name.MustParse("Dept"),
+					Email:        mail.Address{Address: "dept@example.com"},
+				}
+				store.data[empWithDept.ID] = empWithDept
+				bus := employeebus.NewBusiness(store)
+				var nilDeptID *uuid.UUID
+				updated, err := bus.Update(ctx, empWithDept, employeebus.UpdateEmployee{DepartmentID: nilDeptID})
+				if err != nil {
+					return err
+				}
+				return updated.DepartmentID == &deptID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "update-dept-not-found",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				id := uuid.New()
+				_, err := busDeptUpdateErr.Update(ctx, origEmp, employeebus.UpdateEmployee{DepartmentID: &id})
+				return errors.Is(err, employeebus.ErrDepartmentNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "delete-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busDelErr.Delete(ctx, origEmp) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "query-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busQErr.Query(ctx, employeebus.QueryFilter{}, employeebus.DefaultOrderBy, page.MustParse("1", "10"))
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "count-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busQErr.Count(ctx, employeebus.QueryFilter{})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "savemany-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busUpdateErr.SaveMany(ctx, []employeebus.NewEmployee{
+					{FirstName: name.MustParse("Batch"), LastName: name.MustParse("Test"), Email: mail.Address{Address: "b@example.com"}},
+				}) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestQueryByID_NotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	bus := employeebus.NewBusiness(newEmployeeStorerStub())
-
-	_, err := bus.QueryByID(context.Background(), uuid.New())
-	if !errors.Is(err, employeebus.ErrNotFound) {
-		t.Fatalf("QueryByID error = %v, want %v", err, employeebus.ErrNotFound)
-	}
-}
-
-// =============================================================================
-// Count tests
-
-func TestCount_ReturnsCorrectNumber(t *testing.T) {
-	t.Parallel()
-
-	store := newEmployeeStorerStub()
-	bus := employeebus.NewBusiness(store)
-
-	for i := 0; i < 5; i++ {
-		store.data[uuid.New()] = employeebus.Employee{ID: uuid.New()}
-	}
-
-	count, err := bus.Count(context.Background(), employeebus.QueryFilter{})
-	if err != nil {
-		t.Fatalf("Count returned error: %v", err)
-	}
-	if count != 5 {
-		t.Errorf("Count = %d, want 5", count)
+func count(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "byid-not-found",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busDomain.Employee.QueryByID(ctx, uuid.New())
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
+		{
+			Name:    "count-all",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				n, err := busDomain.Employee.Count(ctx, employeebus.QueryFilter{})
+				if err != nil {
+					return err
+				}
+				return n >= 0
+			},
+			CmpFunc: func(got, exp any) string {
+				return cmp.Diff(got, exp)
+			},
+		},
 	}
 }

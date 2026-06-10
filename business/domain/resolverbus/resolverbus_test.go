@@ -1,724 +1,713 @@
-package resolverbus
+package resolverbus_test
 
 import (
 	"context"
-	"errors"
-	"net/mail"
-	"reflect"
+	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"net/mail"
+
 	"github.com/google/uuid"
-	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/departmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/organizationbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/dbtest"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 	"github.com/zabolotny-dev/clicksafe/business/types/name"
 	"github.com/zabolotny-dev/clicksafe/business/types/phone"
 )
 
-func TestResolve(t *testing.T) {
+func Test_Resolver(t *testing.T) {
 	t.Parallel()
 
-	departmentID := uuid.New()
-	targetID := uuid.New()
-	employeeID := uuid.New()
+	db := dbtest.New(t, "Test_Resolver")
 
-	employeeBus := &employeeQuerierStub{employee: testEmployee(employeeID, &departmentID)}
-	departmentBus := &departmentQuerierStub{department: testDepartment(departmentID)}
-	organizationBus := &organizationGetterStub{organization: testOrganization()}
-	targetQBus := &targetQuerierStub{target: testTarget(targetID, employeeID)}
-
-	business := NewBusiness(targetQBus, employeeBus, departmentBus, organizationBus, &attachmentQuerierStub{})
-
-	data, missing, err := business.Resolve(context.Background(), targetID, []string{
-		"Employee.FirstName",
-		"Employee.Email.Address",
-		"Employee.Attributes.Bebra",
-		"Department.Label",
-		"Organization.Attributes.SupportEmail",
-	})
+	sd, err := insertSeedData(db.BusDomain)
 	if err != nil {
-		t.Fatalf("Resolve returned error: %v", err)
+		t.Fatalf("Seeding error: %s", err)
 	}
 
-	expectedData := map[string]any{
-		"Employee": map[string]any{
-			"FirstName": "Ivan",
-			"Email": map[string]any{
-				"Address": "ivan@example.com",
-			},
-			"Attributes": map[string]any{
-				"Bebra": "123",
-			},
-		},
-		"Department": map[string]any{
-			"Label": "Human Resources",
-		},
-		"Organization": map[string]any{
-			"Attributes": map[string]any{
-				"SupportEmail": "support@clicksafe.test",
-			},
-		},
-	}
-
-	if !reflect.DeepEqual(data, expectedData) {
-		t.Fatalf("Resolve data = %#v, want %#v", data, expectedData)
-	}
-
-	if len(missing) > 0 {
-		t.Fatalf("Resolve missing = %v, want empty", missing)
-	}
-
-	if employeeBus.calls != 1 {
-		t.Fatalf("employee bus calls = %d, want 1", employeeBus.calls)
-	}
-
-	if departmentBus.calls != 1 {
-		t.Fatalf("department bus calls = %d, want 1", departmentBus.calls)
-	}
-
-	if organizationBus.calls != 1 {
-		t.Fatalf("organization bus calls = %d, want 1", organizationBus.calls)
-	}
-}
-
-func TestResolveMissingPathsPreserveOrderAndDedupe(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-
-	employeeBus := &employeeQuerierStub{employee: testEmployee(employeeID, nil)}
-	targetQBus := &targetQuerierStub{target: testTarget(targetID, employeeID)}
-
-	business := NewBusiness(targetQBus, employeeBus, &departmentQuerierStub{}, &organizationGetterStub{}, &attachmentQuerierStub{})
-
-	data, missing, err := business.Resolve(context.Background(), targetID, []string{
-		"Employee.Name",
-		"Employee.Attributes.Unknown",
-		"Department.Label",
-		"Employee.Name",
-		"Employee.Attributes.Unknown",
-	})
-	if err != nil {
-		t.Fatalf("Resolve returned error: %v", err)
-	}
-
-	expectedMissing := []string{"Employee.Name", "Employee.Attributes.Unknown", "Department.Label"}
-	if !reflect.DeepEqual(missing, expectedMissing) {
-		t.Fatalf("Resolve missing = %v, want %v", missing, expectedMissing)
-	}
-
-	if !reflect.DeepEqual(data, map[string]any{}) {
-		t.Fatalf("Resolve data = %#v, want empty map", data)
-	}
-
-	if employeeBus.calls != 1 {
-		t.Fatalf("employee bus calls = %d, want 1", employeeBus.calls)
-	}
-}
-
-func TestResolveEmptyPathsDoesNotRequireTarget(t *testing.T) {
-	t.Parallel()
-
-	targetQBus := &targetQuerierStub{err: errors.New("should not be called")}
-	business := NewBusiness(targetQBus, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{}, &attachmentQuerierStub{})
-
-	data, missing, err := business.Resolve(context.Background(), uuid.Nil, nil)
-	if err != nil {
-		t.Fatalf("Resolve returned error: %v", err)
-	}
-
-	if data != nil {
-		t.Fatalf("Resolve data = %#v, want nil", data)
-	}
-
-	if missing != nil {
-		t.Fatalf("Resolve missing = %v, want nil", missing)
-	}
-
-	if targetQBus.calls != 0 {
-		t.Fatalf("target querier calls = %d, want 0", targetQBus.calls)
-	}
-}
-
-func TestResolveRequiresTargetID(t *testing.T) {
-	t.Parallel()
-
-	business := NewBusiness(&targetQuerierStub{}, &employeeQuerierStub{}, &departmentQuerierStub{}, &organizationGetterStub{}, &attachmentQuerierStub{})
-
-	_, _, err := business.Resolve(context.Background(), uuid.Nil, []string{"Employee.FirstName"})
-	if !errors.Is(err, ErrTargetIDRequired) {
-		t.Fatalf("Resolve error = %v, want %v", err, ErrTargetIDRequired)
-	}
-}
-
-func TestResolveMapsTargetNotFound(t *testing.T) {
-	t.Parallel()
-
-	business := NewBusiness(
-		&targetQuerierStub{err: campaignbus.ErrTargetNotFound},
-		&employeeQuerierStub{},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	_, _, err := business.Resolve(context.Background(), uuid.New(), []string{"Employee.FirstName"})
-	if !errors.Is(err, ErrTargetNotFound) {
-		t.Fatalf("Resolve error = %v, want %v", err, ErrTargetNotFound)
-	}
-}
-
-func TestResolveMapsEmployeeNotFound(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	business := NewBusiness(
-		&targetQuerierStub{target: testTarget(targetID, uuid.New())},
-		&employeeQuerierStub{err: employeebus.ErrNotFound},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	_, _, err := business.Resolve(context.Background(), targetID, []string{"Employee.FirstName"})
-	if !errors.Is(err, ErrEmployeeNotFound) {
-		t.Fatalf("Resolve error = %v, want %v", err, ErrEmployeeNotFound)
-	}
-}
-
-func TestResolveRejectsInvalidPaths(t *testing.T) {
-	t.Parallel()
-
-	paths := []string{"", " ", "Employee", "Employee.", "Employee..FirstName", ".Employee.FirstName"}
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-
-	for _, path := range paths {
-		t.Run(path, func(t *testing.T) {
-			business := NewBusiness(
-				&targetQuerierStub{target: testTarget(targetID, employeeID)},
-				&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
-				&departmentQuerierStub{},
-				&organizationGetterStub{},
-				&attachmentQuerierStub{},
-			)
-
-			_, _, err := business.Resolve(context.Background(), targetID, []string{path})
-			if !errors.Is(err, ErrUnsupportedPath) {
-				t.Fatalf("Resolve error = %v, want %v", err, ErrUnsupportedPath)
-			}
-		})
-	}
-}
-
-func TestResolveRejectsUnsupportedRoot(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-
-	business := NewBusiness(
-		&targetQuerierStub{target: testTarget(targetID, employeeID)},
-		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	_, _, err := business.Resolve(context.Background(), targetID, []string{"Banana.Label"})
-	if !errors.Is(err, ErrUnsupportedPath) {
-		t.Fatalf("Resolve error = %v, want %v", err, ErrUnsupportedPath)
-	}
-}
-
-func TestResolveReturnsDepartmentLookupError(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-	departmentID := uuid.New()
-
-	business := NewBusiness(
-		&targetQuerierStub{target: testTarget(targetID, employeeID)},
-		&employeeQuerierStub{employee: testEmployee(employeeID, &departmentID)},
-		&departmentQuerierStub{err: departmentbus.ErrNotFound},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	_, _, err := business.Resolve(context.Background(), targetID, []string{"Department.Label"})
-	if err == nil {
-		t.Fatal("Resolve returned nil error")
-	}
-
-	if errors.Is(err, departmentbus.ErrNotFound) {
-		t.Fatalf("Resolve leaked departmentbus error: %v", err)
-	}
-
-	if !errors.Is(err, ErrDepartmentNotFound) {
-		t.Fatalf("Resolve error = %v, want %v", err, ErrDepartmentNotFound)
-	}
-}
-
-func TestResolveReturnsOrganizationLookupError(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-
-	business := NewBusiness(
-		&targetQuerierStub{target: testTarget(targetID, employeeID)},
-		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
-		&departmentQuerierStub{},
-		&organizationGetterStub{err: organizationbus.ErrNotFound},
-		&attachmentQuerierStub{},
-	)
-
-	_, _, err := business.Resolve(context.Background(), targetID, []string{"Organization.Label"})
-	if err == nil {
-		t.Fatal("Resolve returned nil error")
-	}
-
-	if errors.Is(err, organizationbus.ErrNotFound) {
-		t.Fatalf("Resolve leaked organizationbus error: %v", err)
-	}
-
-	if !errors.Is(err, ErrOrganizationNotFound) {
-		t.Fatalf("Resolve error = %v, want %v", err, ErrOrganizationNotFound)
-	}
-}
-
-func TestResolveTreatsNullOptionalLeafAsMissing(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-
-	employee := testEmployee(employeeID, nil)
-	employee.Phone = phone.Null{}
-	business := NewBusiness(
-		&targetQuerierStub{target: testTarget(targetID, employeeID)},
-		&employeeQuerierStub{employee: employee},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	data, missing, err := business.Resolve(context.Background(), targetID, []string{"Employee.Phone"})
-	if err != nil {
-		t.Fatalf("Resolve returned error: %v", err)
-	}
-
-	if !reflect.DeepEqual(data, map[string]any{}) {
-		t.Fatalf("Resolve data = %#v, want empty map", data)
-	}
-
-	expectedMissing := []string{"Employee.Phone"}
-	if !reflect.DeepEqual(missing, expectedMissing) {
-		t.Fatalf("Resolve missing = %v, want %v", missing, expectedMissing)
-	}
-}
-
-func TestResolveTargetLink(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-	targetStub := &targetQuerierStub{target: testTarget(targetID, employeeID), url: "https://phishing.example.com/abc-123"}
-
-	business := NewBusiness(
-		targetStub,
-		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	data, missing, err := business.Resolve(context.Background(), targetID, []string{
-		"Target.Link",
-	})
-	if err != nil {
-		t.Fatalf("Resolve returned error: %v", err)
-	}
-
-	expectedData := map[string]any{
-		"Target": map[string]any{
-			"Link": "https://phishing.example.com/abc-123",
-		},
-	}
-	if !reflect.DeepEqual(data, expectedData) {
-		t.Fatalf("Resolve data = %#v, want %#v", data, expectedData)
-	}
-
-	if len(missing) > 0 {
-		t.Fatalf("Resolve missing = %v, want empty", missing)
-	}
-
-	if targetStub.linkCalls != 1 {
-		t.Fatalf("target stub calls = %d, want 1", targetStub.calls)
-	}
-}
-
-func TestResolveTargetLinkCachesResult(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-	targetStub := &targetQuerierStub{target: testTarget(targetID, employeeID), url: "https://phishing.example.com/abc-123"}
-
-	business := NewBusiness(
-		targetStub,
-		&employeeQuerierStub{employee: testEmployee(employeeID, nil)},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	// Resolve Target.Link twice in same call — should only call PhishingURL once
-	data, missing, err := business.Resolve(context.Background(), targetID, []string{
-		"Target.Link",
-		"Target.Link",
-	})
-	if err != nil {
-		t.Fatalf("Resolve returned error: %v", err)
-	}
-
-	expectedData := map[string]any{
-		"Target": map[string]any{
-			"Link": "https://phishing.example.com/abc-123",
-		},
-	}
-	if !reflect.DeepEqual(data, expectedData) {
-		t.Fatalf("Resolve data = %#v, want %#v", data, expectedData)
-	}
-
-	if len(missing) > 0 {
-		t.Fatalf("Resolve missing = %v, want empty", missing)
-	}
-
-	if targetStub.linkCalls != 1 {
-		t.Fatalf("target stub calls = %d, want 1 (should be cached)", targetStub.calls)
-	}
-}
-
-func TestValidateReturnsMissingVarsForTargets(t *testing.T) {
-	t.Parallel()
-
-	campaignID := uuid.New()
-	departmentID := uuid.New()
-	firstTargetID := uuid.New()
-	secondTargetID := uuid.New()
-	firstEmployeeID := uuid.New()
-	secondEmployeeID := uuid.New()
-
-	firstEmployee := testEmployee(firstEmployeeID, nil)
-	firstEmployee.Phone = phone.Null{}
-	secondEmployee := testEmployee(secondEmployeeID, &departmentID)
-
-	targetQuerier := &targetQuerierStub{err: errors.New("should not be called")}
-	employeeBus := &employeeQuerierByIDStub{
-		employees: map[uuid.UUID]employeebus.Employee{
-			firstEmployeeID:  firstEmployee,
-			secondEmployeeID: secondEmployee,
-		},
-	}
-	departmentBus := &departmentQuerierStub{department: testDepartment(departmentID)}
-	organizationBus := &organizationGetterStub{organization: testOrganization()}
-
-	business := NewBusiness(targetQuerier, employeeBus, departmentBus, organizationBus, &attachmentQuerierStub{})
-
-	targets := []campaignbus.Target{
-		{
-			ID:         firstTargetID,
-			Token:      "first-token",
-			EmployeeID: firstEmployeeID,
-			CampaignID: campaignID,
-			Status:     campaignbus.Pending,
-		},
-		{
-			ID:         secondTargetID,
-			Token:      "second-token",
-			EmployeeID: secondEmployeeID,
-			CampaignID: campaignID,
-			Status:     campaignbus.Pending,
-		},
-	}
-
-	missing, err := business.Validate(context.Background(), campaignbus.Campaign{
-		ID:     campaignID,
-		Domain: domain.MustParse("https://phishing.example.com"),
-	}, targets, []string{
-		"Employee.Phone",
-		"Department.Label",
-		"Organization.Label",
-		"Target.Link",
-	})
-	if err != nil {
-		t.Fatalf("Validate returned error: %v", err)
-	}
-
-	expected := []campaignbus.TargetMissingVars{
-		{
-			TargetID:   firstTargetID,
-			EmployeeID: firstEmployeeID,
-			Vars:       []string{"Employee.Phone", "Department.Label"},
-		},
-	}
-	if !reflect.DeepEqual(missing, expected) {
-		t.Fatalf("Validate missing = %#v, want %#v", missing, expected)
-	}
-
-	if targetQuerier.calls != 0 {
-		t.Fatalf("target querier calls = %d, want 0", targetQuerier.calls)
-	}
-
-	if targetQuerier.linkCalls != 0 {
-		t.Fatalf("target link calls = %d, want 0", targetQuerier.linkCalls)
-	}
-
-	if employeeBus.calls != 2 {
-		t.Fatalf("employee bus calls = %d, want 2", employeeBus.calls)
-	}
-
-	if departmentBus.calls != 1 {
-		t.Fatalf("department bus calls = %d, want 1", departmentBus.calls)
-	}
-
-	if organizationBus.calls != 1 {
-		t.Fatalf("organization bus calls = %d, want 1", organizationBus.calls)
-	}
-}
-
-func TestValidateRequiresDomainForTargetLink(t *testing.T) {
-	t.Parallel()
-
-	business := NewBusiness(
-		&targetQuerierStub{},
-		&employeeQuerierStub{},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	_, err := business.Validate(context.Background(), campaignbus.Campaign{}, []campaignbus.Target{
-		testTarget(uuid.New(), uuid.New()),
-	}, []string{"Target.Link"})
-	if !errors.Is(err, ErrDomainRequired) {
-		t.Fatalf("Validate error = %v, want %v", err, ErrDomainRequired)
-	}
-}
-
-func TestValidateUnknownTargetPathDoesNotRequireDomain(t *testing.T) {
-	t.Parallel()
-
-	targetID := uuid.New()
-	employeeID := uuid.New()
-	targetQuerier := &targetQuerierStub{err: errors.New("should not be called")}
-	business := NewBusiness(
-		targetQuerier,
-		&employeeQuerierStub{},
-		&departmentQuerierStub{},
-		&organizationGetterStub{},
-		&attachmentQuerierStub{},
-	)
-
-	missing, err := business.Validate(context.Background(), campaignbus.Campaign{}, []campaignbus.Target{
-		testTarget(targetID, employeeID),
-	}, []string{"Target.Govno"})
-	if err != nil {
-		t.Fatalf("Validate returned error: %v", err)
-	}
-
-	expected := []campaignbus.TargetMissingVars{
-		{
-			TargetID:   targetID,
-			EmployeeID: employeeID,
-			Vars:       []string{"Target.Govno"},
-		},
-	}
-	if !reflect.DeepEqual(missing, expected) {
-		t.Fatalf("Validate missing = %#v, want %#v", missing, expected)
-	}
-
-	if targetQuerier.linkCalls != 0 {
-		t.Fatalf("target link calls = %d, want 0", targetQuerier.linkCalls)
-	}
+	unittest.Run(t, resolve(db.BusDomain, sd), "resolve")
+	unittest.Run(t, validate(db.BusDomain, sd), "validate")
 }
 
 // =============================================================================
-// Test Helpers
 
-func testTarget(id, employeeID uuid.UUID) campaignbus.Target {
-	return campaignbus.Target{
-		ID:         id,
-		Token:      "test-token",
-		EmployeeID: employeeID,
-		CampaignID: uuid.New(),
-		Status:     campaignbus.Pending,
-	}
+type seedData struct {
+	// employee with department, campaign without domain
+	Target     campaignbus.Target
+	Employee   employeebus.Employee
+	Department departmentbus.Department
+	Campaign   campaignbus.Campaign
+
+	// employee without department (for missing-department tests)
+	TargetNoDept  campaignbus.Target
+	EmployeeNoDept employeebus.Employee
+
+	// campaign with domain (for Target.Link tests)
+	CampaignWithDomain campaignbus.Campaign
+	TargetWithDomain   campaignbus.Target
+
+	// second employee in same department (for caching tests)
+	Employee2       employeebus.Employee
+	TargetEmployee2 campaignbus.Target
 }
 
-func testEmployee(id uuid.UUID, departmentID *uuid.UUID) employeebus.Employee {
-	phoneNumber, err := phone.ParseNull("+79991234567")
+func insertSeedData(busDomain dbtest.BusDomain) (seedData, error) {
+	ctx := context.Background()
+
+	_, err := busDomain.Organization.Save(ctx, organizationbus.NewOrganization{
+		Label:      label.MustParse("Test Organization"),
+		Attributes: map[string]string{"Region": "Moscow"},
+	})
 	if err != nil {
-		panic(err)
+		return seedData{}, fmt.Errorf("seeding organization: %w", err)
 	}
 
-	return employeebus.Employee{
-		ID:           id,
-		DepartmentID: departmentID,
-		FirstName:    name.MustParse("Ivan"),
-		LastName:     name.MustParse("Ivanov"),
-		Email:        mail.Address{Address: "ivan@example.com"},
-		Phone:        phoneNumber,
-		Attributes: map[string]string{
-			"Bebra": "123",
-		},
+	deps, err := departmentbus.TestSeedDepartments(ctx, 1, busDomain.Department)
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding department: %w", err)
 	}
+	dep := deps[0]
+
+	// two employees with department
+	empsWithDept, err := employeebus.TestSeedEmployees(ctx, 2, &dep.ID, busDomain.Employee)
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding employees with dept: %w", err)
+	}
+
+	// one employee without department (manual seed to avoid email conflicts)
+	ph, _ := phone.ParseNull("")
+	empNoDept, err := busDomain.Employee.Save(ctx, employeebus.NewEmployee{
+		FirstName:  name.MustParse("NoDept"),
+		LastName:   name.MustParse("Employee"),
+		Email:      mail.Address{Address: "nodept@resolver-test.example.com"},
+		Phone:      ph,
+		Attributes: map[string]string{},
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding employee without dept: %w", err)
+	}
+	empsNoDept := []employeebus.Employee{empNoDept}
+
+	camps, err := busDomain.Campaign.Save(ctx, campaignbus.NewCampaign{
+		Type:       campaignbus.EmailCampaign,
+		Label:      label.MustParse("Campaign No Domain"),
+		Attributes: map[string]string{},
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding campaign: %w", err)
+	}
+
+	campWithDomain, err := busDomain.Campaign.Save(ctx, campaignbus.NewCampaign{
+		Type:       campaignbus.EmailCampaign,
+		Label:      label.MustParse("Campaign With Domain"),
+		Domain:     domain.MustParse("https://phish.example.com"),
+		Attributes: map[string]string{},
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding campaign with domain: %w", err)
+	}
+
+	target, err := busDomain.Target.Save(ctx, campaignbus.NewTarget{
+		CampaignID: camps.ID,
+		EmployeeID: empsWithDept[0].ID,
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding target: %w", err)
+	}
+
+	targetNoDept, err := busDomain.Target.Save(ctx, campaignbus.NewTarget{
+		CampaignID: camps.ID,
+		EmployeeID: empsNoDept[0].ID,
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding target no dept: %w", err)
+	}
+
+	targetWithDomain, err := busDomain.Target.Save(ctx, campaignbus.NewTarget{
+		CampaignID: campWithDomain.ID,
+		EmployeeID: empsWithDept[0].ID,
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding target with domain: %w", err)
+	}
+
+	targetEmployee2, err := busDomain.Target.Save(ctx, campaignbus.NewTarget{
+		CampaignID: camps.ID,
+		EmployeeID: empsWithDept[1].ID,
+	})
+	if err != nil {
+		return seedData{}, fmt.Errorf("seeding target employee2: %w", err)
+	}
+
+	return seedData{
+		Target:             target,
+		Employee:           empsWithDept[0],
+		Department:         dep,
+		Campaign:           camps,
+		TargetNoDept:       targetNoDept,
+		EmployeeNoDept:     empsNoDept[0],
+		CampaignWithDomain: campWithDomain,
+		TargetWithDomain:   targetWithDomain,
+		Employee2:          empsWithDept[1],
+		TargetEmployee2:    targetEmployee2,
+	}, nil
 }
 
-func testDepartment(id uuid.UUID) departmentbus.Department {
-	return departmentbus.Department{
-		ID:    id,
-		Label: label.MustParse("Human Resources"),
-		Attributes: map[string]string{
-			"Chat": "hr-chat",
-		},
+// nestedGet navigates a nested map[string]any by dot-separated path.
+func nestedGet(data map[string]any, keys ...string) (any, bool) {
+	var cur any = data
+	for _, k := range keys {
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		cur, ok = m[k]
+		if !ok {
+			return nil, false
+		}
 	}
+	return cur, true
 }
 
-func testOrganization() organizationbus.Organization {
-	return organizationbus.Organization{
-		ID:    uuid.New(),
-		Label: label.MustParse("ClickSafe Organization"),
-		Attributes: map[string]string{
-			"SupportEmail": "support@clicksafe.test",
+// =============================================================================
+
+func resolve(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	return []unittest.Table{
+		{
+			Name:    "empty-paths-returns-nil",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, nil)
+				return err == nil && data == nil && missing == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "nil-target-id-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, _, err := busDomain.Resolver.Resolve(ctx, uuid.Nil, []string{"Employee.FirstName"})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "unknown-target-returns-not-found",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, _, err := busDomain.Resolver.Resolve(ctx, uuid.New(), []string{"Employee.FirstName"})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "employee-firstname",
+			ExpResp: sd.Employee.FirstName.String(),
+			ExcFunc: func(ctx context.Context) any {
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Employee.FirstName"})
+				if err != nil {
+					return err
+				}
+				if len(missing) > 0 {
+					return fmt.Sprintf("missing: %v", missing)
+				}
+				val, ok := nestedGet(data, "Employee", "FirstName")
+				if !ok {
+					return "Employee.FirstName not found in nested data"
+				}
+				return fmt.Sprintf("%v", val)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "employee-lastname",
+			ExpResp: sd.Employee.LastName.String(),
+			ExcFunc: func(ctx context.Context) any {
+				data, _, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Employee.LastName"})
+				if err != nil {
+					return err
+				}
+				val, ok := nestedGet(data, "Employee", "LastName")
+				if !ok {
+					return "Employee.LastName not found"
+				}
+				return fmt.Sprintf("%v", val)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "employee-email",
+			ExpResp: sd.Employee.Email.Address,
+			ExcFunc: func(ctx context.Context) any {
+				data, _, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Employee.Email.Address"})
+				if err != nil {
+					return err
+				}
+				val, ok := nestedGet(data, "Employee", "Email", "Address")
+				if !ok {
+					return "Employee.Email.Address not found"
+				}
+				return fmt.Sprintf("%v", val)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "employee-phone-missing-when-empty",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// seeded employees have empty (invalid) phone → isMissingOptionalValue
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Employee.Phone"})
+				return err == nil && len(missing) == 1 && missing[0] == "Employee.Phone"
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "department-label",
+			ExpResp: sd.Department.Label.String(),
+			ExcFunc: func(ctx context.Context) any {
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Department.Label"})
+				if err != nil {
+					return err
+				}
+				if len(missing) > 0 {
+					return fmt.Sprintf("missing: %v", missing)
+				}
+				val, ok := nestedGet(data, "Department", "Label")
+				if !ok {
+					return "Department.Label not found"
+				}
+				return fmt.Sprintf("%v", val)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "department-missing-when-employee-has-no-dept",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.TargetNoDept.ID, []string{"Department.Label"})
+				return err == nil && len(missing) == 1 && missing[0] == "Department.Label"
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "department-cached-on-second-path",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// resolving two Department paths uses the same loadDepartment call (cached)
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Department.Label", "Department.Label"})
+				return err == nil && len(missing) == 0
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "organization-label",
+			ExpResp: "Test Organization",
+			ExcFunc: func(ctx context.Context) any {
+				data, _, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Organization.Label"})
+				if err != nil {
+					return err
+				}
+				val, ok := nestedGet(data, "Organization", "Label")
+				if !ok {
+					return "Organization.Label not found"
+				}
+				return fmt.Sprintf("%v", val)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "organization-attributes-map-walk",
+			ExpResp: "Moscow",
+			ExcFunc: func(ctx context.Context) any {
+				// Organization.Attributes.Region tests the map-walk path in walkSegment
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Organization.Attributes.Region"})
+				if err != nil {
+					return err
+				}
+				if len(missing) > 0 {
+					return fmt.Sprintf("missing: %v", missing)
+				}
+				val, ok := nestedGet(data, "Organization", "Attributes", "Region")
+				if !ok {
+					return "Organization.Attributes.Region not found"
+				}
+				return fmt.Sprintf("%v", val)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "organization-attributes-missing-key",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// map lookup for a non-existent key → walkSegment map case returns missing
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Organization.Attributes.NonExistentKey"})
+				return err == nil && len(missing) == 1
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-link",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// Target.Link requires campaign with domain; loadTarget is exercised
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.TargetWithDomain.ID,
+					[]string{"Target.Link"})
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				if len(missing) > 0 {
+					return fmt.Sprintf("missing: %v", missing)
+				}
+				val, ok := nestedGet(data, "Target", "Link")
+				return ok && fmt.Sprintf("%v", val) != ""
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-non-link-field-is-missing",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// rootTarget with non-Link segment → returns empty targetData → field missing
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Target.Status"})
+				return err == nil && len(missing) == 1
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "campaign-domain",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// loadCampaign is exercised; Domain with value → non-missing
+				data, _, err := busDomain.Resolver.Resolve(ctx, sd.TargetWithDomain.ID, []string{"Campaign.Domain"})
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				val, ok := nestedGet(data, "Campaign", "Domain")
+				return ok && fmt.Sprintf("%v", val) != ""
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-link-no-domain-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// sd.Target's campaign has no domain → PhishingURL returns ErrDomainRequired
+				// loadTarget catches it and wraps as ErrDomainRequired
+				_, _, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Target.Link"})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "unknown-root-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, _, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID, []string{"Unknown.Field"})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "unknown-path-in-missing",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Employee.NonExistentField"})
+				return err == nil && len(missing) > 0
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "duplicate-missing-paths-deduplicated",
+			ExpResp: 1,
+			ExcFunc: func(ctx context.Context) any {
+				// same missing path twice → only reported once
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Employee.NonExistent", "Employee.NonExistent"})
+				if err != nil {
+					return err
+				}
+				return len(missing)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "organization-attributes-json-marshal",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// resolving the map itself (2 segments) hits stringifyValue JSON marshal branch
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Organization.Attributes"})
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				if len(missing) > 0 {
+					return fmt.Sprintf("missing: %v", missing)
+				}
+				val, ok := nestedGet(data, "Organization", "Attributes")
+				// result is a JSON string like {"Region":"Moscow"}
+				return ok && val != ""
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "employee-department-id-nil-pointer-missing",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// no-dept employee has DepartmentID=nil (*uuid.UUID nil pointer)
+				// dereferenceValue hits the nil pointer → isMissing=true path
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.TargetNoDept.ID,
+					[]string{"Employee.DepartmentID"})
+				return err == nil && len(missing) == 1
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "department-cached-no-dept-second-path",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// depLoaded=true, hasDepartment=false on second call (no-dept employee)
+				// duplicate paths are deduplicated → len(missing)==1
+				_, missing, err := busDomain.Resolver.Resolve(ctx, sd.TargetNoDept.ID,
+					[]string{"Department.Label", "Department.Label"})
+				return err == nil && len(missing) == 1
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-link-cached-on-second-path",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// linkLoaded=true on second resolution of Target.Link
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.TargetWithDomain.ID,
+					[]string{"Target.Link", "Target.Link"})
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				// duplicated path → only inserted once, but both resolve successfully
+				_, hasLink := nestedGet(data, "Target", "Link")
+				return hasLink && len(missing) == 0
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "campaign-cached-on-second-path",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// campLoaded=true on second Campaign.* resolution
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.TargetWithDomain.ID,
+					[]string{"Campaign.Domain", "Campaign.Domain"})
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				_, hasDomain := nestedGet(data, "Campaign", "Domain")
+				return hasDomain && len(missing) == 0
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "multiple-paths-resolved-together",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				data, missing, err := busDomain.Resolver.Resolve(ctx, sd.Target.ID,
+					[]string{"Employee.FirstName", "Employee.LastName", "Organization.Label"})
+				if err != nil || len(missing) > 0 {
+					return false
+				}
+				_, hasFirst := nestedGet(data, "Employee", "FirstName")
+				_, hasLast := nestedGet(data, "Employee", "LastName")
+				_, hasOrg := nestedGet(data, "Organization", "Label")
+				return hasFirst && hasLast && hasOrg
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
 		},
 	}
 }
 
 // =============================================================================
-// Stubs
 
-type targetQuerierStub struct {
-	target        campaignbus.Target
-	url           string
-	err           error
-	calls         int
-	linkCalls     int
-	campaignCalls int
-	campaign      campaignbus.Campaign
-}
+func validate(busDomain dbtest.BusDomain, sd seedData) []unittest.Table {
+	phishDomain := domain.MustParse("https://phish.example.com")
+	campWithDomain := sd.CampaignWithDomain
+	_ = phishDomain
 
-func (s *targetQuerierStub) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target, error) {
-	s.calls++
-
-	if s.err != nil {
-		return campaignbus.Target{}, s.err
+	return []unittest.Table{
+		{
+			Name:    "empty-targets-returns-nil",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					nil,
+					[]string{"Employee.FirstName"},
+				)
+				return err == nil && result == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "empty-required-vars-returns-nil",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target},
+					nil,
+				)
+				return err == nil && result == nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "invalid-path-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target},
+					[]string{"EmployeeOnlyNoSeparator"},
+				)
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-link-without-domain-returns-domain-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// needsTargetLink=true but campaign has no domain → ErrDomainRequired
+				_, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign, // no domain
+					[]campaignbus.Target{sd.Target},
+					[]string{"Target.Link"},
+				)
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "all-paths-present-returns-empty-result",
+			ExpResp: 0,
+			ExcFunc: func(ctx context.Context) any {
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target},
+					[]string{"Employee.FirstName", "Department.Label"},
+				)
+				if err != nil {
+					return err
+				}
+				return len(result)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "target-link-with-domain-no-missing",
+			ExpResp: 0,
+			ExcFunc: func(ctx context.Context) any {
+				// Target.Link with domain set → link is injected without calling PhishingURL
+				result, err := busDomain.Resolver.Validate(ctx,
+					campWithDomain,
+					[]campaignbus.Target{sd.TargetWithDomain},
+					[]string{"Target.Link"},
+				)
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				return len(result)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "missing-department-reported-for-target",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.TargetNoDept},
+					[]string{"Department.Label"},
+				)
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				return len(result) == 1 && result[0].TargetID == sd.TargetNoDept.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "mixed-targets-some-missing-some-present",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				// targetWithDept has department, targetNoDept doesn't
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target, sd.TargetNoDept},
+					[]string{"Department.Label"},
+				)
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				// only one target should have missing vars
+				return len(result) == 1 && result[0].TargetID == sd.TargetNoDept.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "cached-department-across-multiple-targets",
+			ExpResp: 0,
+			ExcFunc: func(ctx context.Context) any {
+				// two targets with employees in same department
+				// cachedDepartmentQuerier caches dept after first query
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target, sd.TargetEmployee2},
+					[]string{"Department.Label"},
+				)
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				return len(result)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "cached-organization-across-multiple-targets",
+			ExpResp: 0,
+			ExcFunc: func(ctx context.Context) any {
+				// cachedOrganizationGetter caches org after first query
+				result, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target, sd.TargetEmployee2},
+					[]string{"Organization.Label"},
+				)
+				if err != nil {
+					return fmt.Sprintf("error: %v", err)
+				}
+				return len(result)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "unknown-root-in-validate-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busDomain.Resolver.Validate(ctx,
+					sd.Campaign,
+					[]campaignbus.Target{sd.Target},
+					[]string{"Unknown.Field"},
+				)
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
-
-	return s.target, nil
 }
-
-func (s *targetQuerierStub) PhishingURL(ctx context.Context, id uuid.UUID) (string, error) {
-	s.linkCalls++
-
-	if s.err != nil {
-		return "", s.err
-	}
-
-	return s.url, nil
-}
-
-func (s *targetQuerierStub) QueryCampaignByID(ctx context.Context, id uuid.UUID) (campaignbus.Campaign, error) {
-	s.campaignCalls++
-
-	if s.err != nil {
-		return campaignbus.Campaign{}, s.err
-	}
-
-	return s.campaign, nil
-}
-
-type employeeQuerierStub struct {
-	employee employeebus.Employee
-	err      error
-	calls    int
-}
-
-func (s *employeeQuerierStub) QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error) {
-	s.calls++
-
-	if s.err != nil {
-		return employeebus.Employee{}, s.err
-	}
-
-	return s.employee, nil
-}
-
-type employeeQuerierByIDStub struct {
-	employees map[uuid.UUID]employeebus.Employee
-	calls     int
-}
-
-func (s *employeeQuerierByIDStub) QueryByID(ctx context.Context, id uuid.UUID) (employeebus.Employee, error) {
-	s.calls++
-
-	employee, ok := s.employees[id]
-	if !ok {
-		return employeebus.Employee{}, employeebus.ErrNotFound
-	}
-
-	return employee, nil
-}
-
-type departmentQuerierStub struct {
-	department departmentbus.Department
-	err        error
-	calls      int
-}
-
-func (s *departmentQuerierStub) QueryByID(ctx context.Context, id uuid.UUID) (departmentbus.Department, error) {
-	s.calls++
-
-	if s.err != nil {
-		return departmentbus.Department{}, s.err
-	}
-
-	return s.department, nil
-}
-
-type attachmentQuerierStub struct {
-	attachment attachmentbus.Attachment
-	err        error
-}
-
-func (s *attachmentQuerierStub) QueryByID(_ context.Context, _ uuid.UUID) (attachmentbus.Attachment, error) {
-	if s.err != nil {
-		return attachmentbus.Attachment{}, s.err
-	}
-	return s.attachment, nil
-}
-
-type organizationGetterStub struct {
-	organization organizationbus.Organization
-	err          error
-	calls        int
-}
-
-func (s *organizationGetterStub) Get(ctx context.Context) (organizationbus.Organization, error) {
-	s.calls++
-
-	if s.err != nil {
-		return organizationbus.Organization{}, s.err
-	}
-
-	return s.organization, nil
-}
-

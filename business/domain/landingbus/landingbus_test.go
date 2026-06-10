@@ -3,13 +3,16 @@ package landingbus_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/order"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/page"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
 )
 
@@ -17,8 +20,11 @@ import (
 // Stubs
 
 type landingStorerStub struct {
-	data    map[uuid.UUID]landingbus.Landing
-	saveErr error
+	data      map[uuid.UUID]landingbus.Landing
+	saveErr   error
+	deleteErr error
+	queryErr  error
+	countErr  error
 }
 
 func newLandingStorerStub() *landingStorerStub {
@@ -42,6 +48,9 @@ func (s *landingStorerStub) Update(_ context.Context, l landingbus.Landing) erro
 }
 
 func (s *landingStorerStub) Delete(_ context.Context, l landingbus.Landing) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
 	delete(s.data, l.ID)
 	return nil
 }
@@ -55,6 +64,9 @@ func (s *landingStorerStub) QueryByID(_ context.Context, id uuid.UUID) (landingb
 }
 
 func (s *landingStorerStub) Query(_ context.Context, _ landingbus.QueryFilter, _ order.By, _ page.Page) ([]landingbus.Landing, error) {
+	if s.queryErr != nil {
+		return nil, s.queryErr
+	}
 	var result []landingbus.Landing
 	for _, l := range s.data {
 		result = append(result, l)
@@ -63,6 +75,9 @@ func (s *landingStorerStub) Query(_ context.Context, _ landingbus.QueryFilter, _
 }
 
 func (s *landingStorerStub) Count(_ context.Context, _ landingbus.QueryFilter) (int, error) {
+	if s.countErr != nil {
+		return 0, s.countErr
+	}
 	return len(s.data), nil
 }
 
@@ -83,295 +98,374 @@ func (s *landingAttachmentQuerierStub) QueryByID(_ context.Context, id uuid.UUID
 }
 
 // =============================================================================
-// Save tests
 
-func TestSave_WithoutHtmlBody_CreatesLanding(t *testing.T) {
+func Test_Landing(t *testing.T) {
 	t.Parallel()
 
+	unittest.Run(t, testSave(), "save")
+	unittest.Run(t, testUpdate(), "update")
+	unittest.Run(t, testDelete(), "delete")
+	unittest.Run(t, testQuery(), "query")
+	unittest.Run(t, testQueryByID(), "querybyid")
+	unittest.Run(t, testCount(), "count")
+	unittest.Run(t, testLandingSeedHelper(), "seed-helper")
+}
+
+func testLandingSeedHelper() []unittest.Table {
 	store := newLandingStorerStub()
 	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
 
-	l, err := bus.Save(context.Background(), landingbus.NewLanding{
-		Label: label.MustParse("Welcome page"),
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if l.ID == (uuid.UUID{}) {
-		t.Error("Save must assign a non-zero UUID")
-	}
-	if l.HtmlBodyID.Valid {
-		t.Error("HtmlBodyID should not be set")
-	}
-	if _, exists := store.data[l.ID]; !exists {
-		t.Error("Landing was not persisted to storer")
+	return []unittest.Table{
+		{
+			Name:    "seed-creates-n-landings",
+			ExpResp: 3,
+			ExcFunc: func(ctx context.Context) any {
+				landings, err := landingbus.TestSeedLandings(ctx, 3, bus)
+				if err != nil {
+					return err
+				}
+				return len(landings)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestSave_WithHTMLAttachment_Success(t *testing.T) {
-	t.Parallel()
-
-	aq := newLandingAttachmentQuerierStub()
-	htmlID := uuid.New()
-	aq.data[htmlID] = attachmentbus.Attachment{
-		ID:   htmlID,
-		Type: attachmentbus.Html,
-	}
-
+func testQuery() []unittest.Table {
 	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, aq)
-
-	l, err := bus.Save(context.Background(), landingbus.NewLanding{
-		Label:      label.MustParse("Phishing page"),
-		HtmlBodyID: uuid.NullUUID{UUID: htmlID, Valid: true},
-	})
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if !l.HtmlBodyID.Valid || l.HtmlBodyID.UUID != htmlID {
-		t.Errorf("HtmlBodyID = %v, want %v", l.HtmlBodyID, htmlID)
-	}
-}
-
-func TestSave_WithNonHTMLAttachment_ReturnsErrInvalidAttachment(t *testing.T) {
-	t.Parallel()
-
-	aq := newLandingAttachmentQuerierStub()
-	pngID := uuid.New()
-	aq.data[pngID] = attachmentbus.Attachment{
-		ID:   pngID,
-		Type: attachmentbus.Png,
-	}
-
-	bus := landingbus.NewBusiness(newLandingStorerStub(), aq)
-
-	_, err := bus.Save(context.Background(), landingbus.NewLanding{
-		Label:      label.MustParse("Bad landing"),
-		HtmlBodyID: uuid.NullUUID{UUID: pngID, Valid: true},
-	})
-	if !errors.Is(err, landingbus.ErrInvalidAttachment) {
-		t.Fatalf("Save error = %v, want %v", err, landingbus.ErrInvalidAttachment)
-	}
-}
-
-func TestSave_AttachmentNotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	bus := landingbus.NewBusiness(newLandingStorerStub(), newLandingAttachmentQuerierStub())
-
-	_, err := bus.Save(context.Background(), landingbus.NewLanding{
-		Label:      label.MustParse("No attachment"),
-		HtmlBodyID: uuid.NullUUID{UUID: uuid.New(), Valid: true},
-	})
-	if err == nil {
-		t.Fatal("expected error for missing attachment, got nil")
-	}
-}
-
-func TestSave_StoreError_Propagates(t *testing.T) {
-	t.Parallel()
-
-	store := newLandingStorerStub()
-	store.saveErr = errors.New("db error")
 	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
 
-	_, err := bus.Save(context.Background(), landingbus.NewLanding{
-		Label: label.MustParse("Page"),
-	})
-	if err == nil {
-		t.Fatal("expected error when storer fails, got nil")
+	for i := range 2 {
+		store.data[uuid.New()] = landingbus.Landing{
+			ID:    uuid.New(),
+			Label: label.MustParse(fmt.Sprintf("Landing %d of test", i+1)),
+		}
+	}
+
+	storeErr := newLandingStorerStub()
+	storeErr.queryErr = errors.New("db error")
+	busErr := landingbus.NewBusiness(storeErr, newLandingAttachmentQuerierStub())
+
+	return []unittest.Table{
+		{
+			Name:    "returns-all",
+			ExpResp: 2,
+			ExcFunc: func(ctx context.Context) any {
+				result, err := bus.Query(ctx, landingbus.QueryFilter{}, landingbus.DefaultOrderBy, page.MustParse("1", "10"))
+				if err != nil {
+					return err
+				}
+				return len(result)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busErr.Query(ctx, landingbus.QueryFilter{}, landingbus.DefaultOrderBy, page.MustParse("1", "10"))
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
 // =============================================================================
-// Update tests
 
-func TestUpdate_ChangesLabel(t *testing.T) {
-	t.Parallel()
+func testSave() []unittest.Table {
+	storeOK := newLandingStorerStub()
+	busOK := landingbus.NewBusiness(storeOK, newLandingAttachmentQuerierStub())
 
-	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
+	htmlID := uuid.New()
+	aqHTML := newLandingAttachmentQuerierStub()
+	aqHTML.data[htmlID] = attachmentbus.Attachment{ID: htmlID, Type: attachmentbus.Html}
+	storeHTML := newLandingStorerStub()
+	busHTML := landingbus.NewBusiness(storeHTML, aqHTML)
 
-	original := landingbus.Landing{
-		ID:    uuid.New(),
-		Label: label.MustParse("OldLabel"),
+	pngID := uuid.New()
+	aqPNG := newLandingAttachmentQuerierStub()
+	aqPNG.data[pngID] = attachmentbus.Attachment{ID: pngID, Type: attachmentbus.Png}
+	busNonHTML := landingbus.NewBusiness(newLandingStorerStub(), aqPNG)
+
+	busAttNotFound := landingbus.NewBusiness(newLandingStorerStub(), newLandingAttachmentQuerierStub())
+
+	storeDBErr := newLandingStorerStub()
+	storeDBErr.saveErr = errors.New("db error")
+	busDBErr := landingbus.NewBusiness(storeDBErr, newLandingAttachmentQuerierStub())
+
+	return []unittest.Table{
+		{
+			Name:    "without-html-body-creates-landing",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				l, err := busOK.Save(ctx, landingbus.NewLanding{Label: label.MustParse("Welcome page")})
+				if err != nil {
+					return err
+				}
+				return l.ID != (uuid.UUID{}) && !l.HtmlBodyID.Valid && storeOK.data[l.ID].Label == l.Label
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "with-html-attachment-success",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				l, err := busHTML.Save(ctx, landingbus.NewLanding{
+					Label:      label.MustParse("Phishing page"),
+					HtmlBodyID: uuid.NullUUID{UUID: htmlID, Valid: true},
+				})
+				if err != nil {
+					return err
+				}
+				return l.HtmlBodyID.Valid && l.HtmlBodyID.UUID == htmlID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "non-html-attachment-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNonHTML.Save(ctx, landingbus.NewLanding{
+					Label:      label.MustParse("Bad landing"),
+					HtmlBodyID: uuid.NullUUID{UUID: pngID, Valid: true},
+				})
+				return errors.Is(err, landingbus.ErrInvalidAttachment)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "attachment-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busAttNotFound.Save(ctx, landingbus.NewLanding{
+					Label:      label.MustParse("No attachment"),
+					HtmlBodyID: uuid.NullUUID{UUID: uuid.New(), Valid: true},
+				})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busDBErr.Save(ctx, landingbus.NewLanding{Label: label.MustParse("Page")})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
-	store.data[original.ID] = original
+}
+
+func testUpdate() []unittest.Table {
+	original := landingbus.Landing{ID: uuid.New(), Label: label.MustParse("OldLabel")}
+
+	storeLabel := newLandingStorerStub()
+	storeLabel.data[original.ID] = original
+	busLabel := landingbus.NewBusiness(storeLabel, newLandingAttachmentQuerierStub())
+
+	htmlID2 := uuid.New()
+	aqHTML2 := newLandingAttachmentQuerierStub()
+	aqHTML2.data[htmlID2] = attachmentbus.Attachment{ID: htmlID2, Type: attachmentbus.Html}
+	storeHTMLUp := newLandingStorerStub()
+	storeHTMLUp.data[original.ID] = original
+	busHTMLUp := landingbus.NewBusiness(storeHTMLUp, aqHTML2)
+
+	origWithHTML := landingbus.Landing{
+		ID:         uuid.New(),
+		Label:      label.MustParse("WithHTML"),
+		HtmlBodyID: uuid.NullUUID{UUID: uuid.New(), Valid: true},
+	}
+	storeClear := newLandingStorerStub()
+	storeClear.data[origWithHTML.ID] = origWithHTML
+	busClear := landingbus.NewBusiness(storeClear, newLandingAttachmentQuerierStub())
+
+	txtID := uuid.New()
+	aqTXT := newLandingAttachmentQuerierStub()
+	aqTXT.data[txtID] = attachmentbus.Attachment{ID: txtID, Type: attachmentbus.Txt}
+	storeTXT := newLandingStorerStub()
+	storeTXT.data[original.ID] = original
+	busTXT := landingbus.NewBusiness(storeTXT, aqTXT)
 
 	newLabel := label.MustParse("NewLabel")
-	updated, err := bus.Update(context.Background(), original, landingbus.UpdateLanding{
-		Label: &newLabel,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.Label != newLabel {
-		t.Errorf("Label = %v, want %v", updated.Label, newLabel)
-	}
-}
-
-func TestUpdate_SetsHTMLBody(t *testing.T) {
-	t.Parallel()
-
-	aq := newLandingAttachmentQuerierStub()
-	htmlID := uuid.New()
-	aq.data[htmlID] = attachmentbus.Attachment{
-		ID:   htmlID,
-		Type: attachmentbus.Html,
-	}
-
-	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, aq)
-
-	original := landingbus.Landing{
-		ID:    uuid.New(),
-		Label: label.MustParse("Landing"),
-	}
-	store.data[original.ID] = original
-
-	htmlBody := uuid.NullUUID{UUID: htmlID, Valid: true}
-	updated, err := bus.Update(context.Background(), original, landingbus.UpdateLanding{
-		HtmlBodyID: &htmlBody,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if !updated.HtmlBodyID.Valid || updated.HtmlBodyID.UUID != htmlID {
-		t.Errorf("HtmlBodyID = %v, want %v", updated.HtmlBodyID, htmlID)
-	}
-}
-
-func TestUpdate_ClearsHTMLBody(t *testing.T) {
-	t.Parallel()
-
-	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
-
-	existingID := uuid.New()
-	original := landingbus.Landing{
-		ID:         uuid.New(),
-		Label:      label.MustParse("Landing"),
-		HtmlBodyID: uuid.NullUUID{UUID: existingID, Valid: true},
-	}
-	store.data[original.ID] = original
-
-	// Сброс HtmlBodyID через null-значение
+	htmlBody := uuid.NullUUID{UUID: htmlID2, Valid: true}
 	nullBody := uuid.NullUUID{Valid: false}
-	updated, err := bus.Update(context.Background(), original, landingbus.UpdateLanding{
-		HtmlBodyID: &nullBody,
-	})
-	if err != nil {
-		t.Fatalf("Update returned error: %v", err)
-	}
-	if updated.HtmlBodyID.Valid {
-		t.Error("HtmlBodyID should be cleared")
-	}
-}
-
-func TestUpdate_NonHTMLAttachment_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	aq := newLandingAttachmentQuerierStub()
-	txtID := uuid.New()
-	aq.data[txtID] = attachmentbus.Attachment{
-		ID:   txtID,
-		Type: attachmentbus.Txt,
-	}
-
-	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, aq)
-
-	original := landingbus.Landing{
-		ID:    uuid.New(),
-		Label: label.MustParse("Landing"),
-	}
-	store.data[original.ID] = original
-
 	txtBody := uuid.NullUUID{UUID: txtID, Valid: true}
-	_, err := bus.Update(context.Background(), original, landingbus.UpdateLanding{
-		HtmlBodyID: &txtBody,
-	})
-	if !errors.Is(err, landingbus.ErrInvalidAttachment) {
-		t.Fatalf("Update error = %v, want %v", err, landingbus.ErrInvalidAttachment)
+
+	return []unittest.Table{
+		{
+			Name:    "changes-label",
+			ExpResp: newLabel,
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := busLabel.Update(ctx, original, landingbus.UpdateLanding{Label: &newLabel})
+				if err != nil {
+					return err
+				}
+				return updated.Label
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "sets-html-body",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := busHTMLUp.Update(ctx, original, landingbus.UpdateLanding{HtmlBodyID: &htmlBody})
+				if err != nil {
+					return err
+				}
+				return updated.HtmlBodyID.Valid && updated.HtmlBodyID.UUID == htmlID2
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "clears-html-body",
+			ExpResp: false,
+			ExcFunc: func(ctx context.Context) any {
+				updated, err := busClear.Update(ctx, origWithHTML, landingbus.UpdateLanding{HtmlBodyID: &nullBody})
+				if err != nil {
+					return err
+				}
+				return updated.HtmlBodyID.Valid
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "non-html-attachment-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busTXT.Update(ctx, original, landingbus.UpdateLanding{HtmlBodyID: &txtBody})
+				return errors.Is(err, landingbus.ErrInvalidAttachment)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "attachment-not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				unknownID := uuid.NullUUID{UUID: uuid.New(), Valid: true}
+				_, err := busLabel.Update(ctx, original, landingbus.UpdateLanding{HtmlBodyID: &unknownID})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-update-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				storeUpErr := newLandingStorerStub()
+				storeUpErr.data[original.ID] = original
+				storeUpErr.saveErr = errors.New("db error")
+				busUpErr := landingbus.NewBusiness(storeUpErr, newLandingAttachmentQuerierStub())
+				newLbl := label.MustParse("AnyLabel")
+				_, err := busUpErr.Update(ctx, original, landingbus.UpdateLanding{Label: &newLbl})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-// =============================================================================
-// Delete tests
-
-func TestDelete_RemovesFromStorer(t *testing.T) {
-	t.Parallel()
-
+func testDelete() []unittest.Table {
+	l := landingbus.Landing{ID: uuid.New(), Label: label.MustParse("ToDelete")}
 	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
-
-	l := landingbus.Landing{
-		ID:    uuid.New(),
-		Label: label.MustParse("ToDelete"),
-	}
 	store.data[l.ID] = l
-
-	if err := bus.Delete(context.Background(), l); err != nil {
-		t.Fatalf("Delete returned error: %v", err)
-	}
-	if _, exists := store.data[l.ID]; exists {
-		t.Error("Landing still exists in storer after Delete")
-	}
-}
-
-// =============================================================================
-// QueryByID tests
-
-func TestQueryByID_ReturnsLanding(t *testing.T) {
-	t.Parallel()
-
-	store := newLandingStorerStub()
 	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
 
-	l := landingbus.Landing{
-		ID:    uuid.New(),
-		Label: label.MustParse("Find me"),
-	}
-	store.data[l.ID] = l
+	storeErr := newLandingStorerStub()
+	storeErr.deleteErr = errors.New("db error")
+	busErr := landingbus.NewBusiness(storeErr, newLandingAttachmentQuerierStub())
 
-	got, err := bus.QueryByID(context.Background(), l.ID)
-	if err != nil {
-		t.Fatalf("QueryByID returned error: %v", err)
-	}
-	if got.ID != l.ID {
-		t.Errorf("ID = %v, want %v", got.ID, l.ID)
+	return []unittest.Table{
+		{
+			Name:    "removes-from-storer",
+			ExpResp: false,
+			ExcFunc: func(ctx context.Context) any {
+				if err := bus.Delete(ctx, l); err != nil {
+					return err
+				}
+				_, exists := store.data[l.ID]
+				return exists
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				return busErr.Delete(ctx, l) != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-func TestQueryByID_NotFound_ReturnsError(t *testing.T) {
-	t.Parallel()
+func testQueryByID() []unittest.Table {
+	l := landingbus.Landing{ID: uuid.New(), Label: label.MustParse("Find me")}
 
-	bus := landingbus.NewBusiness(newLandingStorerStub(), newLandingAttachmentQuerierStub())
+	storeFound := newLandingStorerStub()
+	storeFound.data[l.ID] = l
+	busFound := landingbus.NewBusiness(storeFound, newLandingAttachmentQuerierStub())
 
-	_, err := bus.QueryByID(context.Background(), uuid.New())
-	if !errors.Is(err, landingbus.ErrNotFound) {
-		t.Fatalf("QueryByID error = %v, want %v", err, landingbus.ErrNotFound)
+	busNotFound := landingbus.NewBusiness(newLandingStorerStub(), newLandingAttachmentQuerierStub())
+
+	return []unittest.Table{
+		{
+			Name:    "returns-landing",
+			ExpResp: l.ID,
+			ExcFunc: func(ctx context.Context) any {
+				got, err := busFound.QueryByID(ctx, l.ID)
+				if err != nil {
+					return err
+				}
+				return got.ID
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "not-found-returns-error",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busNotFound.QueryByID(ctx, uuid.New())
+				return errors.Is(err, landingbus.ErrNotFound)
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
 
-// =============================================================================
-// Count tests
-
-func TestCount_ReturnsCorrectNumber(t *testing.T) {
-	t.Parallel()
-
+func testCount() []unittest.Table {
 	store := newLandingStorerStub()
-	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
-
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		store.data[uuid.New()] = landingbus.Landing{ID: uuid.New()}
 	}
+	bus := landingbus.NewBusiness(store, newLandingAttachmentQuerierStub())
 
-	count, err := bus.Count(context.Background(), landingbus.QueryFilter{})
-	if err != nil {
-		t.Fatalf("Count returned error: %v", err)
-	}
-	if count != 4 {
-		t.Errorf("Count = %d, want 4", count)
+	storeErr := newLandingStorerStub()
+	storeErr.countErr = errors.New("db error")
+	busErr := landingbus.NewBusiness(storeErr, newLandingAttachmentQuerierStub())
+
+	return []unittest.Table{
+		{
+			Name:    "returns-correct-number",
+			ExpResp: 4,
+			ExcFunc: func(ctx context.Context) any {
+				count, err := bus.Count(ctx, landingbus.QueryFilter{})
+				if err != nil {
+					return err
+				}
+				return count
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
+		{
+			Name:    "store-error-propagates",
+			ExpResp: true,
+			ExcFunc: func(ctx context.Context) any {
+				_, err := busErr.Count(ctx, landingbus.QueryFilter{})
+				return err != nil
+			},
+			CmpFunc: func(got, exp any) string { return cmp.Diff(got, exp) },
+		},
 	}
 }
