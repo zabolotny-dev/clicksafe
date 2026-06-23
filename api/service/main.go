@@ -279,11 +279,11 @@ func run(ctx context.Context, log *logger.Logger) error {
 
 	campaignBus := campaignbus.NewCampaignBusiness(campaignStore, targetStore, messageBus, landingBus, employeeBus, resolverBus, attachmentBus)
 
-	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, attachmentBus, smtpClient, eventBus, renderBus)
+	deliverybus := deliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, attachmentBus, smtpClient, eventBus, renderBus, database.NewTxRunner(db))
 	maxDeliveryStore := maxdeliverydb.NewStore(db)
-	maxDeliveryBus := maxdeliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, maxAccountBus, attachmentBus, renderBus, eventBus, maxAdapterClient, maxDeliveryStore)
+	maxDeliveryBus := maxdeliverybus.NewBusiness(targetBus, campaignBus, employeeBus, messageBus, maxAccountBus, attachmentBus, renderBus, eventBus, maxAdapterClient, maxDeliveryStore, database.NewTxRunner(db))
 
-	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus, attachmentBus, renderBus)
+	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus, attachmentBus, renderBus, database.NewTxRunner(db))
 
 	// -------------------------------------------------------------------------
 	// Start Workers

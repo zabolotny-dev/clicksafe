@@ -22,7 +22,7 @@ test-integration:
 
 ## Нагрузочный тест: поднимает изолированный Postgres, сидает и тестирует (нужен Docker)
 load-test:
-	go test ./api/service/tests/loadtest/... -v -run TestLoadScenarios -count=1 -timeout 5m
+	go test ./api/service/tests/loadtest/... -v -run TestLoadScenarios -count=1 -timeout 40m
 
 ## Запуск всего стека
 up:

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/maxdeliverybus"
 	"github.com/zabolotny-dev/clicksafe/business/usecase/maxdeliverybus/stores/maxdeliverydb/sqlc"
 )
@@ -22,8 +23,15 @@ func NewStore(db *pgxpool.Pool) *Store {
 	return &Store{q: sqlc.New(db)}
 }
 
+func (s *Store) queries(ctx context.Context) *sqlc.Queries {
+	if tx := database.GetTx(ctx); tx != nil {
+		return s.q.WithTx(tx)
+	}
+	return s.q
+}
+
 func (s *Store) SaveSent(ctx context.Context, delivery maxdeliverybus.Delivery) error {
-	err := s.q.SaveSent(ctx, sqlc.SaveSentParams{
+	err := s.queries(ctx).SaveSent(ctx, sqlc.SaveSentParams{
 		ID:               delivery.ID,
 		TargetID:         delivery.TargetID,
 		CampaignID:       delivery.CampaignID,
@@ -43,7 +51,7 @@ func (s *Store) SaveSent(ctx context.Context, delivery maxdeliverybus.Delivery) 
 }
 
 func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (maxdeliverybus.Delivery, error) {
-	dbDel, err := s.q.QueryByID(ctx, id)
+	dbDel, err := s.queries(ctx).QueryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return maxdeliverybus.Delivery{}, maxdeliverybus.ErrDeliveryNotFound
@@ -54,7 +62,7 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (maxdeliverybus.Del
 }
 
 func (s *Store) QueryByMessage(ctx context.Context, accountID uuid.UUID, chatID string, messageID string) (maxdeliverybus.Delivery, error) {
-	dbDel, err := s.q.QueryByMessage(ctx, sqlc.QueryByMessageParams{
+	dbDel, err := s.queries(ctx).QueryByMessage(ctx, sqlc.QueryByMessageParams{
 		AdapterAccountID: accountID,
 		ChatID:           chatID,
 		MessageID:        messageID,
@@ -69,7 +77,7 @@ func (s *Store) QueryByMessage(ctx context.Context, accountID uuid.UUID, chatID 
 }
 
 func (s *Store) QueryLatestByChat(ctx context.Context, accountID uuid.UUID, chatID string) (maxdeliverybus.Delivery, error) {
-	dbDel, err := s.q.QueryLatestByChat(ctx, sqlc.QueryLatestByChatParams{
+	dbDel, err := s.queries(ctx).QueryLatestByChat(ctx, sqlc.QueryLatestByChatParams{
 		AdapterAccountID: accountID,
 		ChatID:           chatID,
 	})
@@ -83,7 +91,7 @@ func (s *Store) QueryLatestByChat(ctx context.Context, accountID uuid.UUID, chat
 }
 
 func (s *Store) QueryLatestUnreadByChat(ctx context.Context, accountID uuid.UUID, chatID string) (maxdeliverybus.Delivery, error) {
-	dbDel, err := s.q.QueryLatestUnreadByChat(ctx, sqlc.QueryLatestUnreadByChatParams{
+	dbDel, err := s.queries(ctx).QueryLatestUnreadByChat(ctx, sqlc.QueryLatestUnreadByChatParams{
 		AdapterAccountID: accountID,
 		ChatID:           chatID,
 	})
@@ -97,7 +105,7 @@ func (s *Store) QueryLatestUnreadByChat(ctx context.Context, accountID uuid.UUID
 }
 
 func (s *Store) MarkRead(ctx context.Context, id uuid.UUID, at time.Time) (bool, error) {
-	res, err := s.q.MarkRead(ctx, sqlc.MarkReadParams{
+	res, err := s.queries(ctx).MarkRead(ctx, sqlc.MarkReadParams{
 		ID:     id,
 		ReadAt: toTimestamptz(at),
 	})
@@ -108,7 +116,7 @@ func (s *Store) MarkRead(ctx context.Context, id uuid.UUID, at time.Time) (bool,
 }
 
 func (s *Store) MarkReplied(ctx context.Context, id uuid.UUID, incomingMessageID string, at time.Time) (bool, error) {
-	res, err := s.q.MarkReplied(ctx, sqlc.MarkRepliedParams{
+	res, err := s.queries(ctx).MarkReplied(ctx, sqlc.MarkRepliedParams{
 		ID:                id,
 		RepliedAt:         toTimestamptz(at),
 		IncomingMessageID: incomingMessageID,
@@ -120,7 +128,7 @@ func (s *Store) MarkReplied(ctx context.Context, id uuid.UUID, incomingMessageID
 }
 
 func (s *Store) MarkEducationSent(ctx context.Context, id uuid.UUID, at time.Time) error {
-	err := s.q.MarkEducationSent(ctx, sqlc.MarkEducationSentParams{
+	err := s.queries(ctx).MarkEducationSent(ctx, sqlc.MarkEducationSentParams{
 		ID:        id,
 		UpdatedAt: toTimestamptz(at),
 	})
@@ -131,7 +139,7 @@ func (s *Store) MarkEducationSent(ctx context.Context, id uuid.UUID, at time.Tim
 }
 
 func (s *Store) IsProcessed(ctx context.Context, seq int64) (bool, error) {
-	exists, err := s.q.IsProcessed(ctx, seq)
+	exists, err := s.queries(ctx).IsProcessed(ctx, seq)
 	if err != nil {
 		return false, fmt.Errorf("max event processed lookup: %w", err)
 	}
@@ -139,7 +147,7 @@ func (s *Store) IsProcessed(ctx context.Context, seq int64) (bool, error) {
 }
 
 func (s *Store) MarkProcessed(ctx context.Context, seq int64) error {
-	err := s.q.MarkProcessed(ctx, sqlc.MarkProcessedParams{
+	err := s.queries(ctx).MarkProcessed(ctx, sqlc.MarkProcessedParams{
 		Seq:         seq,
 		ProcessedAt: toTimestamptz(time.Now().UTC()),
 	})

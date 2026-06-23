@@ -13,6 +13,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 )
 
 var closeBodyTag = regexp.MustCompile(`(?i)</body>`)
@@ -58,10 +59,11 @@ type Business struct {
 	deliverer          Deliverer
 	eventPub           EventPublisher
 	renderProvider     RenderProvider
+	runInTx            database.TxRunner
 }
 
-func NewBusiness(t targetQuerier, c campaignQuerier, e employeeQuerier, r messageRenderer, ap AttachmentProvider, d Deliverer, ep EventPublisher, rp RenderProvider) *Business {
-	return &Business{targetQuerier: t, campaignQuerier: c, employeeQuerier: e, messageRenderer: r, attachmentProvider: ap, deliverer: d, eventPub: ep, renderProvider: rp}
+func NewBusiness(t targetQuerier, c campaignQuerier, e employeeQuerier, r messageRenderer, ap AttachmentProvider, d Deliverer, ep EventPublisher, rp RenderProvider, runInTx database.TxRunner) *Business {
+	return &Business{targetQuerier: t, campaignQuerier: c, employeeQuerier: e, messageRenderer: r, attachmentProvider: ap, deliverer: d, eventPub: ep, renderProvider: rp, runInTx: runInTx}
 }
 
 func (b *Business) SendMail(ctx context.Context) []error {
@@ -157,19 +159,19 @@ func (b *Business) processTarget(ctx context.Context, t campaignbus.Target) erro
 		return fmt.Errorf("processtarget: %w", err)
 	}
 
-	if err := b.targetQuerier.ChangeStatus(ctx, t, campaignbus.Sent); err != nil {
-		return fmt.Errorf("processtarget: %w", err)
-	}
-
-	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
-		CampaignID: t.CampaignID,
-		EmployeeID: t.EmployeeID,
-		Type:       eventbus.MessageSent,
-	}); err != nil {
-		return fmt.Errorf("processtarget: %w", err)
-	}
-
-	return nil
+	return b.runInTx(ctx, func(ctx context.Context) error {
+		if err := b.targetQuerier.ChangeStatus(ctx, t, campaignbus.Sent); err != nil {
+			return fmt.Errorf("processtarget: %w", err)
+		}
+		if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
+			CampaignID: t.CampaignID,
+			EmployeeID: t.EmployeeID,
+			Type:       eventbus.MessageSent,
+		}); err != nil {
+			return fmt.Errorf("processtarget: %w", err)
+		}
+		return nil
+	})
 }
 
 func addOpenTrackingPixel(body string, cmp campaignbus.Campaign, t campaignbus.Target) (string, error) {

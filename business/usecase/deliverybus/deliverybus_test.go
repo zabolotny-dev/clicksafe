@@ -13,6 +13,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/employeebus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/domain"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
@@ -206,7 +207,7 @@ func testSendMail() []unittest.Table {
 	epOK := &eventPublisherMock{}
 	tqOK := &targetQuerierMock{targets: []campaignbus.Target{target}}
 	delivererOK := &delivererMock{}
-	busOK := deliverybus.NewBusiness(tqOK, cqOK, eqOK, mrOK, apOK, delivererOK, epOK, &renderProviderMock{content: htmlContent})
+	busOK := deliverybus.NewBusiness(tqOK, cqOK, eqOK, mrOK, apOK, delivererOK, epOK, &renderProviderMock{content: htmlContent}, database.Noop)
 
 	// No targets
 	epNoTargets := &eventPublisherMock{}
@@ -214,6 +215,7 @@ func testSendMail() []unittest.Table {
 		&targetQuerierMock{targets: nil},
 		cqOK, eqOK, mrOK, apOK, &delivererMock{}, epNoTargets,
 		&renderProviderMock{content: htmlContent},
+		database.Noop,
 	)
 
 	// Campaign has no message
@@ -224,6 +226,7 @@ func testSendMail() []unittest.Table {
 		&targetQuerierMock{targets: []campaignbus.Target{target}},
 		cqNoMsg, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 		&renderProviderMock{content: htmlContent},
+		database.Noop,
 	)
 
 	// Campaign not active
@@ -234,6 +237,7 @@ func testSendMail() []unittest.Table {
 		&targetQuerierMock{targets: []campaignbus.Target{target}},
 		cqInactive, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 		&renderProviderMock{content: htmlContent},
+		database.Noop,
 	)
 
 	// Max campaign — no email sent
@@ -245,6 +249,7 @@ func testSendMail() []unittest.Table {
 		&targetQuerierMock{targets: []campaignbus.Target{target}},
 		cqMax, eqOK, mrOK, apOK, &delivererMock{}, epMax,
 		&renderProviderMock{content: htmlContent},
+		database.Noop,
 	)
 
 	return []unittest.Table{
@@ -325,6 +330,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqErr, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -340,6 +346,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqErr, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -361,6 +368,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrNoHTML, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -375,6 +383,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{queryErr: errors.New("query error")},
 					cqOK, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -390,6 +399,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrOK, apErr, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -406,6 +416,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrOK, apPng, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -420,6 +431,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{renderErr: errors.New("render failed")},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -436,6 +448,7 @@ func testSendMail() []unittest.Table {
 					&delivererMock{sendErr: errors.New("smtp failed")},
 					&eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -470,6 +483,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrWithAtts, apWithAtts, delivererAtts, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				busAtts.SendMail(ctx)
 				return delivererAtts.sentTo
@@ -487,6 +501,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrOK, apOK, delivererNoBody, &eventPublisherMock{},
 					&renderProviderMock{content: noBodyHTML},
+					database.Noop,
 				)
 				busNoBody.SendMail(ctx)
 				return delivererNoBody.sentTo
@@ -504,6 +519,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqNoDomain, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -531,6 +547,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrWithAtts, apMissingExtra, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -564,6 +581,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrWithAtts, apWithExtra, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent, renderErr: errors.New("render failed"), succeedN: 1},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -579,6 +597,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrErr, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -596,6 +615,7 @@ func testSendMail() []unittest.Table {
 				busErr := deliverybus.NewBusiness(
 					tqStatusErr, cqOK, eqOK, mrOK, apOK, &delivererMock{}, &eventPublisherMock{},
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0
@@ -611,6 +631,7 @@ func testSendMail() []unittest.Table {
 					&targetQuerierMock{targets: []campaignbus.Target{target}},
 					cqOK, eqOK, mrOK, apOK, &delivererMock{}, epErr,
 					&renderProviderMock{content: htmlContent},
+					database.Noop,
 				)
 				errs := busErr.SendMail(ctx)
 				return len(errs) > 0

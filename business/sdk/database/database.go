@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,7 +22,14 @@ type Config struct {
 }
 
 func Open(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
-	dsn := cfg.DSN()
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(cfg.User, cfg.Password),
+		Host:     cfg.Host,
+		Path:     cfg.Name,
+		RawQuery: "sslmode=disable&timezone=utc",
+	}
+	dsn := u.String()
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -42,9 +49,4 @@ func Open(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	}
 
 	return pool, nil
-}
-
-func (c Config) DSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
-		c.User, c.Password, c.Host, c.Name)
 }

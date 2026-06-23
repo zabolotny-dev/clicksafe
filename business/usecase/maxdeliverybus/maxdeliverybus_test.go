@@ -15,6 +15,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/maxaccountbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/maxadapter"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
@@ -415,6 +416,7 @@ func testSendDue() []unittest.Table {
 		epOK,
 		adapterOK,
 		storeOK,
+		database.Noop,
 	)
 
 	// -------------------------------------------------------------------------
@@ -431,6 +433,7 @@ func testSendDue() []unittest.Table {
 		&eventPublisherMock{},
 		&adapterMock{},
 		newDeliveryStoreMock(),
+		database.Noop,
 	)
 
 	// -------------------------------------------------------------------------
@@ -453,6 +456,7 @@ func testSendDue() []unittest.Table {
 		&eventPublisherMock{},
 		&adapterMock{},
 		newDeliveryStoreMock(),
+		database.Noop,
 	)
 
 	// -------------------------------------------------------------------------
@@ -474,10 +478,11 @@ func testSendDue() []unittest.Table {
 		&eventPublisherMock{},
 		adapterErr,
 		newDeliveryStoreMock(),
+		database.Noop,
 	)
 
 	newBusForTarget := func(tq *targetQuerierMock, cq *campaignQuerierMock, eq *employeeQuerierMock, mq *messageQuerierMock, aq *maxAccountQuerierMock, ap *attachmentProviderMock, rp *renderProviderMock, ep *eventPublisherMock, ad *adapterMock, st *deliveryStoreMock) *maxdeliverybus.Business {
-		return maxdeliverybus.NewBusiness(tq, cq, eq, mq, aq, ap, rp, ep, ad, st)
+		return maxdeliverybus.NewBusiness(tq, cq, eq, mq, aq, ap, rp, ep, ad, st, database.Noop)
 	}
 
 	return []unittest.Table{
@@ -1115,6 +1120,7 @@ func testConsumeEvents() []unittest.Table {
 			&messageQuerierMock{},
 			&maxAccountQuerierMock{},
 			ap, rp, ep, ad, st,
+			database.Noop,
 		)
 	}
 

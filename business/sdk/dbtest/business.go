@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/domain/adminbus"
 	admindbstore "github.com/zabolotny-dev/clicksafe/business/domain/adminbus/stores/admindb"
 	"github.com/zabolotny-dev/clicksafe/business/domain/attachmentbus"
@@ -158,7 +159,7 @@ func newBusDomains(pool *pgxpool.Pool, tmpDir string) BusDomain {
 	maxAccountStore := maxaccountdbstore.NewStore(pool)
 	maxAccountBus := maxaccountbus.NewBusiness(maxAccountStore, testMaxAdapter{})
 
-	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus, attachmentBus, renderBus)
+	visitBus := visitbus.NewBusiness(targetBus, campaignBus, landingBus, eventBus, attachmentBus, renderBus, database.NewTxRunner(pool))
 
 	return BusDomain{
 		Admin:        adminBus,

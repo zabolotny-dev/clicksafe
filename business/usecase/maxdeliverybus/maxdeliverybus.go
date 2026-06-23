@@ -16,6 +16,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/maxaccountbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/messagebus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/maxadapter"
 )
 
@@ -105,9 +106,10 @@ type Business struct {
 	events      eventPublisher
 	adapter     adapter
 	store       store
+	runInTx     database.TxRunner
 }
 
-func NewBusiness(targets targetQuerier, campaigns campaignQuerier, employees employeeQuerier, messages messageQuerier, accounts maxAccountQuerier, attachments attachmentProvider, renderer renderProvider, events eventPublisher, adapter adapter, store store) *Business {
+func NewBusiness(targets targetQuerier, campaigns campaignQuerier, employees employeeQuerier, messages messageQuerier, accounts maxAccountQuerier, attachments attachmentProvider, renderer renderProvider, events eventPublisher, adapter adapter, store store, runInTx database.TxRunner) *Business {
 	return &Business{
 		targets:     targets,
 		campaigns:   campaigns,
@@ -119,6 +121,7 @@ func NewBusiness(targets targetQuerier, campaigns campaignQuerier, employees emp
 		events:      events,
 		adapter:     adapter,
 		store:       store,
+		runInTx:     runInTx,
 	}
 }
 
@@ -206,7 +209,7 @@ func (b *Business) processTarget(ctx context.Context, target campaignbus.Target,
 	}
 
 	now := time.Now().UTC()
-	if err := b.store.SaveSent(ctx, Delivery{
+	delivery := Delivery{
 		ID:               uuid.New(),
 		TargetID:         target.ID,
 		CampaignID:       target.CampaignID,
@@ -218,23 +221,21 @@ func (b *Business) processTarget(ctx context.Context, target campaignbus.Target,
 		SentAt:           now,
 		CreatedAt:        now,
 		UpdatedAt:        now,
-	}); err != nil {
-		return fmt.Errorf("save delivery: %w", err)
 	}
 
-	if err := b.targets.ChangeStatus(ctx, target, campaignbus.Sent); err != nil {
-		return fmt.Errorf("change target status: %w", err)
-	}
-
-	if err := b.events.Publish(ctx, eventbus.NewEvent{
-		CampaignID: target.CampaignID,
-		EmployeeID: target.EmployeeID,
-		Type:       eventbus.MessageSent,
-	}); err != nil {
-		return fmt.Errorf("publish event: %w", err)
-	}
-
-	return nil
+	return b.runInTx(ctx, func(ctx context.Context) error {
+		if err := b.store.SaveSent(ctx, delivery); err != nil {
+			return fmt.Errorf("save delivery: %w", err)
+		}
+		if err := b.targets.ChangeStatus(ctx, target, campaignbus.Sent); err != nil {
+			return fmt.Errorf("change target status: %w", err)
+		}
+		return b.events.Publish(ctx, eventbus.NewEvent{
+			CampaignID: target.CampaignID,
+			EmployeeID: target.EmployeeID,
+			Type:       eventbus.MessageSent,
+		})
+	})
 }
 
 func (b *Business) ConsumeEvents(ctx context.Context) error {
@@ -277,28 +278,30 @@ func (b *Business) processRead(ctx context.Context, event maxadapter.AdapterEven
 		return err
 	}
 
-	changed, err := b.store.MarkRead(ctx, delivery.ID, time.Now().UTC())
-	if err != nil {
-		return err
-	}
-	if !changed {
-		return nil
-	}
-
-	target, err := b.targets.QueryByID(ctx, delivery.TargetID)
-	if err != nil {
-		return err
-	}
-	if target.Status == campaignbus.Sent {
-		if err := b.targets.ChangeStatus(ctx, target, campaignbus.Opened); err != nil {
+	return b.runInTx(ctx, func(ctx context.Context) error {
+		changed, err := b.store.MarkRead(ctx, delivery.ID, time.Now().UTC())
+		if err != nil {
 			return err
 		}
-	}
+		if !changed {
+			return nil
+		}
 
-	return b.events.Publish(ctx, eventbus.NewEvent{
-		CampaignID: delivery.CampaignID,
-		EmployeeID: delivery.EmployeeID,
-		Type:       eventbus.MessageRead,
+		target, err := b.targets.QueryByID(ctx, delivery.TargetID)
+		if err != nil {
+			return err
+		}
+		if target.Status == campaignbus.Sent {
+			if err := b.targets.ChangeStatus(ctx, target, campaignbus.Opened); err != nil {
+				return err
+			}
+		}
+
+		return b.events.Publish(ctx, eventbus.NewEvent{
+			CampaignID: delivery.CampaignID,
+			EmployeeID: delivery.EmployeeID,
+			Type:       eventbus.MessageRead,
+		})
 	})
 }
 
@@ -325,13 +328,17 @@ func (b *Business) processReply(ctx context.Context, event maxadapter.AdapterEve
 		return err
 	}
 
-	now := time.Now().UTC()
-	changed, err := b.store.MarkReplied(ctx, delivery.ID, event.MessageID, now)
-	if err != nil {
-		return err
-	}
+	if err := b.runInTx(ctx, func(ctx context.Context) error {
+		now := time.Now().UTC()
+		changed, err := b.store.MarkReplied(ctx, delivery.ID, event.MessageID, now)
+		if err != nil {
+			return err
+		}
 
-	if changed {
+		if !changed {
+			return nil
+		}
+
 		target, err := b.targets.QueryByID(ctx, delivery.TargetID)
 		if err != nil {
 			return err
@@ -342,13 +349,13 @@ func (b *Business) processReply(ctx context.Context, event maxadapter.AdapterEve
 			}
 		}
 
-		if err := b.events.Publish(ctx, eventbus.NewEvent{
+		return b.events.Publish(ctx, eventbus.NewEvent{
 			CampaignID: delivery.CampaignID,
 			EmployeeID: delivery.EmployeeID,
 			Type:       eventbus.MessageReplied,
-		}); err != nil {
-			return err
-		}
+		})
+	}); err != nil {
+		return err
 	}
 
 	updated, err := b.store.QueryByID(ctx, delivery.ID)

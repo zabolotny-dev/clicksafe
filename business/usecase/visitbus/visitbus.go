@@ -10,6 +10,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 )
 
 type targetQuerier interface {
@@ -51,9 +52,10 @@ type Business struct {
 	eventPub        eventPublisher
 	attachmentBus   AttachmentProvider
 	renderBus       RenderProvider
+	runInTx         database.TxRunner
 }
 
-func NewBusiness(t targetQuerier, c campaignQuerier, l landingRenderer, ep eventPublisher, a AttachmentProvider, r RenderProvider) *Business {
+func NewBusiness(t targetQuerier, c campaignQuerier, l landingRenderer, ep eventPublisher, a AttachmentProvider, r RenderProvider, runInTx database.TxRunner) *Business {
 	return &Business{
 		targetQuerier:   t,
 		campaignQuerier: c,
@@ -61,6 +63,7 @@ func NewBusiness(t targetQuerier, c campaignQuerier, l landingRenderer, ep event
 		eventPub:        ep,
 		attachmentBus:   a,
 		renderBus:       r,
+		runInTx:         runInTx,
 	}
 }
 
@@ -102,21 +105,25 @@ func (b *Business) Serve(ctx context.Context, td TargetData) (string, error) {
 		return "", fmt.Errorf("serve: render landing: %w", err)
 	}
 
-	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
-		CampaignID: target.CampaignID,
-		EmployeeID: target.EmployeeID,
-		Type:       eventbus.LinkOpened,
-		IPAddress:  td.IpAddress,
-		UserAgent:  td.UserAgent,
-		Referer:    td.Referer,
-	}); err != nil {
-		return "", fmt.Errorf("serve: publish event: %w", err)
-	}
-
-	if target.Status == campaignbus.Sent || target.Status == campaignbus.Pending || target.Status == campaignbus.Opened {
-		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Clicked); err != nil {
-			return "", fmt.Errorf("serve: change target status: %w", err)
+	if err := b.runInTx(ctx, func(ctx context.Context) error {
+		if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
+			CampaignID: target.CampaignID,
+			EmployeeID: target.EmployeeID,
+			Type:       eventbus.LinkOpened,
+			IPAddress:  td.IpAddress,
+			UserAgent:  td.UserAgent,
+			Referer:    td.Referer,
+		}); err != nil {
+			return fmt.Errorf("serve: publish event: %w", err)
 		}
+		if target.Status == campaignbus.Sent || target.Status == campaignbus.Pending || target.Status == campaignbus.Opened {
+			if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Clicked); err != nil {
+				return fmt.Errorf("serve: change target status: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return "", err
 	}
 
 	return string(html), nil
@@ -137,24 +144,24 @@ func (b *Business) TrackOpen(ctx context.Context, td TargetData) error {
 		return fmt.Errorf("trackopen: campaign is not active")
 	}
 
-	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
-		CampaignID: target.CampaignID,
-		EmployeeID: target.EmployeeID,
-		Type:       eventbus.EmailOpened,
-		IPAddress:  td.IpAddress,
-		UserAgent:  td.UserAgent,
-		Referer:    td.Referer,
-	}); err != nil {
-		return fmt.Errorf("trackopen: publish event: %w", err)
-	}
-
-	if target.Status == campaignbus.Sent {
-		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Opened); err != nil {
-			return fmt.Errorf("trackopen: change target status: %w", err)
+	return b.runInTx(ctx, func(ctx context.Context) error {
+		if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
+			CampaignID: target.CampaignID,
+			EmployeeID: target.EmployeeID,
+			Type:       eventbus.EmailOpened,
+			IPAddress:  td.IpAddress,
+			UserAgent:  td.UserAgent,
+			Referer:    td.Referer,
+		}); err != nil {
+			return fmt.Errorf("trackopen: publish event: %w", err)
 		}
-	}
-
-	return nil
+		if target.Status == campaignbus.Sent {
+			if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Opened); err != nil {
+				return fmt.Errorf("trackopen: change target status: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 func (b *Business) Submit(ctx context.Context, data TargetData) (string, error) {
@@ -195,21 +202,25 @@ func (b *Business) Submit(ctx context.Context, data TargetData) (string, error) 
 		return "", fmt.Errorf("submit: render landing: %w", err)
 	}
 
-	if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
-		CampaignID: target.CampaignID,
-		EmployeeID: target.EmployeeID,
-		Type:       eventbus.DataSent,
-		IPAddress:  data.IpAddress,
-		UserAgent:  data.UserAgent,
-		Referer:    data.Referer,
-	}); err != nil {
-		return "", fmt.Errorf("submit: publish event: %w", err)
-	}
-
-	if target.Status == campaignbus.Clicked {
-		if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Submitted); err != nil {
-			return "", fmt.Errorf("submit: change target status: %w", err)
+	if err := b.runInTx(ctx, func(ctx context.Context) error {
+		if err := b.eventPub.Publish(ctx, eventbus.NewEvent{
+			CampaignID: target.CampaignID,
+			EmployeeID: target.EmployeeID,
+			Type:       eventbus.DataSent,
+			IPAddress:  data.IpAddress,
+			UserAgent:  data.UserAgent,
+			Referer:    data.Referer,
+		}); err != nil {
+			return fmt.Errorf("submit: publish event: %w", err)
 		}
+		if target.Status == campaignbus.Clicked {
+			if err := b.targetQuerier.ChangeStatus(ctx, target, campaignbus.Submitted); err != nil {
+				return fmt.Errorf("submit: change target status: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return "", err
 	}
 
 	return string(html), nil

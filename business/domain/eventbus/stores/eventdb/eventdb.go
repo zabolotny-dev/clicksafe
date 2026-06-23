@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus/stores/eventdb/sqlc"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 )
 
 type Store struct {
@@ -17,6 +18,13 @@ type Store struct {
 
 func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{q: sqlc.New(pool)}
+}
+
+func (s *Store) queries(ctx context.Context) *sqlc.Queries {
+	if tx := database.GetTx(ctx); tx != nil {
+		return s.q.WithTx(tx)
+	}
+	return s.q
 }
 
 func (s *Store) Save(ctx context.Context, event eventbus.Event) error {
@@ -36,7 +44,7 @@ func (s *Store) Save(ctx context.Context, event eventbus.Event) error {
 		ipAddr = &addr
 	}
 
-	err := s.q.SaveEvent(ctx, sqlc.SaveEventParams{
+	err := s.queries(ctx).SaveEvent(ctx, sqlc.SaveEventParams{
 		ID:         event.ID,
 		CampaignID: event.CampaignID,
 		EmployeeID: event.EmployeeID,

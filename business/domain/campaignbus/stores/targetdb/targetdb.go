@@ -31,9 +31,16 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{q: sqlc.New(pool)}
 }
 
+func (s *Store) queries(ctx context.Context) *sqlc.Queries {
+	if tx := database.GetTx(ctx); tx != nil {
+		return s.q.WithTx(tx)
+	}
+	return s.q
+}
+
 func (s *Store) Save(ctx context.Context, target campaignbus.Target) error {
 	t := toDBTarget(target)
-	err := s.q.Save(ctx, sqlc.SaveParams{
+	err := s.queries(ctx).Save(ctx, sqlc.SaveParams{
 		ID:          t.ID,
 		Token:       t.Token,
 		EmployeeID:  t.EmployeeID,
@@ -69,7 +76,7 @@ func (s *Store) Save(ctx context.Context, target campaignbus.Target) error {
 }
 
 func (s *Store) Delete(ctx context.Context, t campaignbus.Target) error {
-	if err := s.q.Delete(ctx, t.ID); err != nil {
+	if err := s.queries(ctx).Delete(ctx, t.ID); err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
 
@@ -79,7 +86,7 @@ func (s *Store) Delete(ctx context.Context, t campaignbus.Target) error {
 func (s *Store) Update(ctx context.Context, target campaignbus.Target) error {
 	t := toDBTarget(target)
 
-	err := s.q.Update(ctx, sqlc.UpdateParams{
+	err := s.queries(ctx).Update(ctx, sqlc.UpdateParams{
 		ID:          t.ID,
 		Token:       t.Token,
 		EmployeeID:  t.EmployeeID,
@@ -114,7 +121,7 @@ func (s *Store) Update(ctx context.Context, target campaignbus.Target) error {
 }
 
 func (s *Store) DeleteByCampaignID(ctx context.Context, campaignID uuid.UUID) error {
-	if err := s.q.DeleteByCampaignID(ctx, campaignID); err != nil {
+	if err := s.queries(ctx).DeleteByCampaignID(ctx, campaignID); err != nil {
 		return fmt.Errorf("db: %w", err)
 	}
 
@@ -122,7 +129,7 @@ func (s *Store) DeleteByCampaignID(ctx context.Context, campaignID uuid.UUID) er
 }
 
 func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target, error) {
-	target, err := s.q.QueryByID(ctx, id)
+	target, err := s.queries(ctx).QueryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return campaignbus.Target{}, campaignbus.ErrTargetNotFound
@@ -139,7 +146,7 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (campaignbus.Target
 }
 
 func (s *Store) QueryByToken(ctx context.Context, token string) (campaignbus.Target, error) {
-	target, err := s.q.QueryByToken(ctx, token)
+	target, err := s.queries(ctx).QueryByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return campaignbus.Target{}, campaignbus.ErrTargetNotFound
@@ -157,7 +164,7 @@ func (s *Store) QueryByToken(ctx context.Context, token string) (campaignbus.Tar
 
 func (s *Store) Query(ctx context.Context, filter campaignbus.TargetQueryFilter) ([]campaignbus.Target, error) {
 	dbFilter := toDBFilter(filter)
-	targets, err := s.q.Query(ctx, sqlc.QueryParams{
+	targets, err := s.queries(ctx).Query(ctx, sqlc.QueryParams{
 		ID:          dbFilter.ID,
 		CampaignID:  dbFilter.CampaignID,
 		EmployeeID:  dbFilter.EmployeeID,
@@ -172,7 +179,7 @@ func (s *Store) Query(ctx context.Context, filter campaignbus.TargetQueryFilter)
 
 func (s *Store) Count(ctx context.Context, filter campaignbus.TargetQueryFilter) (int, error) {
 	dbFilter := toDBFilter(filter)
-	count, err := s.q.Count(ctx, sqlc.CountParams{
+	count, err := s.queries(ctx).Count(ctx, sqlc.CountParams{
 		ID:          dbFilter.ID,
 		CampaignID:  dbFilter.CampaignID,
 		EmployeeID:  dbFilter.EmployeeID,
@@ -186,7 +193,7 @@ func (s *Store) Count(ctx context.Context, filter campaignbus.TargetQueryFilter)
 }
 
 func (s *Store) QueryDue(ctx context.Context, now time.Time) ([]campaignbus.Target, error) {
-	targets, err := s.q.QueryDue(ctx, pgtype.Timestamptz{Time: now, Valid: true})
+	targets, err := s.queries(ctx).QueryDue(ctx, pgtype.Timestamptz{Time: now, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("db: %w", err)
 	}
@@ -217,7 +224,7 @@ func (s *Store) UpdateMany(ctx context.Context, targets []campaignbus.Target) er
 		createdAts[i] = pgtype.Timestamptz{Time: t.CreatedAt, Valid: true}
 	}
 
-	err := s.q.UpdateMany(ctx, sqlc.UpdateManyParams{
+	err := s.queries(ctx).UpdateMany(ctx, sqlc.UpdateManyParams{
 		Ids:          ids,
 		Tokens:       tokens,
 		EmployeeIds:  employeeIds,

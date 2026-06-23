@@ -31,11 +31,12 @@ const (
 	seedMessageID    = "e5270921-2a1f-4bb0-8a19-482470eb0020" // EMAIL: Установка обновления безопасности ИСиР
 )
 
-const targetCount = 10
+const targetCount = 200
 
 type loadSeedData struct {
 	apitest.SeedData
 	PhishingTokens []string
+	EmployeeIDs    []uuid.UUID
 }
 
 func insertSeedData(db *dbtest.Database) (loadSeedData, error) {
@@ -79,9 +80,19 @@ func insertSeedData(db *dbtest.Database) (loadSeedData, error) {
 		return loadSeedData{}, fmt.Errorf("date range: %w", err)
 	}
 
-	lastNames := [targetCount]string{
+	firstNames := []string{
+		"Александр", "Алексей", "Андрей", "Антон", "Артём",
+		"Борис", "Василий", "Виктор", "Владимир", "Дмитрий",
+		"Евгений", "Иван", "Кирилл", "Максим", "Михаил",
+		"Никита", "Павел", "Роман", "Сергей", "Тимур",
+		"Анна", "Елена", "Екатерина", "Мария", "Наталья",
+	}
+
+	lastNames := []string{
 		"Иванов", "Петров", "Сидоров", "Козлов", "Смирнов",
 		"Попов", "Новиков", "Волков", "Соколов", "Морозов",
+		"Лебедев", "Семёнов", "Фёдоров", "Давыдов", "Зайцев",
+		"Мельников", "Захаров", "Орлов", "Беляев", "Ермаков",
 	}
 
 	// создаём сотрудников для нагрузочного теста
@@ -89,8 +100,8 @@ func insertSeedData(db *dbtest.Database) (loadSeedData, error) {
 	for i := range targetCount {
 		emp, err := db.BusDomain.Employee.Save(ctx, employeebus.NewEmployee{
 			DepartmentID: &deptID,
-			FirstName:    name.MustParse("Тест"),
-			LastName:     name.MustParse(lastNames[i]),
+			FirstName:    name.MustParse(firstNames[i%len(firstNames)]),
+			LastName:     name.MustParse(lastNames[i%len(lastNames)]),
 			Email:        mail.Address{Address: fmt.Sprintf("loadtest%d@company.com", i+1)},
 		})
 		if err != nil {
@@ -143,6 +154,11 @@ func insertSeedData(db *dbtest.Database) (loadSeedData, error) {
 		tokens[i] = t.Token
 	}
 
+	empIDs := make([]uuid.UUID, targetCount)
+	for i, e := range employees {
+		empIDs[i] = e.ID
+	}
+
 	return loadSeedData{
 		SeedData: apitest.SeedData{
 			Admins: []apitest.SeedAdmin{{
@@ -153,5 +169,6 @@ func insertSeedData(db *dbtest.Database) (loadSeedData, error) {
 			Campaigns: []campaignbus.Campaign{cmp},
 		},
 		PhishingTokens: tokens,
+		EmployeeIDs:    empIDs,
 	}, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/zabolotny-dev/clicksafe/business/domain/campaignbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/eventbus"
 	"github.com/zabolotny-dev/clicksafe/business/domain/landingbus"
+	"github.com/zabolotny-dev/clicksafe/business/sdk/database"
 	"github.com/zabolotny-dev/clicksafe/business/sdk/unittest"
 	"github.com/zabolotny-dev/clicksafe/business/types/file"
 	"github.com/zabolotny-dev/clicksafe/business/types/label"
@@ -93,7 +94,7 @@ func buildBus(
 	ap *attachmentProviderMock,
 	rp *renderProviderMock,
 ) *visitbus.Business {
-	return visitbus.NewBusiness(tq, cq, lr, ep, ap, rp)
+	return visitbus.NewBusiness(tq, cq, lr, ep, ap, rp, database.Noop)
 }
 
 func Test_Visit(t *testing.T) {
